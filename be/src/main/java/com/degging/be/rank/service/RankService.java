@@ -1,0 +1,123 @@
+package com.degging.be.rank.service;
+
+import com.degging.be.global.event.SearchEvent;
+import com.degging.be.global.exception.BaseException;
+import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.global.exception.errorcode.RankErrorcode;
+import com.degging.be.rank.dto.response.RankResponse;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.stream.IntStream;
+
+/**
+  실시간 디저트 순위를 조회하고 변경 사항을 반영하는 클래스
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class RankService {
+
+    private final StringRedisTemplate redisTemplate;
+
+    // Redis 에 실시간 데이터를 저장할 키
+    private static final String RANKING_KEY = "dessert_ranking";
+
+    /**
+     초기 데이터 Redis 에 적재
+     */
+    @PostConstruct // 서버 구동 시 자동 실행
+    public void initDataFromCSV(){
+        log.info("[Redis] 초기 데이터 적재");
+        // 해당 키가 존재하는지 확인
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(RANKING_KEY))){
+            log.info("[Redis] 초기 데이터가 이미 존재하므로 생략");
+            return;
+        }
+
+        // 설문조사 결과 파일에서 데이터 읽어옴
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                new ClassPathResource("surveyResult.csv").getInputStream(), StandardCharsets.UTF_8))){
+
+            String line;
+            int count = 0;
+            while ((line = br.readLine()) != null){
+                // 공백 제거 후 , 기준 분리하여 배열 생성
+                String[] columns = line.split(",");
+
+                if (columns.length == 2){
+                    String dessertName = columns[0].trim();
+                    double totalScore = Double.parseDouble(columns[1].trim());
+                    // redis 에 적재
+                    redisTemplate.opsForZSet().add(RANKING_KEY, dessertName, totalScore);
+                    count++;
+                }
+            }
+            log.info("[Redis] 총 {}개의 디저트 랭킹 데이터 초기화 완료", count);
+        } catch (IOException e) {
+            log.error("[Redis] CSV 파싱 및 적재 중 오류 발생");
+            throw new BaseException(CommonErrorCode.FILE_PROCESSING_ERROR);
+        }
+    }
+
+    /**
+     * 실시간 디저트 순위를 1위부터 5위까지 조회하는 메서드
+     */ 
+    public RankResponse getTop5(){
+        // Redis 에서 내림차순(점수) 0위부터 5위까지 꺼냄
+        Set<String> keywords = redisTemplate.opsForZSet().reverseRange(RANKING_KEY, 0, 4);
+
+        // 데이터 유효성 검사
+        if (keywords.isEmpty()){
+            return RankResponse.builder()
+                    .rankings(Collections.emptyList())
+                    .build(); // 빈 리스트 반환
+        }
+
+        // 인덱스 사용을 위해 리스트로 변경
+        List<String> keywordList = new ArrayList<>(keywords);
+
+        // 반환을 위해 RankResponse 의 이너클래스 Items 에 맞게 담아줌
+        List<RankResponse.Items> items = IntStream.range(0, keywordList.size())
+                .mapToObj(i -> RankResponse.Items.builder()
+                        .rank(i+1)
+                        .keyword(keywordList.get(i))
+                        .build())
+                .toList();
+
+        // 반환
+        return RankResponse.builder()
+                .rankings(items)
+                .build();
+    }
+
+    /**
+     * 검색 이벤트 발생 시 점수 반영 (비동기 갱신)
+     */
+    @Async // 검색 쓰레드와 점수 올리는 쓰레드를 분리
+    @EventListener // 이벤트 발행 시 자동 실행
+    public void handleSearchEvent(SearchEvent event){
+        try {
+            // Redis 점수 업데이트
+            log.info("[Redis] 트렌드 반영 시작 - 키워드: {}", event.keyword());
+            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, event.keyword(), 1.0);
+        } catch (Exception e) {
+            // 비동기 작업, 다른 쓰레드라 글로벌 핸들러가 에러를 잡지 못해
+            // 내부적으로 에러 로그를 남겨 추적
+            log.error("[Rank Error] {} : {}",
+                    RankErrorcode.RANKING_PROCESS_ERROR.getCode(),
+                    RankErrorcode.RANKING_PROCESS_ERROR.getMessage());
+        }
+    }
+}
