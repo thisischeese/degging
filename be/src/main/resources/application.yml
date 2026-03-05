@@ -1,1 +1,8 @@
-spring.application.name=be
+server:
+  port: 8080 # 프론트엔드에서 API를 호출할 포트
+
+spring:
+  data:
+    redis:
+      host: localhost # 레디스 창고 위치
+      port: 6379      # 레디스 창고 포트 번호
