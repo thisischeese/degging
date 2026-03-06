@@ -21,7 +21,7 @@ spring:
   # MongoDB 및 Redis 설정
   data:
     mongodb:
-      uri: mongodb://localhost:27017/degging
+      uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/degging?authSource=admin
     redis:
       host: localhost
       port: 6379
