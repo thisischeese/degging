@@ -1,8 +1,27 @@
 server:
-  port: 8080 # 프론트엔드에서 API를 호출할 포트
+  port: 8080
 
-spring:
+spring: # spring은 최상위 계층입니다.
+  # 1. PostgreSQL 설정
+  datasource:
+    url: jdbc:postgresql://localhost:5432/degging?reWriteBatchedInserts=true
+    username: ${USER_NAME}
+    password: ${USER_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+  # 2 & 3. MongoDB 및 Redis 설정 (data 계층 아래에 나란히 위치)
   data:
-    redis:
-      host: localhost # 레디스 창고 위치
-      port: 6379      # 레디스 창고 포트 번호
+    mongodb:
+      uri: mongodb://localhost:27017/degging
+    redis: # mongodb와 같은 라인에 맞춰야 합니다.
+      host: localhost
+      port: 6379
