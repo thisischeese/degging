@@ -4,4 +4,5 @@
 
 body {
   font-family: var(--font-pretendard), sans-serif;
+  @apply bg-bg_white;
 }
