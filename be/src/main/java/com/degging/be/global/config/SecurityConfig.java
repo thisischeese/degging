@@ -30,6 +30,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtExceptionFilter jwtExceptionFilter;
 
     /**
      * 보안 필터 체인을 정의하고 HTTP 보안 설정 구성
@@ -65,10 +67,10 @@ public class SecurityConfig {
                 )
 
                 // JWT 인증 필터를 UsernamePasswordAuthenticationFilter 이전에 실행되도록 설정
-                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // JWT 예외 처리 필터를 인증 필터 바로 앞에 등록하여 예외를 가로채도록 설정
-                .addFilterBefore(new JwtExceptionFilter(new ObjectMapper()), JwtAuthenticationFilter.class);
+                .addFilterBefore(jwtExceptionFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

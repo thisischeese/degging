@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -21,6 +22,7 @@ import java.io.IOException;
  * 모든 요청에서 JWT 토큰 추출하고 유효성을 검증하여 인증 정보를 설정하는 필터 클래스
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 

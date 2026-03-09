@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.io.IOException;
  * JWT 관련 필터에서 발생하는 예외를 가로채 공통 응답 규격으로 변환
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class JwtExceptionFilter extends OncePerRequestFilter {
 
