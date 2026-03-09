@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -54,7 +55,7 @@ public class RankService {
             int count = 0;
             while ((line = br.readLine()) != null){
                 // 공백 제거 후 , 기준 분리하여 배열 생성
-                String[] columns = line.split(",");
+                String[] columns = line.replace("\uFEFF", "").split(",");
 
                 if (columns.length == 2){
                     String dessertName = columns[0].trim();
