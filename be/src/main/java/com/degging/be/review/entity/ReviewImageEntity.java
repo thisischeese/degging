@@ -1,10 +1,7 @@
 package com.degging.be.review.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
@@ -15,6 +12,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@Builder
 public class ReviewImageEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -25,6 +23,7 @@ public class ReviewImageEntity {
     private ReviewEntity review;
 
     private String imageUrl;
+
     @Column(name = "sort_order", nullable = false) // 순서
     private int sortOrder;
 

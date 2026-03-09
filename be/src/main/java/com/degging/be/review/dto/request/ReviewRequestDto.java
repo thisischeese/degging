@@ -1,5 +1,7 @@
 package com.degging.be.review.dto.request;
 
+import com.degging.be.review.entity.ReviewEntity;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -12,7 +14,24 @@ import java.util.UUID;
 @Builder
 public class ReviewRequestDto {
     private UUID cafeId;
-    private int rating; // 평점
+
+    @Min(value = 1, message = "평점은 최소 1점 이상이어야 합니다.")
+    @Max(value = 5, message = "평점은 최대 5점 이하여야 합니다.")
+    private short rating; // 평점
+
+    @NotBlank(message = "리뷰 내용은 필수입니다.")
     private String content;
+
+    @Size(max = 5, message = "이미지는 최대 5장까지 업로드 가능합니다.")
     private List<MultipartFile> images; // 이미지
+
+    // 이미지는 서비스에서 추가
+    public ReviewEntity toEntity(UUID loginUser, UUID cafeId){
+        return ReviewEntity.builder()
+                .cafeId(cafeId)
+                .rating(this.getRating())
+                .content(this.getContent())
+                .userId(loginUser)
+                .build();
+    }
 }

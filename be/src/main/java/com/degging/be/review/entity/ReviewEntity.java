@@ -3,9 +3,12 @@ package com.degging.be.review.entity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -18,6 +21,7 @@ import java.time.OffsetDateTime;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ReviewEntity {
 
     @Id
@@ -40,18 +44,14 @@ public class ReviewEntity {
 //    @JoinColumn(name = "user_id", nullable = false)
 //    private UserEntity user;
 //
-//    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private List<ReviewImageEntity> reviewImages = new ArrayList<>();
+    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReviewImageEntity> reviewImages = new ArrayList<>();
 
     @Column(nullable = false)
     private short rating; // smallint
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
-
-    // S3 URL 저장을 위한 컬럼
-    @Column(name = "image_url")
-    private String imageUrl;
 
     @CreationTimestamp // 생성 시 자동 기록
     @Column(name = "created_at", nullable = false, updatable = false)
