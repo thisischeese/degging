@@ -37,6 +37,13 @@ public class ReviewController {
         return BaseResponse.success();
     }
 
+    /**
+     * 특정 ID 리뷰를 수정하는 메서드
+     * @param reviewId
+     * @param request (평점, 내용, 삭제할 사진 ID 리스트)
+     * @param newImages (새로운 이미지)
+     * @return 200
+     */
     @PatchMapping(value = "/reviews/{reviewId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public BaseResponse<ReviewResponseDto> updateReview(
             @PathVariable("reviewId") UUID reviewId,
@@ -44,6 +51,19 @@ public class ReviewController {
             @RequestPart(value = "images", required = false) List<MultipartFile> newImages){
         UUID loginUser = UUID.fromString("45d92262-53e7-4b90-bbe5-8b216eb98cbf"); // 임시
         reviewService.updateReview(request, loginUser, newImages, reviewId);
+        return BaseResponse.success();
+    }
+
+    /**
+     * 특정 ID 리뷰를 삭제하는 메서드
+     * @param reviewId
+     * @return 200
+     */
+    @DeleteMapping(value = "/reviews/{reviewId}")
+    public BaseResponse<ReviewResponseDto> deleteReview(
+            @PathVariable("reviewId") UUID reviewId){
+        UUID loginUser = UUID.fromString("45d92262-53e7-4b90-bbe5-8b216eb98cbf"); // 임시
+        reviewService.deleteReview(reviewId, loginUser);
         return BaseResponse.success();
     }
 }

@@ -103,6 +103,19 @@ public class ReviewService {
         reviewImageRepository.saveAll(entities);
     }
 
+    // 리뷰 삭제하는 메서드
+    @Transactional
+    public void deleteReview(UUID reviewId, UUID loginUser){
+        // 유효성
+        validateUser(loginUser);
+        ReviewEntity review = reviewRepository.findById(reviewId)
+                .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
+        validateAuthor(review, loginUser);
+
+        // 리뷰 삭제 (사진은 cascade 로 삭제)
+        reviewRepository.deleteById(reviewId);
+    }
+
     /**
      * 유효성 검증 코드
      */
