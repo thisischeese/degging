@@ -1,5 +1,6 @@
 package com.degging.be.review.entity;
 
+import com.degging.be.review.dto.request.ReviewUpdateRequestDto;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
@@ -61,4 +62,17 @@ public class ReviewEntity {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    // content, rating 업데이트 로직
+    public void update(ReviewUpdateRequestDto entity) {
+        String content = entity.getContent();
+        Short rating = entity.getRating();
+
+        // 변경된 내용 수정
+        if (content != null && !content.isBlank()) {
+            this.content = content;
+        }
+        if (rating != null) {
+            this.rating = rating;
+        }
+    }
 }

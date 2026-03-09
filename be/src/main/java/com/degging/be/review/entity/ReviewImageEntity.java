@@ -30,4 +30,9 @@ public class ReviewImageEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt; // timestamptz
+
+    // sortOrder 업데이트
+    public void updateSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
+    }
 }
