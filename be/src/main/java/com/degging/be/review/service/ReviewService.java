@@ -5,6 +5,7 @@ import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.global.exception.errorcode.ErrorCode;
 import com.degging.be.review.dto.request.ReviewRequestDto;
+import com.degging.be.review.dto.request.ReviewUpdateRequestDto;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.review.repository.ReviewImageRepository;
@@ -61,7 +62,6 @@ public class ReviewService {
             }
             reviewImageRepository.saveAll(entities);
         }
-
     }
 
     /**

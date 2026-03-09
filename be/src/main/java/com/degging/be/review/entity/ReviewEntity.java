@@ -48,7 +48,7 @@ public class ReviewEntity {
     private List<ReviewImageEntity> reviewImages = new ArrayList<>();
 
     @Column(nullable = false)
-    private short rating; // smallint
+    private Short rating; // smallint
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
