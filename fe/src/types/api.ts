@@ -4,3 +4,9 @@ export interface BaseResponse<T> {
   message: string;
   data: T;
 }
+
+export interface ErrorResponse {
+  status: string;
+  code: string;
+  message: string;
+}
