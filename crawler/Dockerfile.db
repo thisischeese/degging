@@ -1,0 +1,12 @@
+# 이 Dockerfile은 더 이상 사용되지 않는다.
+#
+# 이전: postgis/postgis:16-3.4 기반 커스텀 빌드 (pgvector 수동 설치)
+# 현재: Docker Hub 배포 이미지 사용 (docker-compose.yml의 image 키 참조)
+#   image: id4thomas/pgvec-textsearch-ko:260204-0.8.1-pg18-trixie-0.5.0
+#
+# 포함 익스텐션:
+#   - pgvector 0.8.1        (벡터 유사도 검색)
+#   - pg_textsearch 0.5.0   (BM25 풀텍스트 서치)
+#   - textsearch_ko         (MeCab-KO 한국어 형태소 분석기)
+#
+# 참고: https://github.com/id4thomas/pgvec-textsearch

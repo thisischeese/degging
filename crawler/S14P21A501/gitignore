@@ -1,0 +1,160 @@
+######################################################################
+# Operating Systems (OS)
+######################################################################
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+
+######################################################################
+# IDEs & Editors
+######################################################################
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+/out/
+.idea/libraries/
+.idea/artifacts/
+.idea/modules.xml
+.idea/workspace.xml
+
+# Eclipse
+.metadata/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+.settings/
+.loadpath
+.project
+.classpath
+.factorypath
+.springBeans
+.recommenders/
+.sts4-cache/
+
+# VS Code
+.vscode/
+.history/
+
+######################################################################
+# Backend - Java / Spring Boot (Gradle)
+######################################################################
+.gradle/
+build/
+!src/**/build/
+bin/
+out/
+
+# Log files
+*.log
+logs/
+/logs/
+
+# Java heap dump
+*.hprof
+
+######################################################################
+# Backend - Python / FastAPI / AI
+######################################################################
+**/.venv/
+ai/chroma_db/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# AI/ML Models & Datasets
+*.pt
+*.pth
+*.bin
+*.model
+*.onnx
+*.weights
+*.h5
+models/
+checkpoints/
+data/
+.cache/huggingface/
+
+######################################################################
+# Frontend - React / Node.js
+######################################################################
+node_modules/
+/dist
+/build
+.npm
+.eslintcache
+*.tsbuildinfo
+package-lock.json
+
+######################################################################
+# Docker & Infrastructure
+######################################################################
+.docker/
+docker-compose.override.yml
+# Docker local data
+# /data/
+
+######################################################################
+# Security & Secrets
+######################################################################
+**/src/main/resources/application.yml
+**/src/main/resources/application-*.yml
+
+# 환경 변수 및 비밀 키
+.env
+.env.*
+*.pem
+*.pub
+*.key
+*.jks
+*.p12
+
+# AWS / Cloud 관련
+.aws/
+.elasticbeanstalk/
+
+# Backend 빌드 파일 제외
+be/.gradle/
+be/build/
+be/out/
+be/bin/
+
+# Frontend 빌드 파일 제외
+fe/node_modules/
+fe/dist/
