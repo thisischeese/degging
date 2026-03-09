@@ -25,7 +25,7 @@ public enum CafeErrorCode implements ErrorCode {
 
     // --- 리뷰 이미지 관련 에러 ---
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "C205", "이미지 업로드 중 오류가 발생했습니다."),
-    IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "C206", "리뷰 이미지는 최대 5장까지 업로드 가능합니다."),
+    IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "C206", "리뷰 이미지는 최대 3장까지 업로드 가능합니다."),
     UNSUPPORTED_IMAGE_FORMAT(HttpStatus.BAD_REQUEST, "C207", "지원하지 않는 이미지 형식입니다.");
 
     // 응답으로 반환할 HTTP 상태 코드

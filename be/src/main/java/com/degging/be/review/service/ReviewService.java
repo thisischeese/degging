@@ -38,6 +38,15 @@ public class ReviewService {
         validateUser(loginUser);
         checkCafeValidation(cafeId);
 
+        // 중복 체크
+        boolean isDuplicate = reviewRepository.existsByUserIdAndCafeIdAndContent(
+                loginUser, cafeId, request.getContent()
+        );
+
+        if (isDuplicate) {
+            throw new BaseException(CafeErrorCode.REVIEW_ALREADY_EXISTS);
+        }
+
         // Dto -> Entity 후 Review 테이블에 저장
         ReviewEntity entity = reviewRepository.save(request.toEntity(loginUser, cafeId));
 
@@ -76,10 +85,15 @@ public class ReviewService {
 
     // 리뷰 생성/수정의 이미지 업로드 로직
     public void uploadReviewImages(ReviewEntity review, List<MultipartFile> images, int startOrder){
-        if (images == null || images.isEmpty()) return;
+        if (images == null || images.isEmpty() || images.getFirst().isEmpty()) return;
         // 빈 값으로 보냈을 때 -> 내용물이 없는 경우
         if (images.getFirst().isEmpty()) return;
 
+        // 이미지 개수 3개로 제한
+        int currentImgCount = reviewImageRepository.countByReview(review);
+        if (currentImgCount + images.size() > 3){
+            throw new BaseException(CafeErrorCode.IMAGE_COUNT_EXCEEDED);
+        }
         // 리뷰 Entity 를 담을 리스트
         List<ReviewImageEntity> entities = new ArrayList<>();
 
@@ -113,7 +127,7 @@ public class ReviewService {
         validateAuthor(review, loginUser);
 
         // 리뷰 삭제 (사진은 cascade 로 삭제)
-        reviewRepository.deleteById(reviewId);
+        reviewRepository.delete(review);
     }
 
     /**

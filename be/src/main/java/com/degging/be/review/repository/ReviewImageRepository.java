@@ -12,4 +12,7 @@ import java.util.UUID;
 public interface ReviewImageRepository extends JpaRepository<ReviewImageEntity, UUID> {
     // sort order 에 따라 오름차로 리뷰를 가져옴
     List<ReviewImageEntity> findByReviewOrderBySortOrderAsc(ReviewEntity review);
+
+    // Review 의 이미지 개수 조회
+    int countByReview(ReviewEntity review);
 }
