@@ -1,5 +1,6 @@
 package com.degging.be.review.entity;
 
+import com.degging.be.global.entity.BaseEntity;
 import com.degging.be.review.dto.request.ReviewUpdateRequestDto;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -23,7 +24,7 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReviewEntity {
+public class ReviewEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -53,14 +54,6 @@ public class ReviewEntity {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
-
-    @CreationTimestamp // 생성 시 자동 기록
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt; // timestamptz 와 매핑
-
-    @UpdateTimestamp // 수정 시 자동 기록
-    @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt;
 
     // content, rating 업데이트 로직
     public void update(ReviewUpdateRequestDto entity) {
