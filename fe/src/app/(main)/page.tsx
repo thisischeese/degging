@@ -1,45 +1,62 @@
-"use client";
+'use client';
 
 import Header from "@/common/components/Header";
 import BottomNav from "@/common/components/BottomNav";
+import Button from "@/common/components/Button"; // 아까 만든 버튼 컴포넌트
 
 export default function Home() {
   return (
-    // 전체를 flex-col로 잡고 높이를 100vh(min-h-screen)로 설정합니다.
     <div className="flex min-h-screen flex-col bg-bg_white font-pretendard">
-      
-      {/* 1. 상단 헤더 영역 */}
-      <Header 
-        centerContent="Degging" 
-        rightContent={<button className="text-xs">설정</button>}
-      />
+      <Header centerContent="Degging 버튼 테스트" />
 
-      {/* 2. 중앙 컨텐츠 영역 */}
-      {/* pb-20을 주어 하단 탭바에 컨텐츠가 가려지지 않게 합니다. */}
-      <main className="flex-1 px-4 py-6 pb-20">
-        <section className="mb-8">
-          <h2 className="mb-4 text-xl font-bold">오늘의 큐레이션</h2>
-          <div className="h-48 w-full rounded-2xl bg-gray-200 flex items-center justify-center text-gray-500">
-            큐레이션 카드 들어갈 자리 (준비 중)
+      <main className="flex-1 px-4 py-6 pb-20 space-y-10">
+        
+        {/* 1. Auth 화면용 (긴 버튼) */}
+        <section>
+          <h2 className="mb-4 text-lg font-bold border-b pb-2">1. Auth (Full Size)</h2>
+          <div className="flex flex-col gap-3">
+            <Button variant="primary" size="full">로그인 (활성화)</Button>
+            <Button variant="primary" size="full" disabled>로그인 (비활성화/회색)</Button>
+            <Button variant="kakao" size="full">카카오 로그인 (노랑)</Button>
+            <Button variant="black" size="full">애플 로그인 (검정)</Button>
           </div>
         </section>
 
+        {/* 2. 작은 기능 버튼 (인증/중복확인) */}
         <section>
-          <h2 className="mb-4 text-xl font-bold">실시간 디저트 랭킹</h2>
-          <ul className="flex flex-col gap-4">
-            {[1, 2, 3, 4, 5].map((num) => (
-              <li key={num} className="flex items-center gap-4 border-b border-gray-100 pb-2">
-                <span className="font-bold text-primary_btn_red">{num}</span>
-                <span className="text-gray-700">인기 검색어 {num}위</span>
-              </li>
-            ))}
-          </ul>
+          <h2 className="mb-4 text-lg font-bold border-b pb-2">2. Auth 서브 버튼 (Small)</h2>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-gray-600">이메일 중복 검사:</p>
+            <Button variant="gray" size="sm">중복확인</Button>
+          </div>
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-sm text-gray-600">인증 코드 전송:</p>
+            <Button variant="gray" size="sm">인증요청</Button>
+          </div>
         </section>
+
+        {/* 3. 팝업 / 모달용 (중간 크기) */}
+        <section>
+          <h2 className="mb-4 text-lg font-bold border-b pb-2">3. 팝업/모달 (Medium)</h2>
+          <div className="flex gap-4 justify-center bg-white p-6 rounded-2xl shadow-sm">
+            <Button variant="gray" size="md">취소</Button>
+            <Button variant="primary" size="md">확인</Button>
+          </div>
+        </section>
+
+        {/* 4. 스크랩/기타 (하얀 배경) */}
+        <section>
+          <h2 className="mb-4 text-lg font-bold border-b pb-2">4. 스크랩/필터 (Outline)</h2>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">최신순</Button>
+            <Button variant="outline" size="sm">거리순</Button>
+            <Button variant="outline" size="sm" className="text-primary_btn_red font-bold">인기순</Button>
+          </div>
+        </section>
+
       </main>
 
-      {/* 3. 하단 내비게이션 영역 */}
       <BottomNav />
-      
     </div>
   );
 }
