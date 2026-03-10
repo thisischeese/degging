@@ -5,7 +5,7 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
-import com.degging.be.review.dto.response.ReviewResponseDto;
+import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,12 +37,12 @@ public class ReviewController {
     /**
      * 특정 카페의 리뷰를 생성하는 메서드
      * @param cafeId 카페 ID
-     * @param request (리뷰 내용을 담은 Request 객체)
+     * @param request 리뷰 내용을 담은 Request 객체
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
      * @return 200
      */
     @PostMapping(value = "/cafes/{cafeId}/reviews", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public BaseResponse<ReviewResponseDto> createReview(
+    public BaseResponse<ReviewResponse> createReview(
                     @PathVariable("cafeId") UUID cafeId,
                     @ModelAttribute @Valid ReviewRequest request,
                     @AuthenticationPrincipal UserDetails user){
@@ -54,6 +54,22 @@ public class ReviewController {
     }
 
     /**
+     * 특정 카페의 전체 리뷰를 조회하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param cafeId 리뷰를 조회할 카페 ID
+     * @return 200, ReviewResponse 리스트 (리뷰, 이미지, 작성자 정보)
+     */
+    @GetMapping("/cafes/{cafeId}/reviews")
+    public BaseResponse<List<ReviewResponse>> getReviews(
+                    @AuthenticationPrincipal UserDetails user,
+                    @PathVariable("cafeId") UUID cafeId){
+        UUID userId = getUserId(user);
+        List<ReviewResponse> reviews = reviewService.getReviewsByCafeId(cafeId, userId);
+        return BaseResponse.success(reviews);
+    }
+
+
+    /**
      * 특정 ID 리뷰를 수정하는 메서드
      * @param reviewId 수정할 카페 리뷰 ID
      * @param request 평점, 내용, 삭제할 사진 ID 리스트, 새로 추가한 사진 리스트
@@ -61,7 +77,7 @@ public class ReviewController {
      * @return 200
      */
     @PatchMapping(value = "/reviews/{reviewId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public BaseResponse<ReviewResponseDto> updateReview(
+    public BaseResponse<ReviewResponse> updateReview(
                     @PathVariable("reviewId") UUID reviewId,
                     @Valid @ModelAttribute("data") ReviewUpdateRequest request,
                     @AuthenticationPrincipal UserDetails user){
@@ -78,7 +94,7 @@ public class ReviewController {
      * @return 200
      */
     @DeleteMapping(value = "/reviews/{reviewId}")
-    public BaseResponse<ReviewResponseDto> deleteReview(
+    public BaseResponse<ReviewResponse> deleteReview(
                                 @PathVariable("reviewId") UUID reviewId,
                                 @AuthenticationPrincipal UserDetails user){
         UUID userId = getUserId(user);

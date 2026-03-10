@@ -5,10 +5,12 @@ import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
+import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.review.repository.ReviewImageRepository;
 import com.degging.be.review.repository.ReviewRepository;
+import com.degging.be.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,11 +50,28 @@ public class ReviewService {
             throw new BaseException(CafeErrorCode.REVIEW_ALREADY_EXISTS);
         }
 
+        User user =
         // Dto -> Entity 후 Review 테이블에 저장
         ReviewEntity entity = reviewRepository.save(request.toEntity(loginUser, cafeId));
 
         // Review_Image 테이블에 저장
         uploadReviewImages(entity, images, 0);
+    }
+
+    /**
+     * 특정 카페 전체 리뷰 조회 메서드
+     */
+    @Transactional
+    public List<ReviewResponse> getReviewsByCafeId(UUID cafeId, UUID userId) {
+        // 유효성 검사
+        validateUser(userId);
+        checkCafeValidation(cafeId);
+        
+        // 카페 ID로 리뷰와 리뷰, 이미지, 작성자 조회하여 반환
+        List<ReviewEntity> reviews = reviewRepository.findAllByCafeIdWithImages(cafeId);
+        return reviews.stream()
+                .map(ReviewResponse::toDto)
+                .toList();
     }
 
     /**
@@ -152,7 +171,7 @@ public class ReviewService {
 
     // 작성자 본인 체크
     public void validateAuthor(ReviewEntity review, UUID loginUser) {
-        if (!review.getUserId().equals(loginUser)) {
+        if (!review.getUser().getUserId().equals(loginUser)) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
     }
