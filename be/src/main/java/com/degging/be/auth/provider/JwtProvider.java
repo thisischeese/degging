@@ -66,6 +66,9 @@ public class JwtProvider {
     /**
      * 사용자 식별자(UUID)를 기반으로 Access Token 생성
      *
+     * JWT subject에 사용자 UUID 저장
+     * 이후 인증 과정에서 subject 값을 기반으로 사용자 정보 조회
+     *
      * @param userId 사용자 식별자
      * @return 생성된 Access Token 문자열
      */
@@ -91,6 +94,10 @@ public class JwtProvider {
 
     /**
      * JWT 토큰으로부터 Spring Security 인증 객체 생성
+     *
+     * 토큰 내부 subject에 저장된 사용자 UUID 기반으로
+     * CustomUserDetailsService를 통해 사용자 정보 조회
+     * Spring Security 인증 객체 생성
      *
      * @param token JWT 토큰
      * @return 인증 객체
