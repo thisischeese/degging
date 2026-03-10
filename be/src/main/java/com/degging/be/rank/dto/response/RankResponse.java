@@ -4,6 +4,9 @@ import lombok.*;
 
 import java.util.List;
 
+/**
+ * 실시간 디저트 순위 조회에 대한 응답을 위한 DTO
+ */
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
