@@ -1,6 +1,8 @@
 package com.degging.be.review.repository;
 
 import com.degging.be.review.entity.ReviewEntity;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,8 +25,8 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
             "LEFT JOIN FETCH r.reviewImages " +
             "LEFT JOIN FETCH r.user " +
             "WHERE r.cafeId = :cafeId " +
-            "ORDER BY r.createdAt DESC") 
-    List<ReviewEntity> findAllByCafeIdWithImages(UUID cafeId);
+            "ORDER BY r.createdAt DESC")
+    Slice<ReviewEntity> findAllByCafeIdWithImages(@Param("cafeId") UUID cafeId, Pageable pageable);
 
     // 특정 리뷰 상세 정보 조회 (리뷰, 리뷰 이미지, 회원 정보, 카페 정보)
     @Query("SELECT r FROM ReviewEntity r " +
@@ -33,4 +35,10 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
             "LEFT JOIN FETCH r.reviewImages " +
             "WHERE r.reviewId = :reviewId")
     Optional<ReviewEntity> findDetailById(@Param("reviewId") UUID reviewId);
-}
+
+    // 사용자 ID로 전체 리뷰 조회 (리뷰, 리뷰 이미지), 최신순으로 가져옴
+    @Query("SELECT DISTINCT r FROM ReviewEntity r " +
+            "LEFT JOIN FETCH r.reviewImages " +
+            "WHERE r.user.userId = :userId " +
+            "ORDER BY r.createdAt DESC")
+    Slice<ReviewEntity> findAllByUserIdWithImages(UUID userId, Pageable pageable);}

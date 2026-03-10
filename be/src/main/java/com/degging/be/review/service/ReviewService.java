@@ -16,6 +16,8 @@ import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -62,19 +64,17 @@ public class ReviewService {
     }
 
     /**
-     * 특정 카페 전체 리뷰 조회 메서드
+     * 특정 카페 전체 리뷰 조회 메서드 (무한 스크롤 Slice 방식)
      */
-    @Transactional
-    public List<ReviewResponse> getReviewsByCafeId(UUID cafeId, UUID userId) {
+    @Transactional(readOnly = true) // 조회
+    public Slice<ReviewResponse> getReviewsByCafeId(UUID cafeId, UUID userId, Pageable pageable) {
         // 유효성 검증
         validateUser(userId);
         checkCafeValidation(cafeId);
         
         // 카페 ID로 리뷰와 리뷰, 이미지, 작성자 조회하여 반환
-        List<ReviewEntity> reviews = reviewRepository.findAllByCafeIdWithImages(cafeId);
-        return reviews.stream()
-                .map(ReviewResponse::toDto)
-                .toList();
+        Slice<ReviewEntity> reviewSlice = reviewRepository.findAllByCafeIdWithImages(cafeId, pageable);
+        return reviewSlice.map(ReviewResponse::toDto);
     }
 
     /**
@@ -90,6 +90,17 @@ public class ReviewService {
         return ReviewDetailResponse.toDto(review);
     }
 
+    /**
+     * 내 리뷰 전체 조회 메서드
+     */
+    @Transactional(readOnly = true) // 조회라서
+    public Slice<ReviewResponse> getReviewsByUserId(UUID userId, Pageable pageable) {
+        // 유효성 검증
+        validateUser(userId);
+
+        Slice<ReviewEntity> reviews = reviewRepository.findAllByUserIdWithImages(userId, pageable);
+        return reviews.map(ReviewResponse::toDto);
+    }
     /**
      * 리뷰 수정 메서드
      */

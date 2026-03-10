@@ -10,6 +10,10 @@ import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.*;
@@ -60,14 +64,16 @@ public class ReviewController {
      * 특정 카페의 전체 리뷰를 조회하는 메서드
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
      * @param cafeId 리뷰를 조회할 카페 ID
+     * @param pageable 페이징 설정 (기본값: 10개씩 조회, 생성일자 기준 내림차순 정렬)
      * @return 200, ReviewResponse 리스트 (리뷰, 이미지, 작성자 정보)
      */
     @GetMapping("/cafes/{cafeId}/reviews")
-    public BaseResponse<List<ReviewResponse>> getReviews(
+    public BaseResponse<Slice<ReviewResponse>> getReviews(
                     @AuthenticationPrincipal UserDetails user,
-                    @PathVariable("cafeId") UUID cafeId){
+                    @PathVariable("cafeId") UUID cafeId,
+                    @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
         UUID userId = getUserId(user);
-        List<ReviewResponse> reviews = reviewService.getReviewsByCafeId(cafeId, userId);
+        Slice<ReviewResponse> reviews = reviewService.getReviewsByCafeId(cafeId, userId, pageable);
         return BaseResponse.success(reviews);
     }
 
@@ -80,14 +86,26 @@ public class ReviewController {
     @GetMapping("/reviews/{reviewId}")
     public BaseResponse<ReviewDetailResponse> getReviewDetail(
                     @AuthenticationPrincipal UserDetails user,
-                    @PathVariable("reviewId") UUID reviewId
-    ){
+                    @PathVariable("reviewId") UUID reviewId){
         UUID userId = getUserId(user);
         ReviewDetailResponse detail = reviewService.getReviewDetail(reviewId, userId);
         return BaseResponse.success(detail);
     }
 
-
+    /**
+     * 로그인한 유저의 전체 리뷰를 조회하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param pageable 페이징 설정 (기본값: 10개씩 조회, 생성일자 기준 내림차순 정렬)
+     * @return 200, 다음 페이지 여부(hasNext)가 포함된 리뷰 목록 Slice
+     */
+    @GetMapping("/reviews/mine")
+    public BaseResponse<Slice<ReviewResponse>> getMyReviews(
+            @AuthenticationPrincipal UserDetails user,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+        UUID userId = getUserId(user);
+        Slice<ReviewResponse> reviews = reviewService.getReviewsByUserId(userId, pageable);
+        return BaseResponse.success(reviews);
+    }
 
     /**
      * 특정 ID 리뷰를 수정하는 메서드
