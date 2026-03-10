@@ -60,6 +60,9 @@ dependencies {
 
     // Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+
+    // PostGIS
+    implementation 'org.hibernate.orm:hibernate-spatial'
 }
 
 tasks.named('test') {
