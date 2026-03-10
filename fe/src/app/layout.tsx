@@ -27,9 +27,17 @@ const nanumR = localFont({
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className={`${pretendard.variable} ${nanumB.variable} ${nanumR.variable}`}>
-      <body className="font-pretendard"> {/* 기본 폰트 적용 */}
+      {/* 1. 배경색 지정 및 중앙 정렬 */}
+      <body 
+      className="bg-gray-100 m-0 flex justify-center min-h-screen font-pretendard"> 
         <QueryProvider>
-          {children}
+          {/* 2. 앱 컨테이너 설정 */}
+          <div className="w-full max-w-[375px] min-h-screen bg-white shadow-2xl relative flex flex-col overflow-x-hidden">
+            {/* 3. 실제 콘텐츠 영역 */}
+            <main className="flex-1 w-full">
+              {children}
+            </main>
+          </div>
         </QueryProvider>
       </body>
     </html>
