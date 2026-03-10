@@ -2,49 +2,59 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
+import Image, { StaticImageData } from 'next/image';
 
-// 1. 파일명 정확히 임포트 (I 대문자 확인)
-import HomeIcon from '@/assets/icons/homeIcon.png';      
+// 아이콘 임포트
+import HomeIcon from '@/assets/icons/homeIcon.png';      
+import HomeSelectedIcon from '@/assets/icons/homeSelectedIcon.png';      
 import LocationIcon from '@/assets/icons/locationIcon.png'; 
-import SearchIcon from '@/assets/icons/searchIcon.png';    
+import LocationSelectedIcon from '@/assets/icons/locationSelected.png'; // 예외 케이스 반영
+import SearchIcon from '@/assets/icons/searchIcon.png';    
+import SearchSelectedIcon from '@/assets/icons/searchSelectedIcon.png';    
 import BookmarkIcon from '@/assets/icons/bookmarkIcon.png'; 
+import BookmarkSelectedIcon from '@/assets/icons/bookmarkSelectedIcon.png'; 
 import UserIcon from '@/assets/icons/userIcon.png';
+import UserSelectedIcon from '@/assets/icons/userSelectedIcon.png';
 
-// 각 아이콘별로 #C3304F로 변환하기 위한 최적의 필터 값입니다.
-const NAV_ITEMS = [
-   { 
-     name: '메인 화면', 
-     path: '/', 
-     icon: HomeIcon,
-    // Home 아이콘용 필터
-    activeFilter: 'brightness-0 invert-[20%] sepia-[100%] saturate-[5000%] hue-rotate-[340deg]'
-    },
+// 메뉴 데이터 인터페이스 정의
+interface NavItem {
+  name: string;
+  path: string;
+  icon: StaticImageData;
+  selectedIcon: StaticImageData;
+}
+
+// 메뉴 데이터 관리
+const NAV_ITEMS: NavItem[] = [
+  { 
+    name: '메인 화면', 
+    path: '/', 
+    icon: HomeIcon,
+    selectedIcon: HomeSelectedIcon,
+  },
   { 
     name: '지도', 
     path: '/map', 
     icon: LocationIcon,
-    // Location 아이콘용 필터 (약간의 조정)
-    activeFilter: 'brightness-0 invert-[40%] sepia-[50%] saturate-[3000%] hue-rotate-[0deg] brightness-[110%]'   },
-   { 
-     name: '탐색', 
-     path: '/discovery', 
-     icon: SearchIcon,
-     // Search 아이콘용 필터 (약간의 조정)
-    activeFilter: 'brightness-0 invert-[26%] sepia-[75%] saturate-[3453%] hue-rotate-[331deg] brightness-[89%] contrast-[86%]'   },
-   { 
-     name: '스크랩', 
-     path: '/scrap', 
-     icon: BookmarkIcon,
-     // Bookmark 아이콘용 필터 (약간의 조정)
-     activeFilter: 'brightness-0 invert-[29%] sepia-[90%] saturate-[2600%] hue-rotate-[328deg] brightness-[86%] contrast-[102%]'
-   },
-   { 
+    selectedIcon: LocationSelectedIcon,
+  },
+  { 
+    name: '탐색', 
+    path: '/discovery', 
+    icon: SearchIcon,
+    selectedIcon: SearchSelectedIcon,
+  },
+  { 
+    name: '스크랩', 
+    path: '/scrap', 
+    icon: BookmarkIcon,
+    selectedIcon: BookmarkSelectedIcon,
+  },
+  { 
     name: '마이페이지', 
     path: '/user', 
     icon: UserIcon,
-    // User 아이콘용 필터 (약간의 조정)
-    activeFilter: 'brightness-0 invert-[30%] sepia-[80%] saturate-[2000%] contrast-[150%]'
+    selectedIcon: UserSelectedIcon,
   },
 ];
 
@@ -62,22 +72,19 @@ export default function BottomNav() {
             <Link 
               key={item.path} 
               href={item.path} 
-              className="flex flex-col items-center gap-1 flex-1" // flex-1을 주어 클릭 영역을 넓혔습니다.
+              className="flex flex-col items-center gap-1 flex-1"
             >
-              <div className="relative h-6 w-6">
+              <div className="relative h-6 w-6 flex items-center justify-center">
                 <Image
-                  src={item.icon}
+                  src={isActive ? item.selectedIcon : item.icon}
                   alt={item.name}
                   width={24}
                   height={24}
-                  className={`object-contain transition-all ${
-                    // 활성화 상태면 빨간색(필터), 아니면 흐린 회색
-                    isActive ? item.activeFilter : 'opacity-40'
-                  }`}
+                  className="object-contain transition-all"
                 />
               </div>
               <span className={`text-[10px] ${
-                isActive ? 'text-primary_btn_red font-bold' : 'text-gray-400'
+                isActive ? 'text-[#C3304F] font-bold' : 'text-gray-400'
               }`}>
                 {item.name}
               </span>
