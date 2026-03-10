@@ -17,7 +17,7 @@ export default function OnboardingPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 3000); // 3초 대기
+    }, 900); // 0.9초 대기
     return () => clearTimeout(timer);
   }, []);
 
@@ -32,16 +32,9 @@ export default function OnboardingPage() {
             key="splash"
             initial={{ y: 0 }}
             exit={{ y: "-100%" }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
+            transition={{ duration: 0.35, ease: "circIn" }}
             className="absolute inset-0 z-50 w-full h-full"
           >
-            <Image
-              src={splashImg}
-              alt="Splash"
-              fill
-              style={{ objectFit: "cover" }}
-              priority
-            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -54,9 +47,14 @@ export default function OnboardingPage() {
         {/* 하단 컨텐츠 영역 (중앙부터 시작) */}
         <div className="flex flex-col items-center w-full px-8 flex-1">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: showSplash ? 0 : 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={!showSplash ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 300, 
+              damping: 30,
+              opacity: { duration: 0.2 } 
+            }}
             className="flex flex-col items-center w-full"
           >
             {/* 로고 및 텍스트 */}
@@ -88,7 +86,7 @@ export default function OnboardingPage() {
                 로그인
               </Button>
 
-              <p className="text-[10px] text-gray-400 text-center mt-6 leading-tight">
+              <p className="text-[10px] text-gray-400 text-center mt-3 leading-tight">
                 계속 진행하면 Degging 서비스에서 개인위치정보를 수집하고 활용하는<br />
                 것에 동의하는 것으로 간주됩니다.
               </p>
