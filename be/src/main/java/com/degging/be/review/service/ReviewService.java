@@ -3,6 +3,7 @@ package com.degging.be.review.service;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import com.degging.be.review.dto.response.ReviewResponse;
@@ -11,6 +12,7 @@ import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.review.repository.ReviewImageRepository;
 import com.degging.be.review.repository.ReviewRepository;
 import com.degging.be.user.entity.User;
+import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ import java.util.UUID;
 public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ReviewImageRepository reviewImageRepository;
+    private final UserRepository userRepository;
 //    private final CafeRepository cafeRepository;
 
     /**
@@ -37,8 +40,8 @@ public class ReviewService {
      */
     @Transactional
     public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId){
-        // 유효성 검증
-        validateUser(loginUser);
+        // 유효성 검증 및 객체 조회
+        User user = getValidUser(loginUser);
         checkCafeValidation(cafeId);
 
         // 중복 체크
@@ -50,9 +53,8 @@ public class ReviewService {
             throw new BaseException(CafeErrorCode.REVIEW_ALREADY_EXISTS);
         }
 
-        User user =
         // Dto -> Entity 후 Review 테이블에 저장
-        ReviewEntity entity = reviewRepository.save(request.toEntity(loginUser, cafeId));
+        ReviewEntity entity = reviewRepository.save(request.toEntity(user, cafeId));
 
         // Review_Image 테이블에 저장
         uploadReviewImages(entity, images, 0);
@@ -63,7 +65,7 @@ public class ReviewService {
      */
     @Transactional
     public List<ReviewResponse> getReviewsByCafeId(UUID cafeId, UUID userId) {
-        // 유효성 검사
+        // 유효성 검증
         validateUser(userId);
         checkCafeValidation(cafeId);
         
@@ -80,8 +82,8 @@ public class ReviewService {
     @Transactional
     public void updateReview(ReviewUpdateRequest request, UUID loginUser, List<MultipartFile> images, UUID reviewId){
         log.info("삭제할 이미지 IDs: {}", request.getDeleteImageIds());
+        // 유효성 검증
         validateUser(loginUser);
-
         ReviewEntity review = reviewRepository.findById(reviewId)
                 .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
         // 본인 확인
@@ -111,8 +113,6 @@ public class ReviewService {
      */
     public void uploadReviewImages(ReviewEntity review, List<MultipartFile> images, int startOrder){
         if (images == null || images.isEmpty() || images.getFirst().isEmpty()) return;
-        // 빈 값으로 보냈을 때 -> 내용물이 없는 경우
-        if (images.getFirst().isEmpty()) return;
 
         // 이미지 개수 3개로 제한
         int currentImgCount = reviewImageRepository.countByReview(review);
@@ -160,16 +160,19 @@ public class ReviewService {
     /**
      * 유효성 검증 코드
      */
-
-    // user 정보 체크
-    private void validateUser(UUID loginUser) {
-        // 값이 제대로 들어오지 않음, jwt 를 쓰지만 한번 더 체크
-        if (loginUser == null) {
-            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
-        }
+    // user 정보 체크 3가지
+    // 1. 존재 여부만 체크
+    private void validateUser(UUID userId) {
+        getValidUser(userId); // 내부에서 호출만 하고 끝
     }
 
-    // 작성자 본인 체크
+    // 2. 존재 여부 체크 및 User 반환
+    private User getValidUser(UUID loginUser){
+        return userRepository.findById(loginUser)
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    // 3. 작성자 본인 체크
     public void validateAuthor(ReviewEntity review, UUID loginUser) {
         if (!review.getUser().getUserId().equals(loginUser)) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
