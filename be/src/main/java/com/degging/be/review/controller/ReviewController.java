@@ -5,6 +5,7 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
+import com.degging.be.review.dto.response.ReviewDetailResponse;
 import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.service.ReviewService;
 import jakarta.validation.Valid;
@@ -54,6 +55,7 @@ public class ReviewController {
         return BaseResponse.success();
     }
 
+    // TODO : 조회 메서드들 테스트 필요
     /**
      * 특정 카페의 전체 리뷰를 조회하는 메서드
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
@@ -68,6 +70,23 @@ public class ReviewController {
         List<ReviewResponse> reviews = reviewService.getReviewsByCafeId(cafeId, userId);
         return BaseResponse.success(reviews);
     }
+
+    /**
+     * 특정 리뷰의 상세정보를 조회하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param reviewId 조회할 리뷰 ID
+     * @return 200, ReviewDetailResponse (리뷰, 이미지, 작성자 정보, 카페 정보(상호명, 큐레이션 1줄, 위치))
+     */
+    @GetMapping("/reviews/{reviewId}")
+    public BaseResponse<ReviewDetailResponse> getReviewDetail(
+                    @AuthenticationPrincipal UserDetails user,
+                    @PathVariable("reviewId") UUID reviewId
+    ){
+        UUID userId = getUserId(user);
+        ReviewDetailResponse detail = reviewService.getReviewDetail(reviewId, userId);
+        return BaseResponse.success(detail);
+    }
+
 
 
     /**

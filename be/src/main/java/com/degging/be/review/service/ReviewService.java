@@ -6,6 +6,7 @@ import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
+import com.degging.be.review.dto.response.ReviewDetailResponse;
 import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
@@ -77,6 +78,19 @@ public class ReviewService {
     }
 
     /**
+     * 특정 리뷰 상세 조회 메서드
+     */
+    @Transactional(readOnly = true)
+    public ReviewDetailResponse getReviewDetail(UUID reviewId, UUID userId) {
+        // 유효성 검증
+        validateUser(userId);
+        ReviewEntity review = getValidReview(reviewId);
+
+        // Entity -> DTO
+        return ReviewDetailResponse.toDto(review);
+    }
+
+    /**
      * 리뷰 수정 메서드
      */
     @Transactional
@@ -84,8 +98,7 @@ public class ReviewService {
         log.info("삭제할 이미지 IDs: {}", request.getDeleteImageIds());
         // 유효성 검증
         validateUser(loginUser);
-        ReviewEntity review = reviewRepository.findById(reviewId)
-                .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
+        ReviewEntity review = getValidReview(reviewId);
         // 본인 확인
         validateAuthor(review, loginUser);
         
@@ -185,5 +198,11 @@ public class ReviewService {
         // 카페 존재 여부 확인, cafe 연결 후 주석 지우기
 //        return cafeRepository.ExistedById(request.getCafeId()).orElseThrow(
 //                  new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+    }
+
+    // 리뷰 존재 체크
+    public ReviewEntity getValidReview(UUID reviewId){
+        return reviewRepository.findById(reviewId)
+                .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
     }
 }
