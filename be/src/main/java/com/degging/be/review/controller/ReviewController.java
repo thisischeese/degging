@@ -18,6 +18,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 카페 리뷰 생성, 수정, 삭제 등 리뷰 관련 API 컨트롤러
+ */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -30,9 +33,12 @@ public class ReviewController {
         }
         return UUID.fromString(user.getUsername());
     }
+
     /**
      * 특정 카페의 리뷰를 생성하는 메서드
+     * @param cafeId 카페 ID
      * @param request (리뷰 내용을 담은 Request 객체)
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
      * @return 200
      */
     @PostMapping(value = "/cafes/{cafeId}/reviews", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
@@ -49,8 +55,9 @@ public class ReviewController {
 
     /**
      * 특정 ID 리뷰를 수정하는 메서드
-     * @param reviewId
-     * @param request (평점, 내용, 삭제할 사진 ID 리스트, 새로 추가한 사진 리스트)
+     * @param reviewId 수정할 카페 리뷰 ID
+     * @param request 평점, 내용, 삭제할 사진 ID 리스트, 새로 추가한 사진 리스트
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
      * @return 200
      */
     @PatchMapping(value = "/reviews/{reviewId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
@@ -66,7 +73,8 @@ public class ReviewController {
 
     /**
      * 특정 ID 리뷰를 삭제하는 메서드
-     * @param reviewId
+     * @param reviewId 삭제할 리뷰 ID
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
      * @return 200
      */
     @DeleteMapping(value = "/reviews/{reviewId}")

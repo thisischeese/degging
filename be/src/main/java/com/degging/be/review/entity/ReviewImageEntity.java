@@ -6,6 +6,9 @@ import lombok.*;
 
 import java.util.UUID;
 
+/**
+ * 카페 리뷰 이미지 정보를 담는 엔티티
+ */
 @Entity
 @Table(name = "review_images")
 @Getter

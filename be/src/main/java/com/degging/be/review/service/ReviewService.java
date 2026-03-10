@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 사용자 리뷰를 관리하는 클래스
+ * 카페 리뷰를 관리하는 클래스
  */
 @Service
 @Slf4j
@@ -30,7 +30,9 @@ public class ReviewService {
     private final ReviewImageRepository reviewImageRepository;
 //    private final CafeRepository cafeRepository;
 
-    // 리뷰 생성 메서드
+    /**
+     * 리뷰 생성 메서드
+     */
     @Transactional
     public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId){
         // 유효성 검증
@@ -53,7 +55,9 @@ public class ReviewService {
         uploadReviewImages(entity, images, 0);
     }
 
-    // 리뷰 수정 메서드
+    /**
+     * 리뷰 수정 메서드
+     */
     @Transactional
     public void updateReview(ReviewUpdateRequest request, UUID loginUser, List<MultipartFile> images, UUID reviewId){
         log.info("삭제할 이미지 IDs: {}", request.getDeleteImageIds());
@@ -83,7 +87,9 @@ public class ReviewService {
         review.update(request);
     }
 
-    // 리뷰 생성/수정의 이미지 업로드 로직
+    /**
+     * 리뷰 생성/수정의 이미지 업로드 메서드
+     */
     public void uploadReviewImages(ReviewEntity review, List<MultipartFile> images, int startOrder){
         if (images == null || images.isEmpty() || images.getFirst().isEmpty()) return;
         // 빈 값으로 보냈을 때 -> 내용물이 없는 경우
@@ -117,7 +123,9 @@ public class ReviewService {
         reviewImageRepository.saveAll(entities);
     }
 
-    // 리뷰 삭제하는 메서드
+    /**
+     * 리뷰 삭제하는 메서드
+     */
     @Transactional
     public void deleteReview(UUID reviewId, UUID loginUser){
         // 유효성

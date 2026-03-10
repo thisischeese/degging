@@ -15,6 +15,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 카페 리뷰 정보를 담는 엔티티
+ */
 @Entity
 @Table(name = "cafe_reviews")
 @Getter

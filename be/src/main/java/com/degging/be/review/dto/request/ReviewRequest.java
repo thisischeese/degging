@@ -8,6 +8,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 카페 리뷰 생성 요청 데이터를 담는 DTO
+ * (텍스트 정보와 이미지 파일을 함께 포함)
+ */
 @Getter
 @Setter
 @AllArgsConstructor

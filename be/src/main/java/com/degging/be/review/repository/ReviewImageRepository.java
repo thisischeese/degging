@@ -8,6 +8,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 카페 리뷰 이미지 데이터 접근을 위한 레포지토리
+ */
 @Repository
 public interface ReviewImageRepository extends JpaRepository<ReviewImageEntity, UUID> {
     // sort order 에 따라 오름차로 리뷰를 가져옴
