@@ -15,8 +15,6 @@ import com.degging.be.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,41 +22,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * 인증 관련 비즈니스 로직을 처리하고 Spring Security의 사용자 정보를 로드하는 서비스 클래스
+ * 인증 관련 비즈니스 로직을 처리하는 서비스 클래스
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class AuthService implements UserDetailsService {
+public class AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
-
-    /**
-     * Spring Security 인증 과정에서 사용자 식별자(UUID)를 기반으로 사용자 조회
-     *
-     * @param subject 사용자 식별자 UUID 문자열
-     * @return UserDetails Spring Security에서 사용하는 UserDetails 객체
-     * @throws BaseException 존재하지 않는 사용자일 경우 발생 (ErrorCode.USER_NOT_FOUND)
-     */
-    @Override
-    public UserDetails loadUserByUsername(String subject) {
-
-        UUID userId = UUID.fromString(subject);
-
-        // 사용자 확인
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
-
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUserId().toString())
-                .password(user.getPassword())
-                .authorities("ROLE_USER") // 기본 권한 할당
-                .build();
-    }
 
     /**
      * 사용자의 이메일과 비밀번호를 검증 후 액세스 토큰 발급
