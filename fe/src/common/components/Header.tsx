@@ -19,8 +19,7 @@ export default function Header({ leftContent, centerContent, rightContent }: Hea
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-50 flex h-14 w-full max-w-[inherit] items-center justify-between bg-bg_white px-4 border-b border-gray-100">
-      {/* 1. 왼쪽 영역 */}
+    <header className="sticky top-0 z-50 mx-auto left-0 right-0 flex h-14 w-full max-w-[375px] items-center justify-between bg-bg_white px-4 border-b border-gray-100">
       <div className="flex w-10 items-center justify-start">
         {leftContent === "back" ? (
           <button onClick={() => router.back()} className="p-1 active:opacity-50">
@@ -48,7 +47,7 @@ export default function Header({ leftContent, centerContent, rightContent }: Hea
       </div>
 
       {/* 3. 오른쪽 영역 */}
-      <div className="flex w-10 items-center justify-end">
+s      <div className="flex w-10 items-center justify-end">
         {rightContent}
       </div>
     </header>

@@ -62,26 +62,16 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 z-50 h-16 w-full max-w-[inherit] border-t border-gray-100 bg-white px-2">
+    <nav className="fixed bottom-0 left-1/2 z-50 h-16 w-full max-w-[375px] -translate-x-1/2 border-t border-gray-100 bg-white px-2 shadow-[0_-1px_10px_rgba(0,0,0,0.05)]">
       <div className="flex h-full items-center justify-around">
         {NAV_ITEMS.map((item) => {
           // 현재 경로와 메뉴의 경로가 일치하는지 확인
           const isActive = pathname === item.path;
 
           return (
-            <Link 
-              key={item.path} 
-              href={item.path} 
-              className="flex flex-col items-center gap-1 flex-1"
-            >
+            <Link key={item.path} href={item.path} className="flex flex-col items-center gap-1 flex-1">
               <div className="relative h-6 w-6 flex items-center justify-center">
-                <Image
-                  src={isActive ? item.selectedIcon : item.icon}
-                  alt={item.name}
-                  width={24}
-                  height={24}
-                  className="object-contain transition-all"
-                />
+                <Image src={isActive ? item.selectedIcon : item.icon} alt={item.name} width={24} height={24} className="object-contain transition-all" />
               </div>
               <span className={`text-[10px] ${
                 isActive ? 'text-[#C3304F] font-bold' : 'text-gray-400'
