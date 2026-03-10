@@ -57,6 +57,12 @@ dependencies {
 
     // Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+
+    // PostGIS
+    implementation 'org.hibernate.orm:hibernate-spatial'
 }
 
 tasks.named('test') {
