@@ -4,6 +4,7 @@ import com.degging.be.global.entity.BaseEntity;
 import com.degging.be.review.dto.request.ReviewUpdateRequestDto;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import com.degging.be.user.entity.User;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,10 +14,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "cafe_reviews")
@@ -41,11 +38,11 @@ public class ReviewEntity extends BaseEntity {
 //    @ManyToOne(fetch = FetchType.LAZY)
 //    @JoinColumn(name = "cafe_id", nullable = false)
 //    private CafeEntity cafe;
-//
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "user_id", nullable = false)
-//    private UserEntity user;
-//
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ReviewImageEntity> reviewImages = new ArrayList<>();
 

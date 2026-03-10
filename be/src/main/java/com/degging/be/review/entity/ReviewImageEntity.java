@@ -3,9 +3,7 @@ package com.degging.be.review.entity;
 import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity

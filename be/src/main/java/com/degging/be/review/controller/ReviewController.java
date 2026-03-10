@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,13 +29,12 @@ public class ReviewController {
      */
     @PostMapping(value = "/cafes/{cafeId}/reviews", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public BaseResponse<ReviewResponseDto> createReview(
-                @PathVariable("cafeId") UUID cafeId,
-                @Valid @RequestPart("data") ReviewRequestDto request,
-                @RequestPart(value = "images", required = false) List<MultipartFile> images){
-            // TODO : JWT 로그인 유저 연결 추가
-        UUID loginUser = UUID.fromString("45d92262-53e7-4b90-bbe5-8b216eb98cbf"); // 임시
-        // 등록
-        reviewService.createReview(request, loginUser, images, cafeId);
+                    @PathVariable("cafeId") UUID cafeId,
+                    @Valid @RequestPart("data") ReviewRequestDto request,
+                    @RequestPart(value = "images", required = false) List<MultipartFile> images,
+                    @AuthenticationPrincipal UserDetails user){
+        UUID userId = getUserId(user);
+        reviewService.createReview(request, userId, images, cafeId);
         return BaseResponse.success();
     }
 
@@ -46,11 +47,12 @@ public class ReviewController {
      */
     @PatchMapping(value = "/reviews/{reviewId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public BaseResponse<ReviewResponseDto> updateReview(
-            @PathVariable("reviewId") UUID reviewId,
-            @Valid @RequestPart("data") ReviewUpdateRequestDto request,
-            @RequestPart(value = "images", required = false) List<MultipartFile> newImages){
-        UUID loginUser = UUID.fromString("45d92262-53e7-4b90-bbe5-8b216eb98cbf"); // 임시
-        reviewService.updateReview(request, loginUser, newImages, reviewId);
+                    @PathVariable("reviewId") UUID reviewId,
+                    @Valid @RequestPart("data") ReviewUpdateRequestDto request,
+                    @RequestPart(value = "images", required = false) List<MultipartFile> newImages,
+                    @AuthenticationPrincipal UserDetails user){
+        UUID userId = getUserId(user);
+        reviewService.updateReview(request, userId, newImages, reviewId);
         return BaseResponse.success();
     }
 
@@ -61,9 +63,10 @@ public class ReviewController {
      */
     @DeleteMapping(value = "/reviews/{reviewId}")
     public BaseResponse<ReviewResponseDto> deleteReview(
-            @PathVariable("reviewId") UUID reviewId){
-        UUID loginUser = UUID.fromString("45d92262-53e7-4b90-bbe5-8b216eb98cbf"); // 임시
-        reviewService.deleteReview(reviewId, loginUser);
+                                @PathVariable("reviewId") UUID reviewId,
+                                @AuthenticationPrincipal UserDetails user){
+        UUID userId = getUserId(user);
+        reviewService.deleteReview(reviewId, userId);
         return BaseResponse.success();
     }
 }
