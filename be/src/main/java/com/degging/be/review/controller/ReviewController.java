@@ -1,8 +1,10 @@
 package com.degging.be.review.controller;
 
 import com.degging.be.global.dto.BaseResponse;
-import com.degging.be.review.dto.request.ReviewRequestDto;
-import com.degging.be.review.dto.request.ReviewUpdateRequestDto;
+import com.degging.be.global.exception.BaseException;
+import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.review.dto.request.ReviewRequest;
+import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import com.degging.be.review.dto.response.ReviewResponseDto;
 import com.degging.be.review.service.ReviewService;
 import jakarta.validation.Valid;
@@ -22,6 +24,12 @@ import java.util.UUID;
 public class ReviewController {
     private final ReviewService reviewService;
 
+    private UUID getUserId(UserDetails user) {
+        if (user == null) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+        return UUID.fromString(user.getUsername());
+    }
     /**
      * 특정 카페의 리뷰를 생성하는 메서드
      * @param request (리뷰 내용을 담은 Request 객체)
@@ -30,10 +38,11 @@ public class ReviewController {
     @PostMapping(value = "/cafes/{cafeId}/reviews", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public BaseResponse<ReviewResponseDto> createReview(
                     @PathVariable("cafeId") UUID cafeId,
-                    @Valid @RequestPart("data") ReviewRequestDto request,
-                    @RequestPart(value = "images", required = false) List<MultipartFile> images,
+                    @ModelAttribute @Valid ReviewRequest request,
                     @AuthenticationPrincipal UserDetails user){
         UUID userId = getUserId(user);
+        // 관심사 분리를 위해 알맞게 나눠담아 호출
+        List<MultipartFile> images = request.getImages(); 
         reviewService.createReview(request, userId, images, cafeId);
         return BaseResponse.success();
     }
@@ -41,17 +50,16 @@ public class ReviewController {
     /**
      * 특정 ID 리뷰를 수정하는 메서드
      * @param reviewId
-     * @param request (평점, 내용, 삭제할 사진 ID 리스트)
-     * @param newImages (새로운 이미지)
+     * @param request (평점, 내용, 삭제할 사진 ID 리스트, 새로 추가한 사진 리스트)
      * @return 200
      */
     @PatchMapping(value = "/reviews/{reviewId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public BaseResponse<ReviewResponseDto> updateReview(
                     @PathVariable("reviewId") UUID reviewId,
-                    @Valid @RequestPart("data") ReviewUpdateRequestDto request,
-                    @RequestPart(value = "images", required = false) List<MultipartFile> newImages,
+                    @Valid @ModelAttribute("data") ReviewUpdateRequest request,
                     @AuthenticationPrincipal UserDetails user){
         UUID userId = getUserId(user);
+        List<MultipartFile> newImages = request.getImages();
         reviewService.updateReview(request, userId, newImages, reviewId);
         return BaseResponse.success();
     }

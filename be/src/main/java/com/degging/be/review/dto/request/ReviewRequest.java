@@ -9,10 +9,11 @@ import java.util.List;
 import java.util.UUID;
 
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ReviewRequestDto {
+public class ReviewRequest {
     private UUID cafeId;
 
     @Min(value = 1, message = "평점은 최소 1점 이상이어야 합니다.")

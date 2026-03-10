@@ -1,7 +1,7 @@
 package com.degging.be.review.entity;
 
 import com.degging.be.global.entity.BaseEntity;
-import com.degging.be.review.dto.request.ReviewUpdateRequestDto;
+import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import com.degging.be.user.entity.User;
@@ -33,8 +33,8 @@ public class ReviewEntity extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
-    // TODO : 아직 Entity 받기 전이라 임시로 UUID 로 설정해둠
 
+    // TODO : 아직 Entity 받기 전이라 임시로 UUID 로 설정해둠
 //    @ManyToOne(fetch = FetchType.LAZY)
 //    @JoinColumn(name = "cafe_id", nullable = false)
 //    private CafeEntity cafe;
@@ -53,7 +53,7 @@ public class ReviewEntity extends BaseEntity {
     private String content;
 
     // content, rating 업데이트 로직
-    public void update(ReviewUpdateRequestDto entity) {
+    public void update(ReviewUpdateRequest entity) {
         String content = entity.getContent();
         Short rating = entity.getRating();
 

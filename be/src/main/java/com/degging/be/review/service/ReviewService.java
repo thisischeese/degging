@@ -3,9 +3,8 @@ package com.degging.be.review.service;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
-import com.degging.be.global.exception.errorcode.ErrorCode;
-import com.degging.be.review.dto.request.ReviewRequestDto;
-import com.degging.be.review.dto.request.ReviewUpdateRequestDto;
+import com.degging.be.review.dto.request.ReviewRequest;
+import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.review.repository.ReviewImageRepository;
@@ -33,7 +32,7 @@ public class ReviewService {
 
     // 리뷰 생성 메서드
     @Transactional
-    public void createReview(ReviewRequestDto request, UUID loginUser, List<MultipartFile> images, UUID cafeId){
+    public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId){
         // 유효성 검증
         validateUser(loginUser);
         checkCafeValidation(cafeId);
@@ -56,7 +55,7 @@ public class ReviewService {
 
     // 리뷰 수정 메서드
     @Transactional
-    public void updateReview(ReviewUpdateRequestDto request, UUID loginUser, List<MultipartFile> images, UUID reviewId){
+    public void updateReview(ReviewUpdateRequest request, UUID loginUser, List<MultipartFile> images, UUID reviewId){
         log.info("삭제할 이미지 IDs: {}", request.getDeleteImageIds());
         validateUser(loginUser);
 
@@ -70,6 +69,7 @@ public class ReviewService {
             reviewImageRepository.deleteAllById(request.getDeleteImageIds());
             reviewImageRepository.flush(); // 즉시 DB와 동기화
         }
+
         // 삭제 후 기존 이미지 순서 재설정
         List<ReviewImageEntity> entities = reviewImageRepository.findByReviewOrderBySortOrderAsc(review);
         int order = 0;
