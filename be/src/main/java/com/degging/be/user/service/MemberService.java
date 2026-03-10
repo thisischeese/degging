@@ -63,6 +63,8 @@ public class MemberService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
+                .gender(request.getGender())
+                .birthDate(request.getBirthDate())
                 .build();
 
         userRepository.save(user);
