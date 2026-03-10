@@ -4,6 +4,7 @@ import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -32,6 +33,13 @@ public class User extends BaseEntity {
 
     @Column(nullable = false, unique = true)
     private String nickname;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Gender gender;
+
+    @Column(nullable = false)
+    private LocalDate birthDate;
 
     /**
      * 비밀번호 변경을 위한 메서드
