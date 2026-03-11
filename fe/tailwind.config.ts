@@ -11,6 +11,7 @@ const config: Config = {
       colors: {
         primary_btn_red: '#C3304F',  // 빨간 버튼
         primary_btn_gray: '#D9D9D9', // 회색 버튼
+        primary_btn_brown: '#C6964D',
         bg_white: '#F8F8F3', // 배경
       },
       // layout.tsx의 폰트 변수와 연결

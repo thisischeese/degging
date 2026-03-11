@@ -1,7 +1,98 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Input } from "@/common/components/Input";
+import Button from "@/common/components/Button";
+import logoImg from "@/assets/images/common/logo.png";
+import { LoginResponse } from "@/features/auth/types";
+import { useRouter } from "next/navigation";
+import { postLogin } from "@/features/auth/api/login";
+
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const router = useRouter();
+
+  const handleLogin = async () => {
+  try {
+    // 1. API 호출
+    const result = await postLogin({ email, password }) as { status: number; data: LoginResponse };
+    
+    // 2. 성공 시 (테스트용 응답의 status가 200일 때)
+    if (result.status === 200) {
+      console.log("로그인 성공!", result.data);
+      // TODO: 토큰 저장 로직 (LocalStorage 등)
+      router.push("/main"); // 메인으로 이동
+    }
+  } catch (error) {
+    console.error("로그인 실패:", error);
+    alert("이메일 또는 비밀번호가 올바르지 않습니다.");
+  }
+};
+
   return (
-    <div>
-      <h1>로그인 페이지입니다.</h1>
+    <div className="flex flex-col h-full px-6 py-12 font-pretendard">
+      {/* 상단 로고 */}
+      <div className="flex flex-col items-center mb-20">
+        <Image src={logoImg} alt="Logo" width={120} height={120} className="object-contain" />
+      </div>
+
+      {/* 소셜 로그인 섹션 (Button 컴포넌트 활용) */}
+      <div className="flex flex-col gap-3 mb-8">
+        <Button variant="kakao" size="full" onClick={() => alert("준비 중")}>
+          카카오로 계속하기
+        </Button>
+        <Button variant="black" size="full" onClick={() => alert("준비 중")}>
+          구글로 계속하기
+        </Button>
+      </div>
+
+      {/* 구분선 */}
+      <div className="flex items-center gap-4 mb-8">
+        <div className="flex-1 h-[1px] bg-gray-100" />
+        <span className="text-[11px] text-gray-400">또는</span>
+        <div className="flex-1 h-[1px] bg-gray-100" />
+      </div>
+
+      {/* 입력 폼 섹션 (공통 Input 활용) */}
+      <div className="flex flex-col gap-4 mb-4">
+        <Input
+          label="이메일"
+          placeholder="이메일을 입력하세요"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Input
+          label="비밀번호"
+          type="password"
+          placeholder="비밀번호를 입력하세요"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+
+      {/* 로그인 버튼 (입력 여부에 따라 primary 색상 활성화) */}
+      <Button
+        variant={email && password ? "primary" : "gray"}
+        size="full"
+        disabled={!email || !password}
+        onClick={handleLogin}
+      >
+        로그인
+      </Button>
+
+      {/* 하단 보조 링크 */}
+      <div className="mt-8 text-center">
+        <Link
+          href="/find"
+          className="text-xs text-gray-400 underline underline-offset-4 decoration-gray-200"
+        >
+          비밀번호를 잊으셨나요?
+        </Link>
+      </div>
     </div>
   );
 }
