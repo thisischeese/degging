@@ -63,6 +63,12 @@ dependencies {
 
     // PostGIS
     implementation 'org.hibernate.orm:hibernate-spatial'
+
+    // WebClient
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // JTS Geometry
+    implementation 'org.locationtech.jts:jts-core'
 }
 
 tasks.named('test') {
