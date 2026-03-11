@@ -11,7 +11,7 @@ import tagPlusIcon from '@/assets/images/map/tagPlusIcon.png';
 import recommendLogo from '@/assets/images/map/recommendLogo.png';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
-import { Dropdown } from '@/common/components/Dropdown';
+import { Dropdown } from '@/common/components/ui/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
 import cafe1Img from '@/assets/images/cafe/cafe1.png';
 import cafe2Img from '@/assets/images/cafe/cafe2.png';
