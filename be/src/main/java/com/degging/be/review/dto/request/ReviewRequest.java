@@ -1,6 +1,8 @@
 package com.degging.be.review.dto.request;
 
+import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.review.entity.ReviewEntity;
+import com.degging.be.user.entity.User;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,12 +33,12 @@ public class ReviewRequest {
     private List<MultipartFile> images; // 이미지
 
     // 이미지는 서비스에서 추가
-    public ReviewEntity toEntity(UUID loginUser, UUID cafeId){
+    public ReviewEntity toEntity(User loginUser, CafeEntity cafe){
         return ReviewEntity.builder()
-                .cafeId(cafeId)
+                .cafe(cafe)
                 .rating(this.getRating())
                 .content(this.getContent())
-                .userId(loginUser)
+                .user(loginUser)
                 .build();
     }
 }

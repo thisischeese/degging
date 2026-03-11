@@ -1,16 +1,25 @@
 package com.degging.be.review.service;
 
+import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
+import com.degging.be.review.dto.response.ReviewDetailResponse;
+import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.review.repository.ReviewImageRepository;
 import com.degging.be.review.repository.ReviewRepository;
+import com.degging.be.user.entity.User;
+import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,19 +37,20 @@ import java.util.UUID;
 public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ReviewImageRepository reviewImageRepository;
-//    private final CafeRepository cafeRepository;
+    private final UserRepository userRepository;
+    private final CafeRepository cafeRepository;
 
     /**
      * 리뷰 생성 메서드
      */
     @Transactional
     public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId){
-        // 유효성 검증
-        validateUser(loginUser);
-        checkCafeValidation(cafeId);
+        // 유효성 검증 및 객체 조회
+        User user = getValidUser(loginUser);
+        CafeEntity cafe = checkCafeValidation(cafeId);
 
         // 중복 체크
-        boolean isDuplicate = reviewRepository.existsByUserIdAndCafeIdAndContent(
+        boolean isDuplicate = reviewRepository.existsByUserUserIdAndCafeCafeIdAndContent(
                 loginUser, cafeId, request.getContent()
         );
 
@@ -49,22 +59,59 @@ public class ReviewService {
         }
 
         // Dto -> Entity 후 Review 테이블에 저장
-        ReviewEntity entity = reviewRepository.save(request.toEntity(loginUser, cafeId));
+        ReviewEntity entity = reviewRepository.save(request.toEntity(user, cafe));
 
         // Review_Image 테이블에 저장
         uploadReviewImages(entity, images, 0);
     }
 
     /**
+     * 특정 카페 전체 리뷰 조회 메서드 (무한 스크롤 Slice 방식)
+     */
+    @Transactional(readOnly = true) // 조회
+    public Slice<ReviewResponse> getReviewsByCafeId(UUID cafeId, UUID userId, Pageable pageable) {
+        // 유효성 검증
+        validateUser(userId);
+        checkCafeValidation(cafeId);
+        
+        // 카페 ID로 리뷰와 리뷰, 이미지, 작성자 조회하여 반환
+        Slice<ReviewEntity> reviewSlice = reviewRepository.findAllByCafeIdWithImages(cafeId, pageable);
+        return reviewSlice.map(ReviewResponse::toDto);
+    }
+
+    /**
+     * 특정 리뷰 상세 조회 메서드
+     */
+    @Transactional(readOnly = true)
+    public ReviewDetailResponse getReviewDetail(UUID reviewId, UUID userId) {
+        // 유효성 검증
+        validateUser(userId);
+        ReviewEntity review = getValidReview(reviewId);
+
+        // Entity -> DTO
+        return ReviewDetailResponse.toDto(review);
+    }
+
+    /**
+     * 내 리뷰 전체 조회 메서드
+     */
+    @Transactional(readOnly = true) // 조회라서
+    public Slice<ReviewResponse> getReviewsByUserId(UUID userId, Pageable pageable) {
+        // 유효성 검증
+        validateUser(userId);
+
+        Slice<ReviewEntity> reviews = reviewRepository.findAllByUserIdWithImages(userId, pageable);
+        return reviews.map(ReviewResponse::toDto);
+    }
+    /**
      * 리뷰 수정 메서드
      */
     @Transactional
     public void updateReview(ReviewUpdateRequest request, UUID loginUser, List<MultipartFile> images, UUID reviewId){
         log.info("삭제할 이미지 IDs: {}", request.getDeleteImageIds());
+        // 유효성 검증
         validateUser(loginUser);
-
-        ReviewEntity review = reviewRepository.findById(reviewId)
-                .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
+        ReviewEntity review = getValidReview(reviewId);
         // 본인 확인
         validateAuthor(review, loginUser);
         
@@ -92,8 +139,6 @@ public class ReviewService {
      */
     public void uploadReviewImages(ReviewEntity review, List<MultipartFile> images, int startOrder){
         if (images == null || images.isEmpty() || images.getFirst().isEmpty()) return;
-        // 빈 값으로 보냈을 때 -> 내용물이 없는 경우
-        if (images.getFirst().isEmpty()) return;
 
         // 이미지 개수 3개로 제한
         int currentImgCount = reviewImageRepository.countByReview(review);
@@ -141,27 +186,34 @@ public class ReviewService {
     /**
      * 유효성 검증 코드
      */
-
-    // user 정보 체크
-    private void validateUser(UUID loginUser) {
-        // 값이 제대로 들어오지 않음, jwt 를 쓰지만 한번 더 체크
-        if (loginUser == null) {
-            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
-        }
+    // user 정보 체크 3가지
+    // 1. 존재 여부만 체크
+    private void validateUser(UUID userId) {
+        getValidUser(userId); // 내부에서 호출만 하고 끝
     }
 
-    // 작성자 본인 체크
+    // 2. 존재 여부 체크 및 User 반환
+    private User getValidUser(UUID loginUser){
+        return userRepository.findById(loginUser)
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    // 3. 작성자 본인 체크
     public void validateAuthor(ReviewEntity review, UUID loginUser) {
-        if (!review.getUserId().equals(loginUser)) {
+        if (!review.getUser().getUserId().equals(loginUser)) {
             throw new BaseException(CommonErrorCode.FORBIDDEN);
         }
     }
 
-    // 카페 존재 체크
-    public void checkCafeValidation(UUID cafeId){
-        if (cafeId == null) return;
-        // 카페 존재 여부 확인, cafe 연결 후 주석 지우기
-//        return cafeRepository.ExistedById(request.getCafeId()).orElseThrow(
-//                  new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+    // 카페 존재 체크 및 CafeEntity 반환
+    public CafeEntity checkCafeValidation(UUID cafeId){
+        return cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+    }
+
+    // 리뷰 존재 체크
+    public ReviewEntity getValidReview(UUID reviewId){
+        return reviewRepository.findById(reviewId)
+                .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
     }
 }
