@@ -61,7 +61,7 @@ export default function Header({
       </div>
 
       {/* 3. 오른쪽 영역 */}
-s      <div className="flex w-10 items-center justify-end">
+      <div className="flex w-10 items-center justify-end">
         {rightContent}
       </div>
     </header>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
-import { RankingItem } from "@/features/ranking/types";
+import { RankingItem } from "@/features/ranks/types";
 import mangoBingsuImg from "@/assets/images/curation/mangoBingsu.png";
 import searchIcon from "@/assets/icons/searchIcon.png";
 
@@ -86,20 +86,24 @@ export default function MainPage() {
         </div>
       </section>
 
-      {/* 3. 인기 디저트 검색어: 세로 폭 압축 */}
-      <section className="px-6 pb-10">
+      {/* 3. 인기 디저트 검색어: 비율 유지 및 세로 폭 확보 */}
+      <section className="px-6 pb-6">
         <div className="flex items-end justify-between mb-3 px-2">
           <h2 className="text-lg font-bold text-gray-900 mb-1 leading-none">인기 디저트 검색어 랭킹</h2>
           <span className="text-[9px] text-gray-400 font-medium leading-none pr-2 mb-[-7px]">{getUpdateTime()}</span>
         </div>
 
-        {/* 리스트 컨테이너 라운드 및 세로 폭 조절 */}
-        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden px-1">
+        {/* 리스트 컨테이너 라운드 및 가로 길이에 비례하는 세로 비율(aspect-ratio) 고정. 
+            flex-1 버그를 피하기 위해 inline style과 명시적 % 높이 사용 */}
+        <div 
+          className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden px-1"
+          style={{ aspectRatio: '310 / 218' }}
+        >
           {rankings.map((item, index) => (
             <div 
               key={index}
               onClick={() => handleSearch(item.keyword)}
-              className={`flex items-center justify-between px-5 h-[42px] cursor-pointer active:bg-gray-50 transition-colors ${
+              className={`flex items-center justify-between px-5 w-full h-[46px] cursor-pointer active:bg-gray-50 transition-colors ${
                 index !== rankings.length - 1 ? 'border-b border-gray-50' : ''
               }`}
             >
