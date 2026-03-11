@@ -6,11 +6,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 스크랩 요청을 담는 DTO
+ * 스크랩 요청 정보를 담는 DTO
  */
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class ScrapRequset {
+    private String name;
+    private String color;
 }
