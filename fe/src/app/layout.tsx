@@ -1,5 +1,6 @@
 import './globals.css'; 
 import localFont from 'next/font/local';
+import Script from 'next/script';
 import QueryProvider from '@/common/components/providers/QueryProvider';
 
 export const metadata = {
@@ -25,8 +26,13 @@ const nanumR = localFont({
 });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const KAKAO_SDK_URL = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`;
   return (
     <html lang="ko" className={`${pretendard.variable} ${nanumB.variable} ${nanumR.variable}`}>
+      <head>
+        {/* 2. 카카오 지도 스크립트 추가 */}
+        <Script src={KAKAO_SDK_URL} strategy="beforeInteractive" />
+      </head>
       {/* 1. 배경색 지정 및 중앙 정렬 */}
       <body 
       className="bg-gray-100 m-0 flex justify-center min-h-screen font-pretendard"> 
