@@ -43,6 +43,16 @@ public class ScrapEntity extends BaseEntity {
 
     @Column(nullable = false, length = 20)
     private String color;
+    
+    // 스크랩에 포함된 항목(카페) 리스트
+    @OneToMany(mappedBy = "scrap", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ScrapItemEntity> scrapItems = new ArrayList<>();
+
+    // 아이템 추가 시 사용
+    public void addScrapItem(ScrapItemEntity item) {
+        this.scrapItems.add(item);
+        item.setScrap(this);
+    }
 
     // 썸네일 업데이트용 메서드 (카페 추가/삭제 시 반영)
     public void updateThumbnailUrls(List<String> urls) {

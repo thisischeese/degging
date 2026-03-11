@@ -4,6 +4,7 @@ import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.scrap.dto.request.ScrapRequest;
+import com.degging.be.scrap.dto.response.ScrapDetailResponse;
 import com.degging.be.scrap.dto.response.ScrapResponse;
 import com.degging.be.scrap.service.ScrapService;
 import jakarta.validation.Valid;
@@ -57,5 +58,20 @@ public class ScrapController {
         UUID userId = getUserId(user);
         List<ScrapResponse> scraps = scrapService.getScrapsByUserId(userId);
         return BaseResponse.success(scraps);
+    }
+
+    /**
+     * 특정 스크랩을 상세 조회하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param scrapId 조회하려는 스크랩 ID
+     * @return 200, ScrapDetailResponse 스크랩 상세 정보 (스크랩 정보, 카페 정보)
+     */
+    @GetMapping("/{scrapId}")
+    public BaseResponse<ScrapDetailResponse> getScrapDetail(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "scrapId") UUID scrapId){
+        UUID userId = getUserId(user);
+        ScrapDetailResponse detail = scrapService.getScrapDetail(scrapId, userId);
+        return BaseResponse.success(detail);
     }
 }

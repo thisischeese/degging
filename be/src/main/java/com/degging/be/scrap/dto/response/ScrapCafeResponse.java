@@ -1,0 +1,22 @@
+package com.degging.be.scrap.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+/**
+ * 스크랩 상세 정보 조회에서 사용할 카페 정보 DTO
+ */
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ScrapCafeResponse {
+    private UUID cafeId;
+    private String name;
+    private String thumbnailUrl; // 수정요
+    private String cafeIntro; // 필요한 정보만 골라서 정의
+}
