@@ -59,7 +59,6 @@ public class ReviewController {
         return BaseResponse.success();
     }
 
-    // TODO : 조회 메서드들 테스트 필요
     /**
      * 특정 카페의 전체 리뷰를 조회하는 메서드
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
