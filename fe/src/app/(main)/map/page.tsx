@@ -11,7 +11,7 @@ import tagPlusIcon from '@/assets/images/map/tagPlusIcon.png';
 import recommendLogo from '@/assets/images/map/recommendLogo.png';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
-import { Dropdown } from '@/common/components/ui/Dropdown';
+import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
 import cafe1Img from '@/assets/images/cafe/cafe1.png';
 import cafe2Img from '@/assets/images/cafe/cafe2.png';
@@ -51,6 +51,26 @@ const fetchCafes = async (): Promise<Cafe[]> => {
           id: '2', name: '씨티커피 역삼',
           lat: 37.5036601,
           lng: 127.0382947,
+          isRecommend: true,
+          imageUrl: cafe2Img,
+          description: '직장인들을 위한 최고의 휴식 공간',
+          address: '서울 강남구 테헤란로 123',
+          distance: '200m'
+        },
+        {
+          id: '3', name: '씨티커피 역삼',
+          lat: 37.5036,
+          lng: 127.038,
+          isRecommend: true,
+          imageUrl: cafe2Img,
+          description: '직장인들을 위한 최고의 휴식 공간',
+          address: '서울 강남구 테헤란로 123',
+          distance: '200m'
+        },
+        {
+          id: '4', name: '씨티커피 역삼',
+          lat: 37.6000,
+          lng: 127.0444,
           isRecommend: true,
           imageUrl: cafe2Img,
           description: '직장인들을 위한 최고의 휴식 공간',
