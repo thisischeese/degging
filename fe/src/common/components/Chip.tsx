@@ -23,16 +23,16 @@ export const Chip = ({
   // 변종 1 & 2 스타일 분기 처기
   if (variant === 'onboarding') {
     if (isActive) {
-      // 투명도 15% 적용 (/15)
-      variantStyles = 'border-[#C3304F] bg-[#C3304F]/15 text-[#C3304F]';
+      // 흰색 칩 유지에 붉은색 투명도 15% 적용 (/15)
+      variantStyles = 'border-[#C3304F] bg-[#F6E0E5] text-[#C3304F]';
     } else {
       // 연한 회색 외곽선, 투명 배경, 회색 텍스트
       variantStyles = 'border-gray-200 bg-transparent text-gray-500 hover:bg-gray-50/50';
     }
   } else if (variant === 'map') {
     if (isActive) {
-      // 투명도 15% 적용 (/15)
-      variantStyles = 'border-[#AC7F5E] bg-[#AC7F5E]/15 text-[#AC7F5E]';
+      // 흰색 바탕에 갈색이 15% 섞인 색상 적용 (/15)
+      variantStyles = 'border-[#AC7F5E] bg-[#F2EBE7] text-[#AC7F5E]';
     } else {
       // 흰색 배경, 회색 외곽선, 짙은 회색 텍스트
       variantStyles = 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50';
