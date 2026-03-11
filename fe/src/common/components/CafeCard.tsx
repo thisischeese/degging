@@ -1,5 +1,8 @@
 import React from 'react';
+import Image from 'next/image';
+import { StaticImageData } from 'next/image';
 import { MapPin, Star } from 'lucide-react';
+import defaultCafe from '@/assets/images/cafe/baseCafeImage.png';
 
 export interface CafeCardProps {
   id: string;
@@ -7,7 +10,7 @@ export interface CafeCardProps {
   description: string;
   address: string;
   distance?: string;
-  imageUrl: string;
+  imageUrl: string | StaticImageData;
   // isScrapped?: boolean;
   // onScrapClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onClick?: () => void;
@@ -36,12 +39,15 @@ export const CafeCard = ({
       className="w-full font-pretendard flex p-4 bg-white border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors gap-4"
     >
       {/* 1. 좌측 이미지 영역: 80x80 크기, rounded-xl */}
-      <img
-        src={imageUrl}
-        alt={name}
-        className="w-20 h-20 rounded-xl object-cover shrink-0"
-        loading="lazy"
-      />
+      <div className="relative w-20 h-20 shrink-0">
+        <Image
+          src={imageUrl || defaultCafe}
+          alt={name}
+          fill
+          className="rounded-xl object-cover"
+          unoptimized
+        />
+      </div>
 
       {/* 2. 우측 정보 영역: 말줄임(truncate) 처리를 고려한 flex 컨테이너 */}
       <div className="flex flex-col flex-1 min-w-0 justify-center">

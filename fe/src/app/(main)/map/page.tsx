@@ -1,14 +1,20 @@
 'use client';
 
-import React, { Suspense, useEffect, useRef } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Search, LocateFixed, Plus } from 'lucide-react';
+import { StaticImageData } from 'next/image';
+import { Search, LocateFixed, Plus, ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 import searchIcon from '@/assets/images/map/mapSearchIcon.png';
 import tagPlusIcon from '@/assets/images/map/tagPlusIcon.png';
 import recommendLogo from '@/assets/images/map/recommendLogo.png';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
+import { CafeCard } from '@/common/components/CafeCard';
+import cafe1Img from '@/assets/images/cafe/cafe1.png';
+import cafe2Img from '@/assets/images/cafe/cafe2.png';
+import defaultCafe from '@/assets/images/cafe/baseCafeImage.png';
 import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
 
@@ -19,6 +25,10 @@ interface Cafe {
   lat: number;
   lng: number;
   isRecommend?: boolean;
+  imageUrl?: string | StaticImageData;
+  description?: string;
+  address?: string;
+  distance?: string;
 }
 
 const fetchCafes = async (): Promise<Cafe[]> => {
@@ -26,9 +36,26 @@ const fetchCafes = async (): Promise<Cafe[]> => {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve([
-        { id: '1', name: '카페 A', lat: 37.5665, lng: 126.978 },
-        { id: '2', name: '카페 B', lat: 37.5651, lng: 126.977 },
-        { id: '3', name: '씨티커피 역삼', lat: 37.5036601, lng: 127.0382947, isRecommend: true },
+        {
+          id: '1', name: '아우어베이커리 역삼점',
+          lat: 37.502035,
+          lng: 127.040018,
+          isRecommend: true,
+          imageUrl: cafe1Img,
+          description: '조용하고 넓은 공간에서 즐기는 시그니처 빵',
+          address: '서울 강남구 언주로85길 29 1층',
+          distance: '99m'
+        },
+        {
+          id: '2', name: '씨티커피 역삼',
+          lat: 37.5036601,
+          lng: 127.0382947,
+          isRecommend: true,
+          imageUrl: cafe2Img,
+          description: '직장인들을 위한 최고의 휴식 공간',
+          address: '서울 강남구 테헤란로 123',
+          distance: '200m'
+        },
       ]);
     }, 1000);
   });
@@ -47,6 +74,19 @@ function MapContent() {
     toggleTracking,
     setTracking
   } = useMapStore();
+
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [isFranchiseIncluded, setIsFranchiseIncluded] = useState(false);
+  const [windowHeight, setWindowHeight] = useState(800);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setWindowHeight(window.innerHeight);
+      const handleResize = () => setWindowHeight(window.innerHeight);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -85,6 +125,7 @@ function MapContent() {
 
       // 지도 생성
       mapInstance.current = new window.kakao.maps.Map(mapContainerRef.current, options);
+      setIsMapLoaded(true);
 
       // 내 위치 마커(CustomOverlay) 초기화
       const overlayContent = document.createElement('div');
@@ -98,46 +139,47 @@ function MapContent() {
     });
   }, []); // 최초 1회 실행
 
-  // 3. 카페 데이터가 변경될 때마다 마커 업데이트
+  // 3. 카페 데이터가 변경될 때마다 마커 업데이트 (지도가 로드된 상태 보장)
   useEffect(() => {
-    if (!mapInstance.current || !cafes) return;
+    if (!mapInstance.current || !cafes || !isMapLoaded) return;
 
     // 기존 마커 제거
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
 
-    // 새 마커 추가
+    // 공통 마커 이미지 설정 (루프 밖에서 한 번만 생성하여 성능 최적화)
+    const imageSize = new window.kakao.maps.Size(24, 24);
+    const markerImage = new window.kakao.maps.MarkerImage(recommendLogo.src, imageSize);
+
     cafes.forEach((cafe) => {
       const markerPosition = new window.kakao.maps.LatLng(cafe.lat, cafe.lng);
 
+      // 모든 마커에 커스텀 이미지 적용
       let markerOptions: any = {
         position: markerPosition,
         title: cafe.name,
+        image: markerImage, // 모든 마커에 로고 적용
+        zIndex: cafe.isRecommend ? 10 : 1 // 추천 카페는 일반 마커보다 위에 보이도록 설정
       };
-
-      if (cafe.isRecommend) {
-        // 커스텀 브랜드 마커
-        const imageSize = new window.kakao.maps.Size(24, 24);
-        const markerImage = new window.kakao.maps.MarkerImage(recommendLogo.src, imageSize);
-        markerOptions.image = markerImage;
-        // zIndex 조절 등 부가 설정이 가능하다면 추가, 여기선 기본 마커 옵션에 병합
-      }
 
       const marker = new window.kakao.maps.Marker(markerOptions);
 
-      if (cafe.isRecommend) {
-        window.kakao.maps.event.addListener(marker, 'click', () => {
-          if (mapInstance.current) {
-            mapInstance.current.panTo(markerPosition);
-          }
+      // 클릭 이벤트: 공통적으로 지도를 해당 위치로 이동(panTo)
+      window.kakao.maps.event.addListener(marker, 'click', () => {
+        if (mapInstance.current) {
+          mapInstance.current.panTo(markerPosition);
+        }
+
+        // 추천 카페인 경우에만 상세 페이지로 리다이렉트 (필요 시 수정 가능)
+        if (cafe.isRecommend) {
           router.push(`/cafe/city-coffee-yeoksam`);
-        });
-      }
+        }
+      });
 
       marker.setMap(mapInstance.current);
       markersRef.current.push(marker);
     });
-  }, [cafes, router]);
+  }, [cafes, router, isMapLoaded]);
 
   // 4. 위치 추적 (watchPosition) 및 UI 동기화
   useEffect(() => {
@@ -192,8 +234,16 @@ function MapContent() {
     toggleTracking();
   };
 
+  // 카페 카드 클릭 핸들러
+  const handleCafeClick = (cafe: Cafe) => {
+    if (mapInstance.current) {
+      const markerPosition = new window.kakao.maps.LatLng(cafe.lat, cafe.lng);
+      mapInstance.current.panTo(markerPosition);
+    }
+  };
+
   return (
-    <div className="relative w-full h-[100dvh] bg-gray-100 overflow-hidden text-gray-900">
+    <div className="relative w-full h-[100dvh] bg-gray-100 overflow-hidden text-gray-900 font-pretendard">
 
       {/* 실제 카카오맵이 렌더링될 영역 */}
       <div
@@ -248,13 +298,50 @@ function MapContent() {
       <button
         type="button"
         onClick={handleLocateMe}
-        className={`absolute bottom-24 right-4 z-20 flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg active:scale-95 transition-all border ${isTracking
+        className={`absolute bottom-[160px] right-4 z-10 flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg active:scale-95 transition-all border ${isTracking
           ? 'border-[#007EEB] text-[#007EEB]'
           : 'border-gray-100 text-gray-700 hover:bg-gray-50'
           }`}
       >
         <LocateFixed className="w-6 h-6" />
       </button>
+
+      {/* Framer-Motion Bottom Sheet */}
+      <motion.div
+        drag="y"
+        dragConstraints={{ top: 240 - windowHeight, bottom: 0 }}
+        dragElastic={0.1}
+        dragMomentum={true}
+        dragTransition={{ bounceStiffness: 200, bounceDamping: 25 }}
+        className="absolute top-[calc(100dvh-140px)] inset-x-0 z-30 flex flex-col w-full h-[100dvh] bg-white rounded-t-[24px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] pb-[120px]"
+      >
+        <div className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing shrink-0">
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+        </div>
+
+        <div className="px-5 pb-3 pt-1 flex items-center justify-between border-b border-gray-100 shrink-0">
+          <button className="flex items-center gap-1 text-[16px] font-bold text-gray-900">
+            추천순 <ChevronDown className="w-5 h-5 text-gray-900" strokeWidth={3} />
+          </button>
+          <Chip label="프차 포함" variant="map" isActive={isFranchiseIncluded} onClick={() => setIsFranchiseIncluded(!isFranchiseIncluded)} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 no-scrollbar">
+          {cafes.map((cafe) => (
+            <CafeCard
+              key={cafe.id}
+              id={cafe.id}
+              name={cafe.name}
+              // [핵심] 값이 없을 경우(undefined)를 대비해 || '' 를 붙여줍니다.
+              description={cafe.description || ''}
+              address={cafe.address || ''}
+              distance={cafe.distance || ''}
+              imageUrl={cafe.imageUrl || ''}
+              onClick={() => handleCafeClick(cafe)}
+            />
+          ))}
+        </div>
+      </motion.div>
 
       <BottomNav />
     </div>
