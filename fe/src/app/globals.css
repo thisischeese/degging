@@ -5,3 +5,14 @@ body {
   font-family: var(--font-pretendard), sans-serif;
   @apply bg-bg_white;
 }
+
+@layer utilities {
+  /* 가로/세로 스크롤바 숨기기 클래스 */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
