@@ -13,24 +13,37 @@ interface HeaderProps {
   centerContent?: string | ReactNode;
   // 오른쪽 영역: 아이콘, 버튼, 토글 등 커스텀 요소
   rightContent?: ReactNode;
+
+  onClickBack?: () => void;
 }
 
-export default function Header({ leftContent, centerContent, rightContent }: HeaderProps) {
+export default function Header({ 
+  leftContent, 
+  centerContent, 
+  rightContent, 
+  onClickBack 
+}: HeaderProps) {
   const router = useRouter();
 
+  const handleBack = () => {
+    if (onClickBack) {
+      onClickBack();
+    } else {
+      router.back();
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-50 flex h-14 w-full max-w-[inherit] items-center justify-between bg-bg_white px-4 border-b border-gray-100">
-      {/* 1. 왼쪽 영역 */}
+    <header className="sticky top-0 z-50 mx-auto left-0 right-0 flex h-14 w-full max-w-[375px] items-center justify-between bg-bg_white px-4 border-b border-gray-100">
       <div className="flex w-10 items-center justify-start">
         {leftContent === "back" ? (
-          <button onClick={() => router.back()} className="p-1 active:opacity-50">
-            {/* 여기에 뒤로가기 아이콘(svg 등) 배치 */}
-           <Image 
+          <button onClick={handleBack} className="p-1 active:opacity-50">
+            <Image 
               src={backIcon} 
               alt="뒤로가기" 
-              width={24}   // 아이콘 크기에 맞게 조절하세요 (예: 24px)
-              height={24}  // 아이콘 크기에 맞게 조절하세요
-              className="object-contain" // 이미지 비율 유지
+              width={24}   
+              height={24}  
+              className="object-contain" 
             />
           </button>
         ) : (
@@ -48,7 +61,7 @@ export default function Header({ leftContent, centerContent, rightContent }: Hea
       </div>
 
       {/* 3. 오른쪽 영역 */}
-      <div className="flex w-10 items-center justify-end">
+s      <div className="flex w-10 items-center justify-end">
         {rightContent}
       </div>
     </header>

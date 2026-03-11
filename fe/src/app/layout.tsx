@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className="bg-gray-100 m-0 flex justify-center min-h-screen font-pretendard"> 
         <QueryProvider>
           {/* 2. 앱 컨테이너 설정 */}
-          <div className="w-full max-w-[375px] min-h-screen bg-white shadow-2xl relative flex flex-col overflow-x-hidden">
+          <div className="w-full max-w-[375px] min-h-screen bg-bg_white shadow-2xl relative flex flex-col overflow-x-hidden">
             {/* 3. 실제 콘텐츠 영역 */}
             <main className="flex-1 w-full">
               {children}
