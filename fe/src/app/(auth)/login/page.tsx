@@ -1,98 +1,97 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
-
-// 이미지 경로 확인 필요
-import splashImg from "@/assets/images/onboarding/splash1.png";
 import logoImg from "@/assets/images/common/logo.png";
+import { LoginResponse } from "@/features/auth/types";
+import { useRouter } from "next/navigation";
+import { postLogin } from "@/features/auth/api/login";
 
-export default function OnboardingPage() {
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const router = useRouter();
-  const [showSplash, setShowSplash] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 900); // 0.9초 대기
-    return () => clearTimeout(timer);
-  }, []);
-
-  const POINT_COLOR = "#C6964D";
+  const handleLogin = async () => {
+  try {
+    // 1. API 호출
+    const result = await postLogin({ email, password }) as { status: number; data: LoginResponse };
+    
+    // 2. 성공 시 (테스트용 응답의 status가 200일 때)
+    if (result.status === 200) {
+      console.log("로그인 성공!", result.data);
+      // TODO: 토큰 저장 로직 (LocalStorage 등)
+      router.push("/main"); // 메인으로 이동
+    }
+  } catch (error) {
+    console.error("로그인 실패:", error);
+    alert("이메일 또는 비밀번호가 올바르지 않습니다.");
+  }
+};
 
   return (
-    <div className="relative w-full h-screen bg-bg_white overflow-hidden">
-      {/* 1. 스플래시 화면 (전체 화면, 위로 사라짐) */}
-      <AnimatePresence>
-        {showSplash && (
-          <motion.div
-            key="splash"
-            initial={{ y: 0 }}
-            exit={{ y: "-100%" }}
-            transition={{ duration: 0.35, ease: "circIn" }}
-            className="absolute inset-0 z-50 w-full h-full"
-          >
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="flex flex-col h-full px-6 py-12 font-pretendard">
+      {/* 상단 로고 */}
+      <div className="flex flex-col items-center mb-20">
+        <Image src={logoImg} alt="Logo" width={120} height={120} className="object-contain" />
+      </div>
 
-      {/* 2. 로그인/회원가입 메인 컨텐츠 */}
-      <div className="relative w-full h-full flex flex-col items-center">
-        {/* 상단 이미지 영역 (비워둠) */}
-        <div className="w-full h-[50%]" />
+      {/* 소셜 로그인 섹션 (Button 컴포넌트 활용) */}
+      <div className="flex flex-col gap-3 mb-8">
+        <Button variant="kakao" size="full" onClick={() => alert("준비 중")}>
+          카카오로 계속하기
+        </Button>
+        <Button variant="black" size="full" onClick={() => alert("준비 중")}>
+          구글로 계속하기
+        </Button>
+      </div>
 
-        {/* 하단 컨텐츠 영역 (중앙부터 시작) */}
-        <div className="flex flex-col items-center w-full px-8 flex-1">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={!showSplash ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 300, 
-              damping: 30,
-              opacity: { duration: 0.2 } 
-            }}
-            className="flex flex-col items-center w-full"
-          >
-            {/* 로고 및 텍스트 */}
-            <Image src={logoImg} alt="Logo" width={90} height={90} className="mb-4" />
-            <h1 style={{ color: POINT_COLOR }} className="font-bold text-3xl mb-1 tracking-tight">
-              Dessert Digging
-            </h1>
-            <p style={{ color: POINT_COLOR }} className="text-sm font-medium mb-12">
-              맛있는 트렌드를 디깅하세요
-            </p>
+      {/* 구분선 */}
+      <div className="flex items-center gap-4 mb-8">
+        <div className="flex-1 h-[1px] bg-gray-100" />
+        <span className="text-[11px] text-gray-400">또는</span>
+        <div className="flex-1 h-[1px] bg-gray-100" />
+      </div>
 
-            {/* 버튼 섹션 */}
-            <div className="w-full max-w-[300px] space-y-3">
-              <Button
-                variant="brown" // tailwind.config.ts에 등록한 brown 사용
-                size="full"
-                onClick={() => router.push("/signup")}
-                className="!bg-primary_btn_brown" // !중요도로 갈색 강제 적용
-              >
-                회원가입
-              </Button>
+      {/* 입력 폼 섹션 (공통 Input 활용) */}
+      <div className="flex flex-col gap-4 mb-4">
+        <Input
+          label="이메일"
+          placeholder="이메일을 입력하세요"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Input
+          label="비밀번호"
+          type="password"
+          placeholder="비밀번호를 입력하세요"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
 
-              <Button
-                variant="gray"
-                size="full"
-                onClick={() => router.push("/login")}
-                className="!text-[#444]"
-              >
-                로그인
-              </Button>
+      {/* 로그인 버튼 (입력 여부에 따라 primary 색상 활성화) */}
+      <Button
+        variant={email && password ? "primary" : "gray"}
+        size="full"
+        disabled={!email || !password}
+        onClick={handleLogin}
+      >
+        로그인
+      </Button>
 
-              <p className="text-[10px] text-gray-400 text-center mt-3 leading-tight">
-                계속 진행하면 Degging 서비스에서 개인위치정보를 수집하고 활용하는<br />
-                것에 동의하는 것으로 간주됩니다.
-              </p>
-            </div>
-          </motion.div>
-        </div>
+      {/* 하단 보조 링크 */}
+      <div className="mt-8 text-center">
+        <Link
+          href="/find"
+          className="text-xs text-gray-400 underline underline-offset-4 decoration-gray-200"
+        >
+          비밀번호를 잊으셨나요?
+        </Link>
       </div>
     </div>
   );
