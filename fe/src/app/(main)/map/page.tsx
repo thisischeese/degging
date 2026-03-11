@@ -11,6 +11,7 @@ import tagPlusIcon from '@/assets/images/map/tagPlusIcon.png';
 import recommendLogo from '@/assets/images/map/recommendLogo.png';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
+import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
 import cafe1Img from '@/assets/images/cafe/cafe1.png';
 import cafe2Img from '@/assets/images/cafe/cafe2.png';
@@ -63,6 +64,13 @@ const fetchCafes = async (): Promise<Cafe[]> => {
 
 const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
 
+const SORT_OPTIONS = [
+  { value: 'recommend', label: '추천순' },
+  { value: 'rating', label: '별점순' },
+  { value: 'review', label: '리뷰많은순' },
+  { value: 'distance', label: '거리순' },
+];
+
 function MapContent() {
   const router = useRouter();
   const {
@@ -77,6 +85,7 @@ function MapContent() {
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isFranchiseIncluded, setIsFranchiseIncluded] = useState(false);
+  const [sortBy, setSortBy] = useState('recommend');
   const [windowHeight, setWindowHeight] = useState(800);
 
   useEffect(() => {
@@ -320,9 +329,11 @@ function MapContent() {
         </div>
 
         <div className="px-5 pb-3 pt-1 flex items-center justify-between border-b border-gray-100 shrink-0">
-          <button className="flex items-center gap-1 text-[16px] font-bold text-gray-900">
-            추천순 <ChevronDown className="w-5 h-5 text-gray-900" strokeWidth={3} />
-          </button>
+          <Dropdown
+            options={SORT_OPTIONS}
+            value={sortBy}
+            onChange={setSortBy}
+          />
           <Chip label="프차 포함" variant="map" isActive={isFranchiseIncluded} onClick={() => setIsFranchiseIncluded(!isFranchiseIncluded)} />
         </div>
 
