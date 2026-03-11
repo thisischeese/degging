@@ -57,6 +57,26 @@ const fetchCafes = async (): Promise<Cafe[]> => {
           address: '서울 강남구 테헤란로 123',
           distance: '200m'
         },
+        {
+          id: '3', name: '씨티커피 역삼',
+          lat: 37.5036,
+          lng: 127.038,
+          isRecommend: true,
+          imageUrl: cafe2Img,
+          description: '직장인들을 위한 최고의 휴식 공간',
+          address: '서울 강남구 테헤란로 123',
+          distance: '200m'
+        },
+        {
+          id: '4', name: '씨티커피 역삼',
+          lat: 37.6000,
+          lng: 127.0444,
+          isRecommend: true,
+          imageUrl: cafe2Img,
+          description: '직장인들을 위한 최고의 휴식 공간',
+          address: '서울 강남구 테헤란로 123',
+          distance: '200m'
+        },
       ]);
     }, 1000);
   });
@@ -88,10 +108,11 @@ function MapContent() {
   const [sortBy, setSortBy] = useState('recommend');
   const [windowHeight, setWindowHeight] = useState(800);
 
+  // window height 관련 효과 최적화 (동기적 setState 방지)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setWindowHeight(window.innerHeight);
       const handleResize = () => setWindowHeight(window.innerHeight);
+      handleResize(); // 초기값 설정
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }
@@ -99,9 +120,9 @@ function MapContent() {
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const userOverlayRef = useRef<any>(null);
+  const mapInstance = useRef<kakao.maps.Map | null>(null);
+  const markersRef = useRef<kakao.maps.Marker[]>([]);
+  const userOverlayRef = useRef<kakao.maps.CustomOverlay | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
 
@@ -143,7 +164,7 @@ function MapContent() {
       userOverlayRef.current = new window.kakao.maps.CustomOverlay({
         position: center,
         content: overlayContent,
-        map: null, // isTracking일 때만 활성화
+        map: undefined, // isTracking일 때만 활성화
       });
     });
   }, []); // 최초 1회 실행
@@ -164,13 +185,12 @@ function MapContent() {
       const markerPosition = new window.kakao.maps.LatLng(cafe.lat, cafe.lng);
 
       // 모든 마커에 커스텀 이미지 적용
-      let markerOptions: any = {
+      const markerOptions: kakao.maps.MarkerOptions = {
         position: markerPosition,
         title: cafe.name,
-        image: markerImage, // 모든 마커에 로고 적용
-        zIndex: cafe.isRecommend ? 10 : 1 // 추천 카페는 일반 마커보다 위에 보이도록 설정
+        image: markerImage,
+        zIndex: cafe.isRecommend ? 10 : 1
       };
-
       const marker = new window.kakao.maps.Marker(markerOptions);
 
       // 클릭 이벤트: 공통적으로 지도를 해당 위치로 이동(panTo)
