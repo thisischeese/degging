@@ -1,5 +1,7 @@
 package com.degging.be.review.service;
 
+import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
@@ -36,7 +38,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ReviewImageRepository reviewImageRepository;
     private final UserRepository userRepository;
-//    private final CafeRepository cafeRepository;
+    private final CafeRepository cafeRepository;
 
     /**
      * 리뷰 생성 메서드
@@ -45,10 +47,10 @@ public class ReviewService {
     public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId){
         // 유효성 검증 및 객체 조회
         User user = getValidUser(loginUser);
-        checkCafeValidation(cafeId);
+        CafeEntity cafe = checkCafeValidation(cafeId);
 
         // 중복 체크
-        boolean isDuplicate = reviewRepository.existsByUserIdAndCafeIdAndContent(
+        boolean isDuplicate = reviewRepository.existsByUserUserIdAndCafeCafeIdAndContent(
                 loginUser, cafeId, request.getContent()
         );
 
@@ -57,7 +59,7 @@ public class ReviewService {
         }
 
         // Dto -> Entity 후 Review 테이블에 저장
-        ReviewEntity entity = reviewRepository.save(request.toEntity(user, cafeId));
+        ReviewEntity entity = reviewRepository.save(request.toEntity(user, cafe));
 
         // Review_Image 테이블에 저장
         uploadReviewImages(entity, images, 0);
@@ -203,12 +205,10 @@ public class ReviewService {
         }
     }
 
-    // 카페 존재 체크
-    public void checkCafeValidation(UUID cafeId){
-        if (cafeId == null) return;
-        // 카페 존재 여부 확인, cafe 연결 후 주석 지우기
-//        return cafeRepository.ExistedById(request.getCafeId()).orElseThrow(
-//                  new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+    // 카페 존재 체크 및 CafeEntity 반환
+    public CafeEntity checkCafeValidation(UUID cafeId){
+        return cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
     }
 
     // 리뷰 존재 체크

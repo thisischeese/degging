@@ -1,5 +1,6 @@
 package com.degging.be.review.entity;
 
+import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.global.entity.BaseEntity;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import jakarta.persistence.Entity;
@@ -31,13 +32,9 @@ public class ReviewEntity extends BaseEntity {
     @Column(name = "review_id", updatable = false, nullable = false)
     private UUID reviewId;
 
-    @Column(name = "cafe_id", nullable = false)
-    private UUID cafeId;
-
-    // TODO : 아직 Entity 받기 전이라 임시로 UUID 로 설정해둠
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "cafe_id", nullable = false)
-//    private CafeEntity cafe;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cafe_id", nullable = false)
+    private CafeEntity cafe;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

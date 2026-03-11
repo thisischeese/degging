@@ -50,11 +50,10 @@ public class ReviewDetailResponse {
                         .map(ReviewImageEntity::getImageUrl)
                         .toList())
                 .nickname(entity.getUser().getNickname())
-                // TODO: Cafe 도메인 연결 시 아래 주석 해제
-                // .name(entity.getCafe().getName())
-                // .cafeIntro(entity.getCafe().getCafeIntro())
-                // .address(entity.getCafe().getAddress())
-                // .roadAddress(entity.getCafe().getRoadAddress())
+                 .name(entity.getCafe().getName())
+                 .cafeIntro(entity.getCafe().getCafeIntro())
+                 .address(entity.getCafe().getAddress())
+                 .roadAddress(entity.getCafe().getRoadAddress())
                 .build();
     }
 }

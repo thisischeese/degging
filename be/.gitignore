@@ -43,3 +43,6 @@ application-local.properties
 
 ### VS Code ###
 .vscode/
+
+## docker
+docker-compose.yml
