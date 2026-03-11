@@ -8,6 +8,11 @@ interface MapState {
   // 현재 사용자 위치
   userLocation: { lat: number; lng: number } | null;
   setUserLocation: (location: { lat: number; lng: number }) => void;
+
+  // 위치 추적 상태
+  isTracking: boolean;
+  toggleTracking: () => void;
+  setTracking: (isTracking: boolean) => void;
 }
 
 export const useMapStore = create<MapState>((set) => ({
@@ -20,4 +25,7 @@ export const useMapStore = create<MapState>((set) => ({
     })),
   userLocation: null,
   setUserLocation: (userLocation) => set({ userLocation }),
+  isTracking: false,
+  toggleTracking: () => set((state) => ({ isTracking: !state.isTracking })),
+  setTracking: (isTracking) => set({ isTracking }),
 }));
