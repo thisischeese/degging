@@ -5,7 +5,7 @@
 // import { Input } from "@/common/components/Input";
 // import Button from "@/common/components/Button";
 // import { SignupStepProps } from "../types";
-// import logoImg from "@/assets/images/common/logo.png";
+// import { SignupStepProps } from "../types";
 
 // export default function StepEmail({ next, updateData }: SignupStepProps) {
 //   const [email, setEmail] = useState("");
@@ -54,7 +54,7 @@
 
 //       {/* 로고 영역 */}
 //       <div className="flex flex-col items-center mb-12">
-//         <Image src={logoImg} alt="Logo" width={80} height={80} className="object-contain" />
+//         <Image src="/images/common/logo.png" alt="Logo" width={80} height={80} className="object-contain" />
 //       </div>
 
 //       {/* 입력 폼 영역 */}
@@ -133,7 +133,6 @@ import Image from "next/image";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
-import logoImg from "@/assets/images/common/logo.png";
 
 export default function StepEmail({ next, updateData }: SignupStepProps) {
   const [email, setEmail] = useState("");
@@ -181,7 +180,7 @@ export default function StepEmail({ next, updateData }: SignupStepProps) {
 
       {/* 로고 영역 */}
       <div className="flex flex-col items-center mb-12">
-        <Image src={logoImg} alt="Logo" width={120} height={120} className="object-contain" />
+        <Image src="/images/common/logo.png" alt="Logo" width={120} height={120} className="object-contain" />
       </div>
 
       {/* 입력 폼 영역 */}

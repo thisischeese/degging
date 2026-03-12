@@ -2,7 +2,6 @@ import React from 'react';
 import Image from 'next/image';
 import { StaticImageData } from 'next/image';
 import { MapPin, Star } from 'lucide-react';
-import defaultCafe from '@/assets/images/cafe/baseCafeImage.png';
 
 export interface CafeCardProps {
   id: string;
@@ -41,7 +40,7 @@ export const CafeCard = ({
       {/* 1. 좌측 이미지 영역: 80x80 크기, rounded-xl */}
       <div className="relative w-20 h-20 shrink-0">
         <Image
-          src={imageUrl || defaultCafe}
+          src={imageUrl || '/images/cafe/baseCafeImage.png'}
           alt={name}
           fill
           className="rounded-xl object-cover"

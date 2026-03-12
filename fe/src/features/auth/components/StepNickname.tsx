@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
-import logoImg from "@/assets/images/common/logo.png";
 
 export default function StepNickname({ next, updateData }: SignupStepProps) {
   const [nickname, setNickname] = useState("");
@@ -62,7 +61,7 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
 
       {/* 로고 영역 (이전 단계와 동일) */}
       <div className="flex flex-col items-center mb-12">
-        <Image src={logoImg} alt="Logo" width={120} height={120} className="object-contain" />
+        <Image src="/images/common/logo.png" alt="Logo" width={120} height={120} className="object-contain" />
       </div>
 
       {/* 입력 폼 영역 */}

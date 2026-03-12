@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
-import logoImg from "@/assets/images/common/logo.png";
 
 import { postFindPassword } from "@/features/auth/api/find";
 
@@ -25,7 +24,7 @@ export default function FindPasswordPage() {
       {/* 1. 상단 로고: 로그인 페이지와 완벽하게 동일한 위치와 크기 */}
       <div className="mt-[56px] flex flex-col items-center mb-20 shrink-0">
         <Image 
-          src={logoImg} 
+          src="/images/common/logo.png" 
           alt="Degging Logo" 
           width={120}   // 로그인 페이지에서 키운 사이즈와 동일하게 설정
           height={120} 

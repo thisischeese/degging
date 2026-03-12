@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
-import logoImg from "@/assets/images/common/logo.png";
 import { LoginResponse } from "@/features/auth/types";
 import { useRouter } from "next/navigation";
 import { postLogin } from "@/features/auth/api/login";
@@ -37,7 +36,7 @@ export default function LoginPage() {
     <div className="flex flex-col h-full px-6 py-12 font-pretendard">
       {/* 상단 로고 */}
       <div className="flex flex-col items-center mb-20">
-        <Image src={logoImg} alt="Logo" width={120} height={120} className="object-contain" />
+        <Image src="/images/common/logo.png" alt="Logo" width={120} height={120} className="object-contain" />
       </div>
 
       {/* 소셜 로그인 섹션 (Button 컴포넌트 활용) */}

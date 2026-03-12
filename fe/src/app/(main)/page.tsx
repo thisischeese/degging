@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import { RankingItem } from "@/features/ranks/types";
-import mangoBingsuImg from "@/assets/images/curation/mangoBingsu.png";
 import searchIcon from "@/assets/icons/searchIcon.png";
 
 export default function MainPage() {
@@ -129,7 +128,7 @@ export default function MainPage() {
               className="relative flex-none shrink-0 w-[260px] h-[300px] snap-center rounded-[24px] overflow-hidden cursor-pointer shadow-sm select-none"
               onClick={(e) => handleItemClick(e, `/curations/${item}`)}
             >
-              <Image draggable={false} src={mangoBingsuImg} alt="큐레이션" fill className="object-cover" />
+              <Image draggable={false} src="/images/curation/mangoBingsu.png" alt="큐레이션" fill className="object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-5">
                 {/* 큐레이션 내부는 나눔스퀘어 Bold 적용 */}
                 <h3 className="text-white text-[17px] font-nanum_bold leading-tight tracking-tight">

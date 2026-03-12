@@ -4,17 +4,16 @@ import { useState } from "react";
 import Image from "next/image";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
-import cafeImg from "@/assets/images/cafe/cafe1.png";
 
 const MOOD_LIST = [
-  { id: "mood1", label: "조용한", image: cafeImg },
-  { id: "mood2", label: "힙한", image: cafeImg },
-  { id: "mood3", label: "대화하기 좋은", image: cafeImg },
-  { id: "mood4", label: "작업하기 좋은", image: cafeImg },
-  { id: "mood5", label: "사진이 잘 나오는", image: cafeImg },
-  { id: "mood6", label: "디저트가 맛있는", image: cafeImg },
-  { id: "mood7", label: "반려동물 동반", image: cafeImg },
-  { id: "mood8", label: "뷰가 좋은", image: cafeImg },
+  { id: "mood1", label: "조용한", image: "/images/cafe/cafe1.png" },
+  { id: "mood2", label: "힙한", image: "/images/cafe/cafe1.png" },
+  { id: "mood3", label: "대화하기 좋은", image: "/images/cafe/cafe1.png" },
+  { id: "mood4", label: "작업하기 좋은", image: "/images/cafe/cafe1.png" },
+  { id: "mood5", label: "사진이 잘 나오는", image: "/images/cafe/cafe1.png" },
+  { id: "mood6", label: "디저트가 맛있는", image: "/images/cafe/cafe1.png" },
+  { id: "mood7", label: "반려동물 동반", image: "/images/cafe/cafe1.png" },
+  { id: "mood8", label: "뷰가 좋은", image: "/images/cafe/cafe1.png" },
 ];
 
 export default function StepMood({ next, updateData, formData }: SignupStepProps) {

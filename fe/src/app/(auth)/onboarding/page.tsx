@@ -7,8 +7,6 @@ import Image from "next/image";
 import Button from "@/common/components/Button";
 
 // 이미지 경로 확인 필요
-import splashImg from "@/assets/images/onboarding/splash1.png";
-import logoImg from "@/assets/images/common/logo.png";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -58,7 +56,7 @@ export default function OnboardingPage() {
             className="flex flex-col items-center w-full"
           >
             {/* 로고 및 텍스트 */}
-            <Image src={logoImg} alt="Logo" width={90} height={90} className="mb-4" />
+            <Image src="/images/common/logo.png" alt="Logo" width={90} height={90} className="mb-4" />
             <h1 style={{ color: POINT_COLOR }} className="font-bold text-3xl mb-1 tracking-tight">
               Dessert Digging
             </h1>
