@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react"; 
+import { MapPin } from "lucide-react"; 
 import mangoBingsuImg from "@/assets/images/curation/mangoBingsu.png";
-import divideLine from "@/assets/images/curation/divideLine.png"; // 구분선 추가
+import divideLine from "@/assets/images/curation/divideLine.png"; 
+import backIcon from "@/assets/icons/backIcon.png";
 
 export default function CurationDetailPage() {
   const router = useRouter();
@@ -26,9 +27,10 @@ export default function CurationDetailPage() {
         
         <button 
           onClick={() => router.back()}
-          className="absolute top-6 left-6 w-10 h-10 bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 active:scale-95 transition-transform z-10"
+          className="absolute top-6 left-6 w-8 h-8 flex items-center justify-center active:scale-95 transition-transform z-10"
         >
-          <ChevronLeft className="text-white w-6 h-6" />
+          <div className="absolute inset-0 bg-black/40 rounded-full" />
+          <Image src={backIcon} alt="뒤로가기" className="relative w-8 h-8 brightness-0 invert object-contain" />
         </button>
 
         <div className="absolute bottom-12 px-8">
@@ -39,31 +41,30 @@ export default function CurationDetailPage() {
       </section>
 
       {/* --- 섹션 2: 인트로 --- */}
-      <section className="px-8 py-14">
+      <section className="px-8 pt-14">
         <p className="text-[#424242] text-[16px] leading-[1.8] break-keep font-nanum_bold mb-10">
           한 입이면 여름이 녹는다.<br />
           달콤하고 시원한 망고의 계절<br />
         </p>
-        <p className="text-[14px] text-[#616161] leading-[2.5] break-keep font-nanum mb-8">
+        <p className="text-[14px] text-[#616161] leading-[2.5] break-keep font-nanum">
           여름의 열기가 한창일 때, 가장 먼저 떠오르는 디저트가 있다. 바로 얼음 위에 달콤한 망고가 듬뿍 올라간 망고빙수다. 한 숟가락 떠먹는 순간, 시원한 우유 얼음과 과즙 가득한 망고의 달콤함이 입안에서 녹아내리며 무더위를 단번에 잊게 만든다. 오늘은 올여름, 더위를 시원하게 날려줄 완벽한 당도의 망고빙수를 큐레이팅해 소개한다.
         </p>
         {/* 커스텀 구분선 이미지 */}
-        <div className="flex justify-center py-6">
-            <div className="relative w-[150px] h-[150px]"> {/* 부모 박스 크기를 100px로 고정 */}
+        <div className="flex justify-center my-10">
+            <div className="relative w-[150px] h-[60px]">
                 <Image 
                 src={divideLine} 
                 alt="구분선" 
                 fill 
-                className="object-contain" // 비율 유지하며 꽉 채우기
+                className="object-contain" 
                 />
             </div>
         </div>
-        
       </section>
 
       {/* --- 섹션 3: 카페 개별 소개 --- */}
       {[1, 2, 3, 4].map((item) => (
-        <section key={item} className="px-8 py-10">
+        <section key={item} className="px-8">
           <h2 className="text-[19px] font-nanum_bold mb-5">{item}. 당옥</h2>
           <p className="text-[14px] text-[#616161] leading-[2.5] break-keep font-nanum mb-8">
             신사역 8번 출구 근처에 있는 일본식 디저트 카페 당옥에 들르면, 여름에 특히 찾게 되는 메뉴가 바로 망고빙수입니다. 부드럽게 갈린 우유 얼음 위에 달콤하게 익은 망고를 넉넉하게 올려, 한 숟갈만 떠도 상큼한 과즙과 시원한 달콤함이 자연스럽게 퍼집니다.
@@ -83,7 +84,7 @@ export default function CurationDetailPage() {
           
           {/* 지도 정적 이미지 영역 */}
           <div 
-            className="w-full h-[180px] bg-[#F5F5F5] rounded-2xl mb-10 relative cursor-pointer overflow-hidden"
+            className="w-full h-[180px] bg-[#F5F5F5] rounded-2xl relative cursor-pointer overflow-hidden"
             onClick={() => router.push(`/cafes/${item}`)}
           >
              <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-[12px]">
@@ -92,13 +93,13 @@ export default function CurationDetailPage() {
           </div>
           
           {/* 커스텀 구분선 이미지 */}
-          <div className="flex justify-center py-6">
-            <div className="relative w-[150px] h-[150px]"> {/* 부모 박스 크기를 100px로 고정 */}
+          <div className="flex justify-center my-10">
+            <div className="relative w-[150px] h-[60px]">
                 <Image 
                 src={divideLine} 
                 alt="구분선" 
                 fill 
-                className="object-contain" // 비율 유지하며 꽉 채우기
+                className="object-contain"
                 />
             </div>
         </div>
@@ -106,29 +107,32 @@ export default function CurationDetailPage() {
       ))}
 
       {/* --- 섹션 4: 카페 모음 리스트 (여기서부터 배경색 변경) --- */}
-      <section className="px-8 py-14 bg-[#F7F7F5]">
-        <h2 className="text-[17px] font-nanum_bold text-gray-900 mb-8">큐레이션에 포함된 카페 모음</h2>
-        <div className="flex flex-col gap-4">
+      <section className="px-8 pt-6 pb-14 bg-[#F7F7F5]">
+        <h2 className="text-[18px] font-nanum_bold text-gray-900 mb-2">큐레이션에 포함된 카페 모음</h2>
+        <div className="flex flex-col font-pretendard">
           {cafeList.map((cafe) => (
             <div 
               key={cafe.id}
               onClick={() => router.push(`/cafes/${cafe.id}`)}
-              className="flex items-center gap-4 bg-white p-4 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0,04)] cursor-pointer active:scale-[0.98] transition-all"
+              className="flex items-center gap-5 py-5 border-t border-[#D6DCE5] last:border-b cursor-pointer active:bg-black/5"
             >
-              <div className="w-[60px] h-[60px] relative shrink-0">
-                <Image src={mangoBingsuImg} alt="카페" fill className="rounded-xl object-cover" />
+              <div className="w-[72px] h-[72px] relative shrink-0">
+                <Image src={mangoBingsuImg} alt="카페" fill className="object-cover" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-[14px] font-nanum_bold text-gray-900">{cafe.name}</span>
-                <span className="text-[11px] text-gray-500 mt-1 font-nanum leading-tight">{cafe.description}</span>
-                <span className="text-[10px] text-gray-400 mt-1.5 font-nanum">📍 {cafe.address}</span>
+              <div className="flex flex-col justify-center gap-1.5">
+                <span className="text-[16px] font-bold text-gray-900">{cafe.name}</span>
+                <span className="text-[14px] text-gray-700 leading-none">{cafe.description}</span>
+                <span className="text-[13px] text-gray-500 flex items-center gap-1 leading-none mt-0.5">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {cafe.address}
+                </span>
               </div>
             </div>
           ))}
         </div>
         
-        <div className="mt-20 pb-10 text-center">
-          <p className="text-[10px] text-gray-400 font-nanum">작성 일자 2026.03.06</p>
+        <div className="mt-2 pb-10">
+          <p className="text-[12px] text-gray-500 font-nanum">작성 일자 2026.03.06</p>
         </div>
       </section>
     </div>
