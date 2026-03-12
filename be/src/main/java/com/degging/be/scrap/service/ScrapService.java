@@ -120,9 +120,7 @@ public class ScrapService {
         ScrapEntity scrap = getValidScrap(scrapId);
 
         // 본인 스크랩인지 유효성 검사
-        if (!user.getUserId().equals(scrap.getUser().getUserId())){
-            throw new BaseException(ScrapErrorCode.SCRAP_ACCESS_DENIED);
-        }
+        validateUser(user, scrap);
 
         // 제목 중복 검사 (이름이 변경된 경우에만)
         if (!scrap.getName().equals(scrapRequest.getName())) {
@@ -134,6 +132,20 @@ public class ScrapService {
     }
 
     /**
+     * 스크랩을 삭제하는 메서드
+     */
+    @Transactional
+    public void deleteScrap(UUID userId, UUID scrapId) {
+        // 회원, 작성자 본인 확인, 스크랩 유효성 검사
+        User user = getValidUser(userId);
+        ScrapEntity scrap = getValidScrap(scrapId);
+        validateUser(user, scrap);
+
+        // 스크랩 삭제 (cascade)
+        scrapRepository.delete(scrap);
+    }
+
+    /**
      * 유효성 검사
      */
 
@@ -141,6 +153,13 @@ public class ScrapService {
     public User getValidUser(UUID userId){
         return userRepository.findById(userId)
                 .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    // 작성자 본인 여부 확인
+    public void validateUser(User user, ScrapEntity scrap){
+        if (!user.getUserId().equals(scrap.getUser().getUserId())){
+            throw new BaseException(ScrapErrorCode.SCRAP_ACCESS_DENIED);
+        }
     }
 
     // 스크랩명 중복 조회
