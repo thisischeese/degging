@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Button from "@/common/components/Button";
 import { SignupFormData } from "../types";
-import welcomeImg from "@/assets/images/auth/welcome.png";
 
 interface StepWelcomeProps {
   formData: SignupFormData;
@@ -24,7 +23,7 @@ export default function StepWelcome({ formData }: StepWelcomeProps) {
         {/* 1. 중앙 원형 아이콘 영역 */}
         <div className="relative w-48 h-48 mb-12 rounded-full bg-[#FDFBF6] flex items-center justify-center shadow-sm border border-gray-100">
           <Image
-            src={welcomeImg}
+            src="/images/auth/welcome.png"
             alt="Welcome Cake"
             width={120}
             height={120}

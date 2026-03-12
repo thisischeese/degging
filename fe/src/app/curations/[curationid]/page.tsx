@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MapPin } from "lucide-react"; 
-import mangoBingsuImg from "@/assets/images/curation/mangoBingsu.png";
-import divideLine from "@/assets/images/curation/divideLine.png"; 
+import mangoBingsuImg from "/images/curation/mangoBingsu.png";
+import divideLine from "/images/curation/divideLine.png"; 
 import backIcon from "@/assets/icons/backIcon.png";
 
 export default function CurationDetailPage() {

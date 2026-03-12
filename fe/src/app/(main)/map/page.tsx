@@ -6,16 +6,10 @@ import Image from 'next/image';
 import { StaticImageData } from 'next/image';
 import { Search, LocateFixed, Plus, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
-import searchIcon from '@/assets/images/map/mapSearchIcon.png';
-import tagPlusIcon from '@/assets/images/map/tagPlusIcon.png';
-import recommendLogo from '@/assets/images/map/recommendLogo.png';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
 import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
-import cafe1Img from '@/assets/images/cafe/cafe1.png';
-import cafe2Img from '@/assets/images/cafe/cafe2.png';
-import defaultCafe from '@/assets/images/cafe/baseCafeImage.png';
 import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
 
@@ -42,7 +36,7 @@ const fetchCafes = async (): Promise<Cafe[]> => {
           lat: 37.502035,
           lng: 127.040018,
           isRecommend: true,
-          imageUrl: cafe1Img,
+          imageUrl: "/images/cafe/cafe1.png",
           description: '조용하고 넓은 공간에서 즐기는 시그니처 빵',
           address: '서울 강남구 언주로85길 29 1층',
           distance: '99m'
@@ -52,7 +46,7 @@ const fetchCafes = async (): Promise<Cafe[]> => {
           lat: 37.5036601,
           lng: 127.0382947,
           isRecommend: true,
-          imageUrl: cafe2Img,
+          imageUrl: "/images/cafe/cafe2.png",
           description: '직장인들을 위한 최고의 휴식 공간',
           address: '서울 강남구 테헤란로 123',
           distance: '200m'
@@ -62,7 +56,7 @@ const fetchCafes = async (): Promise<Cafe[]> => {
           lat: 37.5036,
           lng: 127.038,
           isRecommend: true,
-          imageUrl: cafe2Img,
+          imageUrl: "/images/cafe/cafe2.png",
           description: '직장인들을 위한 최고의 휴식 공간',
           address: '서울 강남구 테헤란로 123',
           distance: '200m'
@@ -72,7 +66,7 @@ const fetchCafes = async (): Promise<Cafe[]> => {
           lat: 37.6000,
           lng: 127.0444,
           isRecommend: true,
-          imageUrl: cafe2Img,
+          imageUrl: "/images/cafe/cafe2.png",
           description: '직장인들을 위한 최고의 휴식 공간',
           address: '서울 강남구 테헤란로 123',
           distance: '200m'
@@ -179,7 +173,7 @@ function MapContent() {
 
     // 공통 마커 이미지 설정 (루프 밖에서 한 번만 생성하여 성능 최적화)
     const imageSize = new window.kakao.maps.Size(24, 24);
-    const markerImage = new window.kakao.maps.MarkerImage(recommendLogo.src, imageSize);
+    const markerImage = new window.kakao.maps.MarkerImage("/images/map/recommendLogo.png", imageSize);
 
     cafes.forEach((cafe) => {
       const markerPosition = new window.kakao.maps.LatLng(cafe.lat, cafe.lng);
@@ -296,14 +290,14 @@ function MapContent() {
 
           {/* 검색바 우측 우드톤 검색 버튼 */}
           <button className="flex-shrink-0 flex items-center justify-center w-10 h-10 bg-[#865B28] rounded-[5px] shadow-sm">
-            <Image src={searchIcon} alt="검색" width={24} height={24} className="w-6 h-6 object-contain" />
+            <Image src="/images/map/mapSearchIcon.png" alt="검색" width={24} height={24} className="w-6 h-6 object-contain" />
           </button>
         </div>
 
         <div className="px-4 pb-2 flex items-center gap-2">
           {/* 가로 스크롤 고정 필터 추가 버튼 */}
           <button className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-[#DBC9AD] shadow-sm">
-            <Image src={tagPlusIcon} alt="태그 추가" width={20} height={20} className="w-5 h-5 object-contain" />
+            <Image src="/images/map/tagPlusIcon.png" alt="태그 추가" width={20} height={20} className="w-5 h-5 object-contain" />
           </button>
 
           {/* 스크롤 가능한 칩 리스트 */}

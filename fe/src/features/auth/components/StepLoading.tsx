@@ -2,10 +2,6 @@
 
 import { useEffect } from "react";
 import Image from "next/image";
-import logoImg from "@/assets/images/common/logo.png";
-import taste1 from "@/assets/images/auth/taste1.jpg";
-import taste2 from "@/assets/images/auth/taste2.jpg";
-import taste3 from "@/assets/images/auth/taste3.jpg";
 
 interface StepLoadingProps {
   next: () => void;
@@ -49,23 +45,23 @@ export default function StepLoading({ next, onSignup }: StepLoadingProps) {
       <div className="relative w-full max-w-[280px] aspect-square">
         {/* 첫 번째 이미지 (왼쪽 위, 살짝 회전) */}
         <div className="absolute top-0 left-0 w-40 h-40 rounded-3xl overflow-hidden shadow-xl -rotate-12 z-10 border-2 border-white">
-          <Image src={taste1} alt="taste1" fill className="object-cover" />
+          <Image src="/images/auth/taste1.jpg" alt="taste1" fill className="object-cover" />
         </div>
 
         {/* 두 번째 이미지 (오른쪽 위, 반대 방향 회전) */}
         <div className="absolute top-4 right-0 w-44 h-44 rounded-3xl overflow-hidden shadow-xl rotate-6 z-20 border-2 border-white">
-          <Image src={taste2} alt="taste2" fill className="object-cover" />
+          <Image src="/images/auth/taste2.jpg" alt="taste2" fill className="object-cover" />
         </div>
 
         {/* 세 번째 이미지 (중앙 아래, 크게 배치) */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-52 h-64 rounded-3xl overflow-hidden shadow-2xl z-30 border-2 border-white">
-          <Image src={taste3} alt="taste3" fill className="object-cover" />
+          <Image src="/images/auth/taste3.jpg" alt="taste3" fill className="object-cover" />
         </div>
       </div>
 
       {/* 하단 로고 */}
       <div className="flex flex-col items-center">
-        <Image src={logoImg} alt="Logo" width={60} height={60} className="object-contain opacity-50" />
+        <Image src="/images/common/logo.png" alt="Logo" width={60} height={60} className="object-contain opacity-50" />
       </div>
     </div>
   );
