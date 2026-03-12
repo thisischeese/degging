@@ -8,6 +8,7 @@ import com.degging.be.scrap.dto.response.ScrapCafeResponse;
 import com.degging.be.scrap.dto.response.ScrapDetailResponse;
 import com.degging.be.scrap.dto.response.ScrapResponse;
 import com.degging.be.scrap.entity.ScrapEntity;
+import com.degging.be.scrap.entity.ScrapItemEntity;
 import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
@@ -15,7 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -58,7 +61,7 @@ public class ScrapService {
         User user = getValidUser(userId);
         
         // 스크랩 목록 조회
-        List<ScrapEntity> entities = scrapRepository.findAllByUserUserId(user);
+        List<ScrapEntity> entities = scrapRepository.findAllByUserUserId(userId);
         
         // List<Entity> -> List<Dto> 로 반환
         return entities.stream()
@@ -73,21 +76,39 @@ public class ScrapService {
         // user 검증
         User user = getValidUser(userId);
 
-        // scrap 과 cafe 조회
-        ScrapEntity scrap = scrapRepository.findByIdWithCafes(scrapId)
+        // scrap 과 cafe, item 조회
+        ScrapEntity scrap = scrapRepository.findByIdWithCafesAndImages(scrapId)
                 .orElseThrow(()-> new BaseException(ScrapErrorCode.SCRAP_NOT_FOUND));
 
+        // 내 스크랩인지 확인
+        if (!scrap.getUser().getUserId().equals(userId)) {
+            throw new BaseException(ScrapErrorCode.SCRAP_ACCESS_DENIED);
+        }
+
+        // 썸네일 최대 4장 가져와
+        List<String> thumbnailUrls = scrap.getScrapItems().stream()
+                .sorted(Comparator.comparing(ScrapItemEntity::getCreatedAt).reversed()) // 최신순으로
+                .limit(4) // 최대 4장
+                .map(item -> item.getCafe().getThumbnailUrl())
+                .toList();
+
         // 반환 객체인 ScrapDetailResponse 에 맞게 담아줌
-        // TODO : 썸네일을 어떤 식으로 할지 확인 후 진행
         List<ScrapCafeResponse> cafes = scrap.getScrapItems().stream()
                 .map(item -> ScrapCafeResponse.builder()
-                        .cafeId(item.getCafe().getCafeId())
+                        .cafeId(item.getCafe().getCafeId()) // 빈값
                         .name(item.getCafe().getName())
-                        .thumbnailUrl("")
                         .cafeIntro(item.getCafe().getCafeIntro())
                         .build()
                 ).toList();
-        return null;
+        
+        // 스크랩 정보, 카페 정보, 썸네일을 담아 반환
+        return ScrapDetailResponse.builder()
+                .scrapId(scrap.getScrapId())
+                .name(scrap.getName())
+                .color(scrap.getColor())
+                .thumbnailUrls(thumbnailUrls)
+                .cafes(cafes)
+                .build();
     }
 
     /**

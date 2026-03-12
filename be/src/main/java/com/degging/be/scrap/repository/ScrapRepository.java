@@ -18,12 +18,12 @@ public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
     boolean existsByNameAndUser(String name, User user);
 
     // 특정 사용자의 스크랩 리스트 조회
-    List<ScrapEntity> findAllByUserUserId(User user);
+    List<ScrapEntity> findAllByUserUserId(UUID user_userId);
 
     // 스크랩 상세 조회 (카페 정보 포함)
     @Query("SELECT s FROM ScrapEntity s " +
-            "JOIN FETCH s.scrapItems si " +
-            "JOIN FETCH si.cafe " +
+            "LEFT JOIN FETCH s.scrapItems si " + // ScrapItem과 조인
+            "LEFT JOIN FETCH si.cafe c " +       // Cafe까지 조인 (여기서 thumbnailUrl은 이미 포함됨)
             "WHERE s.scrapId = :scrapId")
-    Optional<ScrapEntity> findByIdWithCafes(@Param("scrap") UUID scrapId);
+    Optional<ScrapEntity> findByIdWithCafesAndImages(@Param("scrapId") UUID scrapId);
 }

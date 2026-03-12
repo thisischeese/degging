@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -17,6 +18,5 @@ import java.util.UUID;
 public class ScrapCafeResponse {
     private UUID cafeId;
     private String name;
-    private String thumbnailUrl; // 수정요
     private String cafeIntro; // 필요한 정보만 골라서 정의
 }
