@@ -12,18 +12,19 @@ import com.degging.be.scrap.entity.ScrapItemEntity;
 import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
  * 카페 스크랩을 관리하는 서비스 클래스
  */
+@Transactional(readOnly = true)
 @Service
 @RequiredArgsConstructor
 public class ScrapService {
@@ -55,7 +56,6 @@ public class ScrapService {
     /**
      * 회원의 스크랩 목록을 조회하는 메서드
      */
-    @Transactional(readOnly = true)
     public List<ScrapResponse> getScrapsByUserId(UUID userId) {
         // user 검증
         User user = getValidUser(userId);
@@ -109,6 +109,28 @@ public class ScrapService {
                 .thumbnailUrls(thumbnailUrls)
                 .cafes(cafes)
                 .build();
+    }
+
+    /**
+     * 스크랩 정보 수정
+     */
+    @Transactional
+    public void updateScrap(@Valid ScrapRequest scrapRequest, UUID userId, UUID scrapId) {
+        User user = getValidUser(userId);
+        ScrapEntity scrap = getValidScrap(scrapId);
+
+        // 본인 스크랩인지 유효성 검사
+        if (!user.getUserId().equals(scrap.getUser().getUserId())){
+            throw new BaseException(ScrapErrorCode.SCRAP_ACCESS_DENIED);
+        }
+
+        // 제목 중복 검사 (이름이 변경된 경우에만)
+        if (!scrap.getName().equals(scrapRequest.getName())) {
+            checkScrapValidation(scrapRequest.getName(), user);
+        }
+
+        // 수정 사항 반영
+        scrap.update(scrapRequest.getName(), scrapRequest.getColor());
     }
 
     /**

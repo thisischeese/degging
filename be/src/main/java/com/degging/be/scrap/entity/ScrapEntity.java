@@ -37,6 +37,7 @@ public class ScrapEntity extends BaseEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
+    @Builder.Default // builder 써도 기본값 설정 가능
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "thumbnail_urls", columnDefinition = "jsonb") // 최대 4장 JSONB 로 저장
     private List<String> thumbnailUrls = new ArrayList<>();
@@ -57,5 +58,15 @@ public class ScrapEntity extends BaseEntity {
     // 썸네일 업데이트용 메서드 (카페 추가/삭제 시 반영)
     public void updateThumbnailUrls(List<String> urls) {
         this.thumbnailUrls = urls;
+    }
+
+    // 업데이트
+    public void update(String name, String color) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (color != null && !color.isBlank()){
+            this.color = color;
+        }
     }
 }

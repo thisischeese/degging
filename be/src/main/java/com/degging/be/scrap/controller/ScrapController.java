@@ -74,4 +74,21 @@ public class ScrapController {
         ScrapDetailResponse detail = scrapService.getScrapDetail(scrapId, userId);
         return BaseResponse.success(detail);
     }
+
+    /**
+     * 스크랩 정보를 수정하는 메서드
+     * @param scrapRequest 수정하려는 스크랩 정보 (제목, 색상)
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param scrapId 수정하려는 스크랩 ID
+     * @return 200
+     */
+    @PatchMapping("{scrapId}")
+    public BaseResponse<?> updateScrap(
+            @RequestBody @Valid ScrapRequest scrapRequest,
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "scrapId") UUID scrapId){
+        UUID userId = getUserId(user);
+        scrapService.updateScrap(scrapRequest, userId, scrapId);
+        return BaseResponse.success();
+    }
 }
