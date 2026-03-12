@@ -1,0 +1,45 @@
+{"phase": "recrawl", "name": "사람없는 커피어때 구산점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "스타벅스 종암DT점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "커피한약방 혜화점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "선호커피 바", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "영커피 성남산성점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "퐁퐁", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "햇쌀마루", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "하이오커피 위례호반점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "레드버튼 종로점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "스위트피스", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "사람없는 커피어때 구산점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "스타벅스 종암DT점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "커피한약방 혜화점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "선호커피 바", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "메가MGC커피 암사역점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "영커피 성남산성점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "갤러리뜰", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "퐁퐁", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "에세스커피", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "햇쌀마루", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "퀸즈", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "하이오커피 위례호반점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "레드버튼 종로점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "투썸플레이스 중앙대점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "스위트피스", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "카페쿠모", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "매머드익스프레스 양재시민의숲점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "커피에반하다 김포캐슬앤파밀리에점 스마트카페", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "사람없는 커피어때 구산점", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 34.1}
+{"phase": "recrawl", "name": "메가MGC커피 암사역점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "투썸플레이스 원흥역점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "갤러리뜰", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "더콤마라운지 광명GIDC점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "에세스커피", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "퀸즈", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "스타벅스 종암DT점", "status": "ok", "elapsed": 59.2}
+{"phase": "recrawl", "name": "투썸플레이스 중앙대점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "카페쿠모", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "포멜로빈 공덕점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "매머드익스프레스 양재시민의숲점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "설빙 신정네거리역점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "커피한약방 혜화점", "status": "ok", "elapsed": 74.6}
+{"phase": "recrawl", "name": "커피에반하다 김포캐슬앤파밀리에점 스마트카페", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "커피사피엔스 부천테크노밸리U1점", "status": "ok", "elapsed": 0.0}
+{"phase": "recrawl", "name": "투썸플레이스 원흥역점", "status": "ok", "elapsed": 0.0}

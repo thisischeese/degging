@@ -20,6 +20,7 @@ output/{가게명}/texts/ 또는 photos/ 에 파일이 이미 있으면 스킵.
 """
 
 import asyncio
+import random
 import re
 import urllib.parse
 from pathlib import Path
@@ -48,11 +49,33 @@ TAB_CONFIG = {
 }
 TABS = list(TAB_CONFIG.keys())
 
-UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/122.0.0.0 Safari/537.36"
-)
+# 네이버 차단 감지 마커
+BLOCK_MARKER = "서비스 이용이 제한"
+
+# 다양한 UA 풀 – 요청마다 랜덤 선택
+_UA_POOL = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+]
+
+def _random_ua() -> str:
+    return random.choice(_UA_POOL)
+
+# 기본 UA (이미지 다운로드 등 단순 httpx 요청에 사용)
+UA = _UA_POOL[0]
+
+# 뷰포트 풀 – 컨텍스트마다 랜덤 선택
+_VIEWPORT_POOL = [
+    {"width": 1400, "height": 900},
+    {"width": 1280, "height": 800},
+    {"width": 1440, "height": 900},
+    {"width": 1366, "height": 768},
+    {"width": 1920, "height": 1080},
+]
 
 # ── 네트워크 차단 설정 ──────────────────────────
 # 분석/광고/지도타일 도메인을 차단해 페이지 로드 단축
@@ -95,16 +118,31 @@ def _ensure_dirs(dirs: dict[str, Path]) -> None:
         d.mkdir(parents=True, exist_ok=True)
 
 
+def _is_blocked_content(dirs: dict[str, Path]) -> bool:
+    """저장된 home.txt 가 네이버 차단 메시지를 포함하면 True."""
+    home = dirs["texts"] / "home.txt"
+    if home.exists():
+        try:
+            return BLOCK_MARKER in home.read_text(encoding="utf-8")
+        except OSError:
+            pass
+    return False
+
+
 def _already_crawled(dirs: dict[str, Path]) -> bool:
-    """texts/ 또는 photos/ 에 파일이 하나라도 있으면 이미 크롤링된 것으로 판단."""
+    """
+    texts/ 에 .txt 파일이 하나라도 있으면 이미 크롤링된 것으로 판단.
+    photos/ 는 부분 다운로드가 가능하므로 완료 지표로 사용하지 않는다.
+    단, 차단 메시지가 저장된 경우는 재크롤링 대상으로 간주해 False 반환.
+    """
     base = dirs["base"]
     if not base.exists():
         return False
-    for sub in ("texts", "photos"):
-        sub_dir = base / sub
-        if sub_dir.exists() and any(sub_dir.iterdir()):
-            return True
-    return False
+    # 차단된 캐시는 무효 처리
+    if _is_blocked_content(dirs):
+        return False
+    texts_dir = dirs["texts"]
+    return texts_dir.exists() and any(texts_dir.glob("*.txt"))
 
 
 def _build_cached_result(dirs: dict[str, Path]) -> dict:
@@ -371,9 +409,11 @@ async def run_crawl(search_name: str = DEFAULT_SEARCH_NAME) -> dict:
             headless=True,
             args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
         )
+        session_ua = _random_ua()
+        session_viewport = random.choice(_VIEWPORT_POOL)
         context = await browser.new_context(
-            viewport={"width": 1400, "height": 900},
-            user_agent=UA,
+            viewport=session_viewport,
+            user_agent=session_ua,
             locale="ko-KR",
         )
         await context.add_init_script(
@@ -503,6 +543,11 @@ async def run_crawl(search_name: str = DEFAULT_SEARCH_NAME) -> dict:
                 await f.write(text)
             results["texts"][tab_name] = str(txt_path)
             print(f"    저장: {txt_path} ({len(text)}자)")
+
+            # 탭 간 랜덤 딜레이 (봇 패턴 탐지 회피)
+            tab_delay = random.uniform(3.0, 8.0)
+            print(f"    탭 간 대기: {tab_delay:.1f}초")
+            await asyncio.sleep(tab_delay)
 
         await tab_page.close()
 

@@ -10,11 +10,12 @@ Usage:
 import argparse
 import asyncio
 import json
+import random
 import sys
 import time
 from pathlib import Path
 
-from crawler import run_crawl, OUTPUT_DIR
+from crawler import run_crawl, OUTPUT_DIR, BLOCK_MARKER
 
 DATA_DIR  = Path(__file__).parent / "data"
 CAFE_JSON = DATA_DIR / "cafes.json"
@@ -31,7 +32,17 @@ def already_crawled(name: str) -> bool:
     if not base.exists():
         return False
     texts_dir = base / "texts"
-    return texts_dir.exists() and any(texts_dir.iterdir())
+    if not (texts_dir.exists() and any(texts_dir.iterdir())):
+        return False
+    # 차단 메시지가 저장된 경우 재크롤링 대상
+    home = texts_dir / "home.txt"
+    if home.exists():
+        try:
+            if BLOCK_MARKER in home.read_text(encoding="utf-8"):
+                return False
+        except OSError:
+            pass
+    return True
 
 
 def log(entry: dict) -> None:
@@ -68,8 +79,15 @@ async def crawl_all(cafes: list[str]) -> None:
             log({"name": name, "status": "fail", "error": msg, "elapsed": elapsed})
             failed += 1
 
-        # 요청 간격: 서버 부하 방지
-        await asyncio.sleep(2)
+        # 요청 간격: 랜덤 딜레이로 봇 패턴 탐지 회피
+        delay = random.uniform(15.0, 40.0)
+        # 10개마다 추가 휴식 (IP 차단 임계값 회피)
+        if i % 10 == 0:
+            delay += random.uniform(60.0, 120.0)
+            print(f"  [휴식] 10개 완료 → 추가 대기 포함 총 {delay:.0f}초")
+        else:
+            print(f"  [대기] {delay:.1f}초")
+        await asyncio.sleep(delay)
 
     print(f"\n{'='*50}")
     print(f"완료: 성공={success}  스킵={skipped}  실패={failed}  합계={total}")
