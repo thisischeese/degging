@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
-import logoImg from "@/assets/images/common/logo.png";
 
 export default function StepPassword({ next, updateData }: SignupStepProps) {
   const [password, setPassword] = useState("");
@@ -48,7 +47,7 @@ export default function StepPassword({ next, updateData }: SignupStepProps) {
 
       {/* 로고 영역 (이메일 화면과 동일한 mb-12) */}
       <div className="flex flex-col items-center mb-12">
-        <Image src={logoImg} alt="Logo" width={120} height={120} className="object-contain" />
+        <Image src="/images/common/logo.png" alt="Logo" width={120} height={120} className="object-contain" />
       </div>
 
       {/* 입력 폼 영역 (이메일 화면과 동일한 flex-1 구조) */}
