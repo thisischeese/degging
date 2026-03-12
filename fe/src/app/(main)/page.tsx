@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
@@ -12,7 +12,57 @@ export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
-  // 1. 가짜 업데이트 시간 로직
+  // PC 환경 마우스 드래그 스크롤을 위한 상태
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+  const isDragPassed = useRef(false); // 드래그 시 클릭 이벤트 방지
+
+  const onDragStart = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    isDragPassed.current = false;
+    if (scrollRef.current) {
+      startX.current = e.pageX - scrollRef.current.offsetLeft;
+      scrollLeft.current = scrollRef.current.scrollLeft;
+      // 드래그 시작 시 snap 속성 제거하여 부드럽게 움직이도록 함
+      scrollRef.current.style.scrollSnapType = 'none';
+    }
+  };
+
+  const onDragEnd = () => {
+    isDragging.current = false;
+    if (scrollRef.current) {
+      // 드래그 종료 시 snap 속성 원상 복구
+      scrollRef.current.style.scrollSnapType = 'x mandatory';
+    }
+  };
+
+  const onDragMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    
+    e.preventDefault(); // 기본 드래그 동작 방지
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5; // 드래그 속도 조절 (1.5배)
+    
+    // 일정 픽셀 이상 움직였을 때만 드래그로 판정 (클릭과 구분)
+    if (Math.abs(walk) > 5) {
+      isDragPassed.current = true;
+    }
+    
+    scrollRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
+  // 아이템 클릭 핸들러 (드래그 시 라우팅 방지)
+  const handleItemClick = (e: React.MouseEvent, path: string) => {
+    if (isDragPassed.current) {
+      e.preventDefault();
+      return;
+    }
+    router.push(path);
+  };
+
+  // 가짜 업데이트 시간 로직
   const getUpdateTime = () => {
     const now = new Date();
     const hours = now.getHours();
@@ -21,7 +71,7 @@ export default function MainPage() {
     return `${ampm} ${displayHours}:00 업데이트`;
   };
 
-  // 2. 검색 핸들러 (입력어 또는 랭킹 키워드로 이동)
+  // 검색 핸들러 (입력어 또는 랭킹 키워드로 이동)
   const handleSearch = (keyword?: string) => {
     const target = keyword || searchQuery;
     if (target.trim()) {
@@ -29,7 +79,7 @@ export default function MainPage() {
     }
   };
 
-  // 3. 랭킹 데이터 (정의한 타입 적용)
+  // 랭킹 데이터 (정의한 타입 적용)
   const rankings: RankingItem[] = [
     { rank: 1, keyword: "두쫀득" },
     { rank: 2, keyword: "던킨 두바이 먼치킨" },
@@ -41,7 +91,7 @@ export default function MainPage() {
   return (
     <div className="flex flex-col bg-bg_white font-pretendard">
       
-      {/* 1. 검색 바: StepNickname의 Input 구조 + full 사이즈(h-42) 적용 */}
+      {/* 검색 바: StepNickname의 Input 구조 + full 사이즈(h-42) 적용 */}
       <header className="px-6 pt-5 mb-4">
         <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }}>
           <Input
@@ -62,17 +112,24 @@ export default function MainPage() {
         </form>
       </header>
 
-      {/* 2. 오늘의 큐레이션: 가로 스크롤 & 나눔스퀘어 폰트 */}
+      {/* 오늘의 큐레이션 참고: 가로 스크롤 & 나눔스퀘어 폰트 */}
       <section className="mb-7">
         <h2 className="px-7 text-lg font-bold text-gray-900 mb-3">오늘의 큐레이션</h2>
-        <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-3 px-6">
-          {[1, 2, 3].map((item) => (
+        <div 
+          ref={scrollRef}
+          onMouseDown={onDragStart}
+          onMouseMove={onDragMove}
+          onMouseUp={onDragEnd}
+          onMouseLeave={onDragEnd}
+          className="flex overflow-x-auto snap-x flex-nowrap snap-mandatory no-scrollbar gap-3 px-6"
+        >
+          {[1, 2, 3, 4, 5].map((item) => (
             <div 
               key={item} 
-              className="relative flex-none w-[260px] h-[300px] snap-center rounded-[24px] overflow-hidden cursor-pointer shadow-sm"
-              onClick={() => router.push(`/curation/detail`)}
+              className="relative flex-none shrink-0 w-[260px] h-[300px] snap-center rounded-[24px] overflow-hidden cursor-pointer shadow-sm select-none"
+              onClick={(e) => handleItemClick(e, `/curations/${item}`)}
             >
-              <Image src={mangoBingsuImg} alt="큐레이션" fill className="object-cover" />
+              <Image draggable={false} src={mangoBingsuImg} alt="큐레이션" fill className="object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-5">
                 {/* 큐레이션 내부는 나눔스퀘어 Bold 적용 */}
                 <h3 className="text-white text-[17px] font-nanum_bold leading-tight tracking-tight">
@@ -86,8 +143,8 @@ export default function MainPage() {
         </div>
       </section>
 
-      {/* 3. 인기 디저트 검색어: 비율 유지 및 세로 폭 확보 */}
-      <section className="px-6 pb-6">
+      {/* 인기 디저트 검색어: 비율 유지 및 세로 폭 확보 */}
+      <section className="px-6 pb-6 w-full">
         <div className="flex items-end justify-between mb-3 px-2">
           <h2 className="text-lg font-bold text-gray-900 mb-1 leading-none">인기 디저트 검색어 랭킹</h2>
           <span className="text-[9px] text-gray-400 font-medium leading-none pr-2 mb-[-7px]">{getUpdateTime()}</span>
@@ -95,15 +152,12 @@ export default function MainPage() {
 
         {/* 리스트 컨테이너 라운드 및 가로 길이에 비례하는 세로 비율(aspect-ratio) 고정. 
             flex-1 버그를 피하기 위해 inline style과 명시적 % 높이 사용 */}
-        <div 
-          className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden px-1"
-          style={{ aspectRatio: '310 / 218' }}
-        >
+        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden px-1 h-auto">
           {rankings.map((item, index) => (
             <div 
               key={index}
               onClick={() => handleSearch(item.keyword)}
-              className={`flex items-center justify-between px-5 w-full h-[46px] cursor-pointer active:bg-gray-50 transition-colors ${
+              className={`flex items-center justify-between px-5 w-full h-[42px] cursor-pointer active:bg-gray-50 transition-colors ${
                 index !== rankings.length - 1 ? 'border-b border-gray-50' : ''
               }`}
             >
