@@ -18,11 +18,11 @@ public class CafeCollectController {
     /**
      * 카페 데이터 수집
      * 
-     * @return 성공 응답
+     * @return 데이터 수집 실행 성공 응답
      */
     @PostMapping("/collect")
     public BaseResponse<Integer> collect() {
-        int data = cafeCollectService.collectCafes(1, 1000);
-        return BaseResponse.success(data);
+        cafeCollectService.collectCafes();
+        return BaseResponse.success();
     }
 }
