@@ -65,8 +65,9 @@ export const Input = React.forwardRef<HTMLInputElement | HTMLTextAreaElement, In
             rightElement,
             containerClassName,
             isMultiline,
+            className,
             ...rest
-        } = props;
+        } = props as InputComponentProps;
 
         // 공통 스타일 (font-pretendard, 테두리, 포커스링, 배경색 등)
         // Tailwind v4 적용: primary_btn_red, primary_btn_gray, bg_white 사용
@@ -93,16 +94,16 @@ export const Input = React.forwardRef<HTMLInputElement | HTMLTextAreaElement, In
                         <textarea
                             id={id}
                             ref={ref as React.Ref<HTMLTextAreaElement>}
-                            className={`${baseStyle} resize-none min-h-[120px] ${(rest as TextareaProps).className || ''}`}
-                            {...(rest as TextareaProps)}
+                            className={`${baseStyle} resize-none min-h-[120px] ${className || ''}`}
+                            {...(rest as Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'className'>)}
                         />
                     ) : (
                         <input
                             id={id}
                             ref={ref as React.Ref<HTMLInputElement>}
                             // 우측 요소가 있을 경우 패딩을 추가 확보 (예: pr-20)
-                            className={`${baseStyle} ${rightElement ? 'pr-[88px]' : ''} ${(rest as InputProps).className || ''}`}
-                            {...(rest as InputProps)}
+                            className={`${baseStyle} ${rightElement ? 'pr-[88px]' : ''} ${className || ''}`}
+                            {...(rest as Omit<InputHTMLAttributes<HTMLInputElement>, 'className'>)}
                         />
                     )}
 

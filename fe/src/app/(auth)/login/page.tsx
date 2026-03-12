@@ -87,7 +87,7 @@ export default function LoginPage() {
       {/* 하단 보조 링크 */}
       <div className="mt-8 text-center">
         <Link
-          href="/find"
+          href="/password"
           className="text-xs text-gray-400 underline underline-offset-4 decoration-gray-200"
         >
           비밀번호를 잊으셨나요?

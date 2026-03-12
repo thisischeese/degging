@@ -46,13 +46,13 @@ const NAV_ITEMS: NavItem[] = [
   },
   { 
     name: '스크랩', 
-    path: '/scrap', 
+    path: '/scraps', 
     icon: BookmarkIcon,
     selectedIcon: BookmarkSelectedIcon,
   },
   { 
     name: '마이페이지', 
-    path: '/user', 
+    path: '/users', 
     icon: UserIcon,
     selectedIcon: UserSelectedIcon,
   },
