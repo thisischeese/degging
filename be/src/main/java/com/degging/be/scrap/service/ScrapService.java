@@ -94,13 +94,8 @@ public class ScrapService {
 
         // 반환 객체인 ScrapDetailResponse 에 맞게 담아줌
         List<ScrapCafeResponse> cafes = scrap.getScrapItems().stream()
-                .map(item -> ScrapCafeResponse.builder()
-                        .cafeId(item.getCafe().getCafeId()) // 빈값
-                        .name(item.getCafe().getName())
-                        .cafeIntro(item.getCafe().getCafeIntro())
-                        .build()
-                ).toList();
-        
+                .map(ScrapCafeResponse::toDto).toList();
+
         // 스크랩 정보, 카페 정보, 썸네일을 담아 반환
         return ScrapDetailResponse.builder()
                 .scrapId(scrap.getScrapId())
