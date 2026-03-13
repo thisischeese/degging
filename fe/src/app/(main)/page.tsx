@@ -12,9 +12,14 @@ export default function MainPage() {
   const router = useRouter();
 
   // PC 환경 마우스 드래그 스크롤을 위한 상태
+
+  // 스크롤이 될 박스(div) 자체를 가리키기 위한 용도
   const scrollRef = useRef<HTMLDivElement>(null);
+  // "지금 마우스 왼쪽 버튼을 누른 채로 움직이고 있는가?"를 기억
   const isDragging = useRef(false);
+  // 마우스를 딱 클릭했을 때의 X 좌표(가로 위치)를 기억
   const startX = useRef(0);
+  // 마우스를 클릭했을 시점에, 스크롤이 이미 얼마나 넘어가 있었는지를 기억
   const scrollLeft = useRef(0);
   const isDragPassed = useRef(false); // 드래그 시 클릭 이벤트 방지
 

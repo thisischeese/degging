@@ -2,9 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { MapPin } from "lucide-react"; 
-import mangoBingsuImg from "/images/curation/mangoBingsu.png";
-import divideLine from "/images/curation/divideLine.png"; 
+import { MapPin } from "lucide-react";
 import backIcon from "@/assets/icons/backIcon.png";
 
 export default function CurationDetailPage() {
@@ -22,7 +20,7 @@ export default function CurationDetailPage() {
       
       {/* --- 섹션 1: 메인 히어로 이미지 --- */}
       <section className="relative w-full h-[520px]">
-        <Image src={mangoBingsuImg} alt="메인 이미지" fill className="object-cover" />
+        <Image src="/images/curation/mangoBingsu.png" alt="메인 이미지" fill className="object-cover" />
         <div className="absolute inset-0 bg-black/25" />
         
         <button 
@@ -53,7 +51,7 @@ export default function CurationDetailPage() {
         <div className="flex justify-center my-10">
             <div className="relative w-[150px] h-[60px]">
                 <Image 
-                src={divideLine} 
+                src="/images/curation/divideLine.png" 
                 alt="구분선" 
                 fill 
                 className="object-contain" 
@@ -96,7 +94,7 @@ export default function CurationDetailPage() {
           <div className="flex justify-center my-10">
             <div className="relative w-[150px] h-[60px]">
                 <Image 
-                src={divideLine} 
+                src="/images/curation/divideLine.png" 
                 alt="구분선" 
                 fill 
                 className="object-contain"
@@ -117,7 +115,7 @@ export default function CurationDetailPage() {
               className="flex items-center gap-5 py-5 border-t border-[#D6DCE5] last:border-b cursor-pointer active:bg-black/5"
             >
               <div className="w-[72px] h-[72px] relative shrink-0">
-                <Image src={mangoBingsuImg} alt="카페" fill className="object-cover" />
+                <Image src="/images/curation/mangoBingsu.png" alt="카페" fill className="object-cover" />
               </div>
               <div className="flex flex-col justify-center gap-1.5">
                 <span className="text-[16px] font-bold text-gray-900">{cafe.name}</span>
