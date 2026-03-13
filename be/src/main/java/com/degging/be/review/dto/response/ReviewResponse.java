@@ -21,8 +21,17 @@ public class ReviewResponse {
     private String content;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private List<String> imageUrls; // 사진 정보
+    private List<ReviewImageInfo> images; // 사진 정보
     private String nickname;        // 작성자 닉네임
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ReviewImageInfo { // 내부 클래스
+        private UUID imageId; // 리뷰 수정 시 사진 삭제하려면 필요
+        private String imageUrl;
+    }
 
     // Entity -> DTO
     public static ReviewResponse toDto(ReviewEntity entity){
@@ -36,8 +45,11 @@ public class ReviewResponse {
                 .content(entity.getContent())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .imageUrls(images.stream()
-                        .map(ReviewImageEntity::getImageUrl)
+                .images(images.stream()
+                        .map(img -> ReviewImageInfo.builder()
+                                .imageId(img.getImageId()) // ID 추출
+                                .imageUrl(img.getImageUrl())    // URL 추출
+                                .build())
                         .toList())
                 .nickname(entity.getUser().getNickname())
                 .build();
