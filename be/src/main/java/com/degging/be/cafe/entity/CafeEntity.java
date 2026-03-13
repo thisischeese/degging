@@ -96,4 +96,17 @@ public class CafeEntity extends BaseEntity {
         }
         return value;
     }
+
+    /**
+     * 카카오 API 매칭 결과로 카페 정보를 업데이트한다.
+     *
+     * @param kakaoPlaceId 카카오 장소 ID
+     * @param phone 카카오 API에서 조회한 전화번호
+     * @param kakaoMapUrl 카카오 지도 URL
+     */
+    public void updateKakaoPlaceInfo(String kakaoPlaceId, String phone, String kakaoMapUrl) {
+        this.kakaoPlaceId = kakaoPlaceId;
+        this.phone = phone;
+        this.kakaoMapUrl = kakaoMapUrl;
+    }
 }
