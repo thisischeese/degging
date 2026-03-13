@@ -91,9 +91,6 @@ public class CafeCollectService {
                 }
 
                 // 상가업소번호 기준 중복 저장 방지
-                // TODO:
-                // 상가업소번호(bizesId)를 임시로 kakaoPlaceId 컬럼에 저장
-                // 이후 카카오 API 매칭 후 실제 kakaoPlaceId로 업데이트할 예정
                 if (cafeRepository.existsByKakaoPlaceId(item.getBizesId())) {
                     continue;
                 }
