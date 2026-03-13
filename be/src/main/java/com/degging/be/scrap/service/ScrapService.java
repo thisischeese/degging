@@ -1,6 +1,9 @@
 package com.degging.be.scrap.service;
 
+import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
+import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.ScrapErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.scrap.dto.request.ScrapRequest;
@@ -9,14 +12,18 @@ import com.degging.be.scrap.dto.response.ScrapDetailResponse;
 import com.degging.be.scrap.dto.response.ScrapResponse;
 import com.degging.be.scrap.entity.ScrapEntity;
 import com.degging.be.scrap.entity.ScrapItemEntity;
+import com.degging.be.scrap.repository.ScrapItemRepository;
 import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +37,18 @@ import java.util.UUID;
 public class ScrapService {
     private final ScrapRepository scrapRepository;
     private final UserRepository userRepository;
+    private final CafeRepository cafeRepository;
+    private final ScrapItemRepository scrapItemRepository;
+
+    // 썸네일 동기화 메서드 (스크랩에 카페 추가/삭제 시 호출)
+    private void syncScrapThumbnails(ScrapEntity scrap) {
+        // DB에서 최신 4장 조회
+        List<String> latest4Urls = scrapItemRepository.findTopImageUrlsByScrapId(
+                scrap.getScrapId(), PageRequest.of(0, 4)
+        );
+        // 엔티티에 덮어쓰기 (Dirty Checking 적용)
+        scrap.updateThumbnailUrls(latest4Urls);
+    }
 
     /**
      * 스크랩 폴더 생성하는 메서드 
@@ -60,13 +79,31 @@ public class ScrapService {
         // user 검증
         User user = getValidUser(userId);
         
-        // 스크랩 목록 조회
+        // 커스텀 스크랩 목록 조회
         List<ScrapEntity> entities = scrapRepository.findAllByUserUserId(userId);
-        
-        // List<Entity> -> List<Dto> 로 반환
-        return entities.stream()
+        // DTO 로 변환
+        List<ScrapResponse> customFolders = entities.stream()
                 .map(ScrapResponse::toDto)
                 .toList();
+
+        // 전체 스크랩 조회 (썸네일) - 해당 유저의 전체 최신 스크랩 이미지 4장을 가져와 사용
+        List<String> allFolderThumbnails = scrapItemRepository.findTopImageUrlsByScrapId(null,
+                PageRequest.of(0, 4)
+        );
+
+        // 모든 스크랩의 가상 DTO 생성
+        ScrapResponse allScrapFolder = ScrapResponse.builder()
+                .scrapId(null)
+                .name("모든 스크랩")
+                .thumbnailUrl(allFolderThumbnails) // 조립한 썸네일 4장
+                .build();
+
+        // 4. 리스트 조립 (전체 폴더를 맨 앞에 배치)
+        List<ScrapResponse> result = new ArrayList<>();
+        result.add(allScrapFolder);
+        result.addAll(customFolders);
+
+        return result;
     }
 
     /**
@@ -138,6 +175,37 @@ public class ScrapService {
 
         // 스크랩 삭제 (cascade)
         scrapRepository.delete(scrap);
+    }
+
+
+    /**
+     * 스크랩 폴더에 카페를 추가하는 메서드
+     */
+    @Transactional
+    public void addCafeToScrap(UUID userId, UUID scrapId, UUID cafeId) {
+        // 카페, 유저, 스크랩 유효성 검사
+        User user = getValidUser(userId);
+        ScrapEntity scrap = getValidScrap(scrapId);
+        validateUser(user,scrap);
+        CafeEntity cafe = cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        // 스크랩에 존재하는 카페인지 중복확인
+        if (scrapItemRepository.existsByScrapAndCafe(scrap, cafe)) {
+            throw new BaseException(ScrapErrorCode.CAFE_ALREADY_SCRAPPED);
+        }
+
+        // ScrapItemEntity 생성
+        ScrapItemEntity entity = ScrapItemEntity.builder()
+                        .scrap(scrap)
+                        .cafe(cafe)
+                        .build();
+        // 스크랩에 카페 추가
+        scrap.addScrapItem(entity);
+        scrapItemRepository.save(entity);
+
+        // 썸네일 동기화 (최신 4장 가져옴)
+        syncScrapThumbnails(scrap);
     }
 
     /**

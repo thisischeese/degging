@@ -106,4 +106,21 @@ public class ScrapController {
         scrapService.deleteScrap(userId, scrapId);
         return BaseResponse.success();
     }
+
+    /**
+     * 특점 스크랩에 특정 카페를 추가하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param scrapId 카페를 추가하려는 스크랩 ID
+     * @param cafeId 추가할 카페 ID
+     * @return 200
+     */
+    @PostMapping("/{scrapId}/cafes/{cafeId}")
+    public BaseResponse<?> addCafeToScrap(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "scrapId") UUID scrapId,
+            @PathVariable(value = "cafeId") UUID cafeId){
+        UUID userId = getUserId(user);
+        scrapService.addCafeToScrap(userId, scrapId, cafeId);
+        return BaseResponse.success();
+    }
 }

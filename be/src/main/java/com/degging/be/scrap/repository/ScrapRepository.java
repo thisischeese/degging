@@ -14,6 +14,15 @@ import java.util.UUID;
  * 카페 스크랩 데이터 접근을 위한 레포지토리
  */
 public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
+
+    // 스크랩 조회 시 필요한 항목만 꺼내기 위한 Projection
+    public interface ScrapSummaryProjection {
+        UUID getScrapId();
+        String getName();
+        String getColor();
+        List<String> getThumbnailUrls();
+    }
+
     // 특정 사용자의 스크랩명 중복 확인
     boolean existsByNameAndUser(String name, User user);
 
@@ -26,4 +35,8 @@ public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
             "LEFT JOIN FETCH si.cafe c " +       // Cafe까지 조인 (여기서 thumbnailUrl은 이미 포함됨)
             "WHERE s.scrapId = :scrapId")
     Optional<ScrapEntity> findByIdWithCafesAndImages(@Param("scrapId") UUID scrapId);
+
+    @Query("SELECT s.scrapId as scrapId, s.name as name, s.color as color, s.thumbnailUrls as thumbnailUrls " +
+            "FROM ScrapEntity s WHERE s.user.userId = :userId")
+    List<ScrapSummaryProjection> findScrapSummariesByUserId(@Param("userId") UUID userId);
 }
