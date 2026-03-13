@@ -1,5 +1,6 @@
 package com.degging.be.cafe.entity;
 
+import com.degging.be.cafe.dto.response.StoreListInUpjongItem;
 import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -55,4 +56,44 @@ public class CafeEntity extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean franchise = false;  // 프랜차이즈 여부
+
+    /**
+     * 상가정보 API 응답 데이터를 기반으로 기본 카페 엔티티 생성
+     *
+     * TODO:
+     * 상가업소번호(bizesId)를 임시로 kakaoPlaceId에 저장
+     * 이후 카카오 API 매칭을 통해 실제 kakaoPlaceId로 업데이트할 예정
+     *
+     * @param item 상가정보 API에서 조회한 업소 데이터
+     * @param location 카페 위치 정보 (PostGIS Point)
+     * @return 생성된 CafeEntity 객체
+     */
+    public static CafeEntity from(StoreListInUpjongItem item, Point location) {
+        return CafeEntity.builder()
+                .kakaoPlaceId(item.getBizesId())
+                .name(item.getBizesNm())
+                .address(toNullIfBlank(item.getLnoAdr()))
+                .roadAddress(toNullIfBlank(item.getRdnmAdr()))
+                .phone(null)
+                .kakaoMapUrl(null)
+                .thumbnailUrl(null)
+                .status(CafeStatus.UNKNOWN)
+                .location(location)
+                .cafeIntro(null)
+                .businessHours(null)
+                .build();
+    }
+
+    /**
+     * 문자열이 null이거나 공백이면 null로 변환
+     *
+     * @param value 변환할 문자열 값
+     * @return value가 null 또는 공백이면 null, 그렇지 않으면 원래 문자열 반환
+     */
+    private static String toNullIfBlank(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value;
+    }
 }
