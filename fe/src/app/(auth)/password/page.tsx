@@ -5,8 +5,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
+import Modal from "@/common/components/Modal";
 
-import { postFindPassword } from "@/features/auth/api/find";
+import { postFindPassword } from "@/features/auth/api/password";
 
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("");
@@ -67,27 +68,29 @@ export default function FindPasswordPage() {
       </div>
 
       {/* 5. 임시 비밀번호 전송 완료 팝업 (모달) */}
-      {isSent && (
-        <div className="absolute inset-0 z-[100] bg-black/40 flex items-center justify-center px-8 animate-in fade-in duration-200">
-          <div className="bg-white w-full rounded-3xl p-8 flex flex-col items-center shadow-2xl animate-in zoom-in-95 duration-200">
-            <span className="text-4xl mb-4">🎉</span>
-            <p className="text-[15px] font-medium text-gray-800 text-center mb-8 leading-snug">
-              이메일로 임시 비밀번호가 전송되었습니다!
-            </p>
-            <Button
-              variant="primary"
-              size="full"
-              className="!rounded-xl"
-              onClick={() => {
-                setIsSent(false);
-                router.push("/login"); // 확인 누르면 로그인 화면으로 이동
-              }}
-            >
-              확인
-            </Button>
-          </div>
+      <Modal 
+        isOpen={isSent} 
+        onClose={() => setIsSent(false)} 
+        size="sm"
+      >
+        <div className="flex flex-col items-center">
+          <span className="text-4xl mb-4">🎉</span>
+          <p className="text-[15px] font-medium text-gray-800 text-center mb-8 leading-snug">
+            이메일로 임시 비밀번호가 전송되었습니다!
+          </p>
+          <Button
+            variant="primary"
+            size="full"
+            className="!rounded-xl"
+            onClick={() => {
+              setIsSent(false);
+              router.push("/login");
+            }}
+          >
+            확인
+          </Button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
