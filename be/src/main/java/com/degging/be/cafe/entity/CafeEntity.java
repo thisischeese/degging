@@ -51,4 +51,8 @@ public class CafeEntity extends BaseEntity {
     private String cafeIntro;   // 카페 한줄 소개
 
     private String businessHours;   // 영업 시간
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean franchise = false;  // 프랜차이즈 여부
 }
