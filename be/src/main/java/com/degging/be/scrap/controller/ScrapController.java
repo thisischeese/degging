@@ -82,7 +82,7 @@ public class ScrapController {
      * @param scrapId 수정하려는 스크랩 ID
      * @return 200
      */
-    @PatchMapping("{scrapId}")
+    @PatchMapping("/{scrapId}")
     public BaseResponse<?> updateScrap(
             @RequestBody @Valid ScrapRequest scrapRequest,
             @AuthenticationPrincipal UserDetails user,
@@ -98,7 +98,7 @@ public class ScrapController {
      * @param scrapId 삭제하려는 스크랩 ID
      * @return 200
      */
-    @DeleteMapping("{scrapId}")
+    @DeleteMapping("/{scrapId}")
     public BaseResponse<?> deleteScrap(
             @AuthenticationPrincipal UserDetails user,
             @PathVariable(value = "scrapId") UUID scrapId){
