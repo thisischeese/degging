@@ -126,7 +126,7 @@ public class CafeDuplicateService {
      * @param source    db에 저장되어 있던 카페
      * @param target    카카오 API로 검색한 카페
      */
-    private boolean isAddressMatch(String source, String target) {
+    public boolean isAddressMatch(String source, String target) {
         if (source == null || target == null) {
             return false;
         }
