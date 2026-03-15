@@ -44,6 +44,10 @@ public class CafeDetailResponse {
 
     private List<MenuResponse> menus;   // cafe_menus 리스트
 
+    private boolean isScrapped; // 현재 로그인한 사용자의 찜 여부
+
+    private String scrapColor;  // 찜한 폴더의 색상
+
     /**
      * 카페 엔티티와 가공된 통계 데이터를 바탕으로 상세 응답 DTO 생성
      * @param entity    카페 엔티티
@@ -51,7 +55,7 @@ public class CafeDetailResponse {
      * @param reviewCount   총 리뷰 수
      * @return  조합된 카페 상세 정보 응답 DTO
      */
-    public static CafeDetailResponse of(CafeEntity entity, double rating, int reviewCount) {
+    public static CafeDetailResponse of(CafeEntity entity, double rating, int reviewCount, boolean isScrapped,String scrapColor) {
         return CafeDetailResponse.builder()
                 .cafeId(entity.getCafeId())
                 .name(entity.getName())
@@ -77,6 +81,9 @@ public class CafeDetailResponse {
                 .menus(entity.getMenus().stream()
                         .map(MenuResponse::from)
                         .collect(Collectors.toList()))
+
+                .isScrapped(isScrapped)
+                .scrapColor(scrapColor)
                 .build();
     }
 

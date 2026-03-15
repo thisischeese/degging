@@ -3,7 +3,11 @@ package com.degging.be.cafe.controller;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
 import com.degging.be.cafe.service.CafeService;
 import com.degging.be.global.dto.BaseResponse;
+import com.degging.be.global.exception.BaseException;
+import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +25,13 @@ public class CafeController {
 
     private final CafeService cafeService;
 
+    private UUID getUserId(UserDetails user) {
+        if (user == null) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+        return UUID.fromString(user.getUsername());
+    }
+
     /**
      * 카페 상세 정보 조회 API
      *
@@ -28,8 +39,14 @@ public class CafeController {
      * @return 카페 상세 정보를 담은 BaseResponse
      */
     @GetMapping("/{cafeId}")
-    public BaseResponse<CafeDetailResponse> getCafeDetail(@PathVariable UUID cafeId) {
-        CafeDetailResponse response = cafeService.getCafeDetail(cafeId);
+    public BaseResponse<CafeDetailResponse> getCafeDetail(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable UUID cafeId) {
+
+        UUID userId = getUserId(user);
+
+        CafeDetailResponse response = cafeService.getCafeDetail(userId, cafeId);
+
         return BaseResponse.success(response);
     }
 }
