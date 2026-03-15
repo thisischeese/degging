@@ -42,40 +42,7 @@ public class CafeService {
             }
         }
 
-        // 메뉴 엔티티 리스트 -> MenuResponse 리스트 변환
-        List<MenuResponse> menus = cafe.getMenus().stream()
-                .map(menu -> MenuResponse.builder()
-                        .menuId(menu.getMenuId())
-                        .menuName(menu.getMenuName())
-                        .price(menu.getPrice())
-                        .menuDescription(menu.getMenuDescription())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 이미지 엔티티 리스트 -> URL 문자열 리스트 변환
-        List<String> images = cafe.getImages().stream()
-                .map(CafeImageEntity::getImageUrl)
-                .collect(Collectors.toList());
-
-        // 분위기 태그 매핑 엔티티 -> 태그 이름 문자열 리스트 변환
-        List<String> vibeTags = cafe.getVibeTags().stream()
-                .map(vt -> vt.getVibe().getTagName())
-                .collect(Collectors.toList());
-
-        // 최종 Response 조립
-        return CafeDetailResponse.builder()
-                .cafeId(cafe.getCafeId())
-                .name(cafe.getName())
-                .cafeIntro(cafe.getCafeIntro())
-                .rating(averageRating)
-                .reviewCount(totalReviews)
-                .status(cafe.getStatus().toString())
-                .businessHours(cafe.getBusinessHours())
-                .roadAddress(cafe.getRoadAddress())
-                .phone(cafe.getPhone())
-                .vibeTags(vibeTags)
-                .images(images)
-                .menus(menus)
-                .build();
+        // 가공된 데이터와 엔티티를 DTO 정적 팩토리 메서드에 전달
+        return CafeDetailResponse.of(cafe, averageRating, totalReviews);
     }
 }

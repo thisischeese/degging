@@ -1,5 +1,7 @@
 package com.degging.be.cafe.dto.response.internal;
 
+import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.entity.CafeImageEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -7,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 카페 상세 정보 조회에 사용하는 응답 DTO
@@ -40,5 +43,41 @@ public class CafeDetailResponse {
     private List<String> images;        // cafe_images: image_url 리스트
 
     private List<MenuResponse> menus;   // cafe_menus 리스트
+
+    /**
+     * 카페 엔티티와 가공된 통계 데이터를 바탕으로 상세 응답 DTO 생성
+     * @param entity    카페 엔티티
+     * @param rating    계산된 평균 평점
+     * @param reviewCount   총 리뷰 수
+     * @return  조합된 카페 상세 정보 응답 DTO
+     */
+    public static CafeDetailResponse of(CafeEntity entity, double rating, int reviewCount) {
+        return CafeDetailResponse.builder()
+                .cafeId(entity.getCafeId())
+                .name(entity.getName())
+                .cafeIntro(entity.getCafeIntro())
+                .rating(rating)
+                .reviewCount(reviewCount)
+                .status(entity.getStatus().toString())
+                .businessHours(entity.getBusinessHours())
+                .roadAddress(entity.getRoadAddress())
+                .phone(entity.getPhone())
+
+                // 분위기 태그 매핑 엔티티 -> 태그 이름 문자열 리스트 변환
+                .vibeTags(entity.getVibeTags().stream()
+                        .map(vt -> vt.getVibe().getTagName())
+                        .collect(Collectors.toList()))
+
+                // 이미지 엔티티 리스트 -> URL 문자열 리스트 변환
+                .images(entity.getImages().stream()
+                        .map(CafeImageEntity::getImageUrl)
+                        .collect(Collectors.toList()))
+
+                // 메뉴 엔티티 리스트 -> MenuResponse 리스트 변환
+                .menus(entity.getMenus().stream()
+                        .map(MenuResponse::from)
+                        .collect(Collectors.toList()))
+                .build();
+    }
 
 }
