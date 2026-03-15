@@ -85,11 +85,8 @@ public class CafeDuplicateService {
             return false;
         }
 
-        cafe.updateKakaoPlaceInfo(
-                matchedPlace.getId(),
-                matchedPlace.getPhone(),
-                matchedPlace.getPlaceUrl()
-                                 );
+        cafe.updateKakaoPlaceInfo(matchedPlace);
+
         return true;
     }
 

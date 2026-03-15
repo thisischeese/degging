@@ -1,5 +1,6 @@
 package com.degging.be.cafe.entity;
 
+import com.degging.be.cafe.dto.response.KakaoPlaceItem;
 import com.degging.be.cafe.dto.response.StoreListInUpjongItem;
 import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -100,13 +101,11 @@ public class CafeEntity extends BaseEntity {
     /**
      * 카카오 API 매칭 결과로 카페 정보를 업데이트
      *
-     * @param kakaoPlaceId 카카오 장소 ID
-     * @param phone 카카오 API에서 조회한 전화번호
-     * @param kakaoMapUrl 카카오 지도 URL
+     * @param item 상가 정보와 매칭된 카카오 api의 업체 정보
      */
-    public void updateKakaoPlaceInfo(String kakaoPlaceId, String phone, String kakaoMapUrl) {
-        this.kakaoPlaceId = kakaoPlaceId;
-        this.phone = toNullIfBlank(phone);
-        this.kakaoMapUrl = kakaoMapUrl;
+    public void updateKakaoPlaceInfo(KakaoPlaceItem item) {
+        this.kakaoPlaceId = item.getId();
+        this.phone = toNullIfBlank(item.getPhone());
+        this.kakaoMapUrl = item.getPlaceUrl();
     }
 }
