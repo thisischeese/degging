@@ -7,8 +7,14 @@ import java.util.List;
 import java.util.UUID;
 
 public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
+
     /**
-     * 장소 식별자 중복 여부
+     * 상가업소번호(bizesId) 중복 여부 확인
+     */
+    boolean existsByBizesId(String bizesId);
+
+    /**
+     * 카카오 장소 식별자 중복 여부
      */
     boolean existsByKakaoPlaceId(String kakaoPlaceId);
 

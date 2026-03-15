@@ -97,7 +97,7 @@ public class CafeCollectService {
                 }
 
                 // 상가업소번호 기준 중복 저장 방지
-                if (cafeRepository.existsByKakaoPlaceId(item.getBizesId())) {
+                if (cafeRepository.existsByBizesId(item.getBizesId())) {
                     continue;
                 }
 
