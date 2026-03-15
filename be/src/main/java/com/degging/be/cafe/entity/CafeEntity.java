@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.locationtech.jts.geom.Point;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -64,6 +66,25 @@ public class CafeEntity extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean franchise = false;  // 프랜차이즈 여부
+
+    // 평점 통계 연관관계 추가
+    @OneToOne(mappedBy = "cafe", cascade = CascadeType.ALL)
+    private CafeRatingStatsEntity ratingStats;
+
+    // 이미지 리스트 연관관계 추가
+    @Builder.Default
+    @OneToMany(mappedBy = "cafe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CafeImageEntity> images = new ArrayList<>();
+
+    // 메뉴 리스트 연관관계 추가
+    @Builder.Default
+    @OneToMany(mappedBy = "cafe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CafeMenuEntity> menus = new ArrayList<>();
+
+    // 분위기 태그 매핑 연관관계 추가
+    @Builder.Default
+    @OneToMany(mappedBy = "cafe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CafeVibeTagEntity> vibeTags = new ArrayList<>();
 
     /**
      * 상가정보 API 응답 데이터를 기반으로 기본 카페 엔티티 생성

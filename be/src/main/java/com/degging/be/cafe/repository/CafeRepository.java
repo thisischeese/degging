@@ -3,8 +3,10 @@ package com.degging.be.cafe.repository;
 import com.degging.be.cafe.entity.CafeEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
@@ -44,4 +46,16 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * 특정 브랜드명을 가진 모든 카페 목록 조회
      */
     List<CafeEntity> findAllByBrandName(String brandName);
+
+    /**
+     * 카페 상세 조회를 위한 페치 조인 쿼리
+     */
+    @Query("SELECT c FROM CafeEntity c " +
+            "LEFT JOIN FETCH c.ratingStats " +
+            "LEFT JOIN FETCH c.images " +
+            "LEFT JOIN FETCH c.menus " +
+            "LEFT JOIN FETCH c.vibeTags vt " +
+            "LEFT JOIN FETCH vt.vibe " +
+            "WHERE c.cafeId = :cafeId")
+    Optional<CafeEntity> findByIdWithDetail(@Param("cafeId") UUID cafeId);
 }
