@@ -1,5 +1,6 @@
 package com.degging.be.cafe.client;
 
+import com.degging.be.cafe.dto.response.SeoulFoodResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,14 +31,14 @@ public class SeoulFoodApiClient {
      * @param end 인덱스 종료 번호
      * @return 서울시 API 응답 데이터 DTO
      */
-    public String fetchCafeStatus(int start, int end) {
+    public SeoulFoodResponse fetchCafeStatus(int start, int end) {
         // 서울시 API 구조: BASE_URL/인증키/json/localdata_072405/시작/종료
         String url = String.format("%s/%s/json/localdata_072405/%d/%d", BASE_URL, serviceKey, start, end);
 
         return webClientBuilder.build().get()
                 .uri(url)
                 .retrieve()
-                .bodyToMono(String.class)
+                .bodyToMono(SeoulFoodResponse.class)
                 .block();
     }
 }
