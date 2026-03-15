@@ -27,7 +27,10 @@ public class CafeEntity extends BaseEntity {
     private UUID cafeId;
 
     @Column(nullable = false, unique = true)
-    private String kakaoPlaceId;
+    private String bizesId; // 소상공인시장진흥공단 상가업소번호
+
+    @Column(unique = true)
+    private String kakaoPlaceId;    // 카카오 장소 검색 API 식별자
 
     @Column(nullable = false)
     private String name;    // 상호명
@@ -60,16 +63,14 @@ public class CafeEntity extends BaseEntity {
     /**
      * 상가정보 API 응답 데이터를 기반으로 기본 카페 엔티티 생성
      *
-     * 수집 시점에는 상가업소번호(bizesId)를 임시로 kakaoPlaceId에 저장
-     * 이후 카카오 API 매칭을 통해 실제 kakaoPlaceId로 업데이트
-     *
      * @param item 상가정보 API에서 조회한 업소 데이터
      * @param location 카페 위치 정보 (PostGIS Point)
      * @return 생성된 CafeEntity 객체
      */
     public static CafeEntity from(StoreListInUpjongItem item, Point location) {
         return CafeEntity.builder()
-                .kakaoPlaceId(item.getBizesId())
+                .bizesId(item.getBizesId())
+                .kakaoPlaceId(null) // 나중에 업데이트 되기 때문에 null 저장
                 .name(item.getBizesNm())
                 .address(toNullIfBlank(item.getLnoAdr()))
                 .roadAddress(toNullIfBlank(item.getRdnmAdr()))
