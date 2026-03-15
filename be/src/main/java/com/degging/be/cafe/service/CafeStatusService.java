@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 서울시 인허가 데이터를 기반으로 카페의 영업 상태를 동기화하는 서비스
@@ -33,7 +32,6 @@ public class CafeStatusService {
     /**
      * 휴게음식점 인허가 데이터를 순회하며 카페 상태 동기화
      */
-    @Transactional
     public void syncAllCafeStatus() {
         int start = 1;
         int end = FETCH_SIZE;
@@ -53,11 +51,8 @@ public class CafeStatusService {
                 break;
             }
 
-            for (SeoulFoodItem item : items) {
-                if (updateStatusIfMatched(item)) {
-                    totalUpdated++;
-                }
-            }
+            // 페이지 단위로 트랜잭션을 분리하여 처리 (안정성 강화)
+            totalUpdated += processSyncPage(items);
 
             // 전체 개수에 도달하면 종료
             if (end >= response.getContent().getListTotalCount()) {
@@ -69,6 +64,23 @@ public class CafeStatusService {
         }
 
         log.info("카페 영업 상태 동기화 완료. 총 업데이트된 카페 수: {}", totalUpdated);
+    }
+
+    /**
+     * 페이지 단위로 업소 데이터를 매칭하고 영업 상태 업데이트
+     * 
+     * @param items API로부터 조회된 업소 리스트
+     * @return 업데이트에 성공한 카페 수
+     */
+    @Transactional
+    public int processSyncPage(List<SeoulFoodItem> items) {
+        int updatedInPage = 0;
+        for (SeoulFoodItem item : items) {
+            if (updateStatusIfMatched(item)) {
+                updatedInPage++;
+            }
+        }
+        return updatedInPage;
     }
 
     /**
