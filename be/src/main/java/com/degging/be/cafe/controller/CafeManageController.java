@@ -9,15 +9,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 카페 데이터 수집 및 저장을 담당하는 컨트롤러
+ * 카페 데이터 관리 및 외부 수집 전용 컨트롤러
  *
  * collect -> match -> status 순차적 실행
  */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/cafes")
-public class CafeController {
+@RequestMapping("/api/manage/cafes")
+public class CafeManageController {
 
     private final CafeCollectService cafeCollectService;
     private final CafeDuplicateService cafeDuplicateService;
