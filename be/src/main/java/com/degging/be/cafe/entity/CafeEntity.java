@@ -36,6 +36,10 @@ public class CafeEntity extends BaseEntity {
     @Column(nullable = false)
     private String name;    // 상호명
 
+    private String brandName; // 정제된 브랜드명 (ex. 스타벅스)
+
+    private String branchName; // 지점명 (ex. 역삼역점)
+
     private String address; // 주소
 
     private String roadAddress; // 도로명 주소
@@ -69,10 +73,21 @@ public class CafeEntity extends BaseEntity {
      * @return 생성된 CafeEntity 객체
      */
     public static CafeEntity from(StoreListInUpjongItem item, Point location) {
+        String originalName = item.getBizesNm();
+        String branchName = toNullIfBlank(item.getBrchNm());
+
+        // 상호명에서 지점명을 제거하여 브랜드명 추출
+        String brandName = originalName;
+        if (branchName != null) {
+            brandName = originalName.replace(branchName, "").replaceAll("\\s+", " ").trim();
+        }
+
         return CafeEntity.builder()
                 .bizesId(item.getBizesId())
                 .kakaoPlaceId(null) // 나중에 업데이트 되기 때문에 null 저장
-                .name(item.getBizesNm())
+                .name(originalName)
+                .brandName(brandName)
+                .branchName(branchName)
                 .address(toNullIfBlank(item.getLnoAdr()))
                 .roadAddress(toNullIfBlank(item.getRdnmAdr()))
                 .phone(null)
@@ -116,5 +131,14 @@ public class CafeEntity extends BaseEntity {
      */
     public void updateStatus(CafeStatus status) {
         this.status = status;
+    }
+
+    /**
+     * 프렌차이즈 여부 업데이트
+     * 
+     * @param isFranchise 프렌차이즈 여부
+     */
+    public void updateFranchise(boolean isFranchise) {
+        this.franchise = isFranchise;
     }
 }

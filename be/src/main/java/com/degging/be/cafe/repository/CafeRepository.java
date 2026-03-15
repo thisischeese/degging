@@ -2,6 +2,7 @@ package com.degging.be.cafe.repository;
 
 import com.degging.be.cafe.entity.CafeEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +27,21 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     List<CafeEntity> findAllByPhoneIsNullAndKakaoMapUrlIsNull();
 
     /**
-     * 이름을 기반으로 카페 목록 조회 (인허가 데이터 매칭용)
+     * 이름을 기반으로 카페 목록 조회
      */
     List<CafeEntity> findAllByName(String name);
+
+    /**
+     * 정제된 브랜드명(brandName)이 10개 이상인 목록 조회
+     */
+    @Query("SELECT c.brandName " +
+            "FROM CafeEntity c " +
+            "GROUP BY c.brandName " +
+            "HAVING COUNT(c.brandName) >= 10")
+    List<String> findBrandNamesExceedingThreshold();
+
+    /**
+     * 특정 브랜드명을 가진 모든 카페 목록 조회
+     */
+    List<CafeEntity> findAllByBrandName(String brandName);
 }
