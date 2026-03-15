@@ -5,6 +5,7 @@ import com.degging.be.cafe.dto.response.KakaoPlaceItem;
 import com.degging.be.cafe.dto.response.KakaoPlaceResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
+import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -103,7 +104,9 @@ public class CafeDuplicateService {
     private KakaoPlaceItem findMatchedPlace(CafeEntity cafe) {
         KakaoPlaceResponse response = kakaoLocalApiClient.searchPlaces(cafe.getName(), SEARCH_PAGE, SEARCH_SIZE);
 
+        // 카카오 API 검색 결과가 아예 없을 경우, 로그에 에러코드 명시
         if (response == null || response.getDocuments() == null || response.getDocuments().isEmpty()) {
+            log.warn("매칭 실패 코드: {}, 대상: {}", CafeErrorCode.KAKAO_PLACE_NOT_FOUND.getCode(), cafe.getName());
             return null;
         }
 
