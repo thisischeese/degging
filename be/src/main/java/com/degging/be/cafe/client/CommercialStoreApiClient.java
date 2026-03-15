@@ -1,6 +1,6 @@
 package com.degging.be.cafe.client;
 
-import com.degging.be.cafe.dto.response.StoreListInUpjongResponse;
+import com.degging.be.cafe.dto.response.external.StoreListInUpjongResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;

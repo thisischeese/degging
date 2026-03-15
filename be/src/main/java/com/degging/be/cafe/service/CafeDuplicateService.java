@@ -1,8 +1,8 @@
 package com.degging.be.cafe.service;
 
 import com.degging.be.cafe.client.KakaoLocalApiClient;
-import com.degging.be.cafe.dto.response.KakaoPlaceItem;
-import com.degging.be.cafe.dto.response.KakaoPlaceResponse;
+import com.degging.be.cafe.dto.response.external.KakaoPlaceItem;
+import com.degging.be.cafe.dto.response.external.KakaoPlaceResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
