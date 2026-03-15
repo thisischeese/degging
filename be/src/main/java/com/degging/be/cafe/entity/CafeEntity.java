@@ -108,4 +108,13 @@ public class CafeEntity extends BaseEntity {
         this.phone = toNullIfBlank(item.getPhone());
         this.kakaoMapUrl = item.getPlaceUrl();
     }
+
+    /**
+     * 인허가 데이터 기반 영업 상태 업데이트
+     *
+     * 서울시 인허가 정보 API를 통해 확인된 영업/폐업 상태를 엔티티에 반영
+     */
+    public void updateStatus(CafeStatus status) {
+        this.status = status;
+    }
 }
