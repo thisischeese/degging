@@ -78,6 +78,8 @@ public class CafeDuplicateService {
      */
     @Transactional
     public boolean processUpdate(CafeEntity cafe, KakaoPlaceItem matchedPlace) {
+
+        // 중복 방지
         if (cafeRepository.existsByKakaoPlaceId(matchedPlace.getId())) {
             return false;
         }
@@ -128,8 +130,12 @@ public class CafeDuplicateService {
         if (source == null || target == null) {
             return false;
         }
-        String cleanSource = source.replaceAll("\\s+", "");
-        String cleanTarget = target.replaceAll("\\s+", "");
+
+        // 서울특별시, 서울, 공백을 모두 제거하여 순수 주소 정보만 남김
+        String cleanSource = source.replace("서울특별시", "").replace("서울", "").replaceAll("\\s+", "");
+        String cleanTarget = target.replace("서울특별시", "").replace("서울", "").replaceAll("\\s+", "");
+
+        // 정제된 주소가 서로를 포함하고 있는지 확인
         return cleanSource.contains(cleanTarget) || cleanTarget.contains(cleanSource);
     }
 }
