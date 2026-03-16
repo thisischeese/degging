@@ -19,7 +19,7 @@ import java.util.UUID;
 public class ScrapResponse {
     private UUID scrapId;
     private String name;
-    private List<String> thumbnailUrl; // 최대 4개의 이미지 예상
+    private List<String> thumbnailUrls; // 최대 4개의 이미지 예상
     private String color;
 
     // Entity -> Dto
@@ -27,7 +27,7 @@ public class ScrapResponse {
         return ScrapResponse.builder()
                 .scrapId(entity.getScrapId())
                 .name(entity.getName())
-                .thumbnailUrl(entity.getThumbnailUrls())
+                .thumbnailUrls(entity.getThumbnailUrls())
                 .color(entity.getColor())
                 .build();
     }

@@ -87,7 +87,7 @@ public class ScrapService {
                 .toList();
 
         // 전체 스크랩 조회 (썸네일) - 해당 유저의 전체 최신 스크랩 이미지 4장을 가져와 사용
-        List<String> allFolderThumbnails = scrapItemRepository.findTopImageUrlsByScrapId(null,
+        List<String> allFolderThumbnails = scrapItemRepository.findTopImageUrlsByUserId(userId,
                 PageRequest.of(0, 4)
         );
 
@@ -95,7 +95,7 @@ public class ScrapService {
         ScrapResponse allScrapFolder = ScrapResponse.builder()
                 .scrapId(null)
                 .name("모든 스크랩")
-                .thumbnailUrl(allFolderThumbnails) // 조립한 썸네일 4장
+                .thumbnailUrls(allFolderThumbnails) // 조립한 썸네일 4장
                 .build();
 
         // 4. 리스트 조립 (전체 폴더를 맨 앞에 배치)
