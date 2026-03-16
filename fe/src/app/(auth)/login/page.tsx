@@ -33,9 +33,9 @@ export default function LoginPage() {
 };
 
   return (
-    <div className="flex flex-col h-full px-6 py-12 font-pretendard">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto no-scrollbar px-6 py-12 font-pretendard">
       {/* 상단 로고 */}
-      <div className="flex flex-col items-center mb-20">
+      <div className="flex flex-col items-center mb-10">
         <Image src="/images/common/logo.png" alt="Logo" width={120} height={120} className="object-contain" />
       </div>
 
