@@ -230,8 +230,16 @@ function MapContent() {
 
             if (mapInstance.current) {
               mapInstance.current.panTo(newPos); // 부드럽게 이동
-            }
-            if (userOverlayRef.current) {
+              
+              if (!userOverlayRef.current) {
+                const el = document.createElement('div');
+                el.className = 'w-5 h-5 bg-[#007EEB] border-[3px] border-white rounded-full shadow-[0_0_12px_4px_rgba(0,126,235,0.4)]';
+                userOverlayRef.current = new window.kakao.maps.CustomOverlay({
+                  position: newPos,
+                  content: el,
+                  zIndex: 20
+                });
+              }
               userOverlayRef.current.setPosition(newPos);
               userOverlayRef.current.setMap(mapInstance.current);
             }
