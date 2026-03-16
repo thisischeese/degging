@@ -23,6 +23,11 @@ public enum CafeErrorCode implements ErrorCode {
     INVALID_RATING_RANGE(HttpStatus.BAD_REQUEST, "C203", "평점은 1점에서 5점 사이여야 합니다."),
     REVIEW_CONTENT_TOO_SHORT(HttpStatus.BAD_REQUEST, "C204", "리뷰 내용은 최소 10자 이상이어야 합니다."),
 
+    // --- 데이터 수집 및 정교화 에러 (C300 계열) ---
+    EXTERNAL_API_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "C301", "외부 API 서버와의 통신 중 오류가 발생했습니다."),
+    COLLECT_DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "C302", "수집할 수 있는 카페 데이터가 없습니다."),
+    KAKAO_PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "C303", "카카오 장소 검색 결과와 일치하는 매장이 없습니다."),
+
     // --- 리뷰 이미지 관련 에러 ---
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "C205", "이미지 업로드 중 오류가 발생했습니다."),
     IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "C206", "리뷰 이미지는 최대 3장까지 업로드 가능합니다."),

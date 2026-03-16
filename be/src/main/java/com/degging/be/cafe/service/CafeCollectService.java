@@ -1,11 +1,12 @@
 package com.degging.be.cafe.service;
 
 import com.degging.be.cafe.client.CommercialStoreApiClient;
-import com.degging.be.cafe.dto.response.StoreListInUpjongItem;
-import com.degging.be.cafe.dto.response.StoreListInUpjongResponse;
+import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
+import com.degging.be.cafe.dto.response.external.StoreListInUpjongResponse;
 import com.degging.be.cafe.entity.CafeEntity;
-import com.degging.be.cafe.entity.CafeStatus;
 import com.degging.be.cafe.repository.CafeRepository;
+import com.degging.be.global.exception.BaseException;
+import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,13 +59,17 @@ public class CafeCollectService {
         // 최소 1번은 API를 호출해야 totalCount를 알 수 있기 때문에 do-while 사용
         do {
             // 현재 페이지의 카페 업소 목록 조회
-            StoreListInUpjongResponse response =
-                    commercialStoreApiClient.fetchCafeStores(pageNo, numOfRows);
+            StoreListInUpjongResponse response = commercialStoreApiClient.fetchCafeStores(pageNo, numOfRows);
 
-            // 응답 자체가 없거나 업소 목록이 없으면 종료
-            if (response == null || response.getBody() == null || response.getBody().getItems() == null) {
-                log.warn("카페 데이터 수집 중 응답이 비정상적입니다. pageNo={}", pageNo);
-                return;
+            // API 통신 실패
+            if (response == null || response.getBody() == null) {
+                throw new BaseException(CafeErrorCode.EXTERNAL_API_ERROR);
+            }
+
+            // 결과 데이터가 아예 없는 경우
+            if (response.getBody().getItems() == null) {
+                log.error("수집 에러 발생: {}", CafeErrorCode.COLLECT_DATA_NOT_FOUND.getMessage());
+                throw new BaseException(CafeErrorCode.COLLECT_DATA_NOT_FOUND);
             }
 
             // 전체 업소 개수 응답에서 가져옴
@@ -91,10 +96,7 @@ public class CafeCollectService {
                 }
 
                 // 상가업소번호 기준 중복 저장 방지
-                // TODO:
-                // 상가업소번호(bizesId)를 임시로 kakaoPlaceId 컬럼에 저장
-                // 이후 카카오 API 매칭 후 실제 kakaoPlaceId로 업데이트할 예정
-                if (cafeRepository.existsByKakaoPlaceId(item.getBizesId())) {
+                if (cafeRepository.existsByBizesId(item.getBizesId())) {
                     continue;
                 }
 

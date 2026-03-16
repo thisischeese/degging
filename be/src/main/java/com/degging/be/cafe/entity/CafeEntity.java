@@ -1,11 +1,14 @@
 package com.degging.be.cafe.entity;
 
-import com.degging.be.cafe.dto.response.StoreListInUpjongItem;
+import com.degging.be.cafe.dto.response.external.KakaoPlaceItem;
+import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
 import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.locationtech.jts.geom.Point;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,10 +30,17 @@ public class CafeEntity extends BaseEntity {
     private UUID cafeId;
 
     @Column(nullable = false, unique = true)
-    private String kakaoPlaceId;
+    private String bizesId; // 소상공인시장진흥공단 상가업소번호
+
+    @Column(unique = true)
+    private String kakaoPlaceId;    // 카카오 장소 검색 API 식별자
 
     @Column(nullable = false)
     private String name;    // 상호명
+
+    private String brandName; // 정제된 브랜드명 (ex. 스타벅스)
+
+    private String branchName; // 지점명 (ex. 역삼역점)
 
     private String address; // 주소
 
@@ -57,21 +67,48 @@ public class CafeEntity extends BaseEntity {
     @Builder.Default
     private boolean franchise = false;  // 프랜차이즈 여부
 
+    // 평점 통계 연관관계 추가
+    @OneToOne(mappedBy = "cafe", cascade = CascadeType.ALL)
+    private CafeRatingStatsEntity ratingStats;
+
+    // 이미지 리스트 연관관계 추가
+    @Builder.Default
+    @OneToMany(mappedBy = "cafe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CafeImageEntity> images = new ArrayList<>();
+
+    // 메뉴 리스트 연관관계 추가
+    @Builder.Default
+    @OneToMany(mappedBy = "cafe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CafeMenuEntity> menus = new ArrayList<>();
+
+    // 분위기 태그 매핑 연관관계 추가
+    @Builder.Default
+    @OneToMany(mappedBy = "cafe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CafeVibeTagEntity> vibeTags = new ArrayList<>();
+
     /**
      * 상가정보 API 응답 데이터를 기반으로 기본 카페 엔티티 생성
-     *
-     * TODO:
-     * 상가업소번호(bizesId)를 임시로 kakaoPlaceId에 저장
-     * 이후 카카오 API 매칭을 통해 실제 kakaoPlaceId로 업데이트할 예정
      *
      * @param item 상가정보 API에서 조회한 업소 데이터
      * @param location 카페 위치 정보 (PostGIS Point)
      * @return 생성된 CafeEntity 객체
      */
     public static CafeEntity from(StoreListInUpjongItem item, Point location) {
+        String originalName = item.getBizesNm();
+        String branchName = toNullIfBlank(item.getBrchNm());
+
+        // 상호명에서 지점명을 제거하여 브랜드명 추출
+        String brandName = originalName;
+        if (branchName != null) {
+            brandName = originalName.replace(branchName, "").replaceAll("\\s+", " ").trim();
+        }
+
         return CafeEntity.builder()
-                .kakaoPlaceId(item.getBizesId())
-                .name(item.getBizesNm())
+                .bizesId(item.getBizesId())
+                .kakaoPlaceId(null) // 나중에 업데이트 되기 때문에 null 저장
+                .name(originalName)
+                .brandName(brandName)
+                .branchName(branchName)
                 .address(toNullIfBlank(item.getLnoAdr()))
                 .roadAddress(toNullIfBlank(item.getRdnmAdr()))
                 .phone(null)
@@ -95,5 +132,34 @@ public class CafeEntity extends BaseEntity {
             return null;
         }
         return value;
+    }
+
+    /**
+     * 카카오 API 매칭 결과로 카페 정보를 업데이트
+     *
+     * @param item 상가 정보와 매칭된 카카오 api의 업체 정보
+     */
+    public void updateKakaoPlaceInfo(KakaoPlaceItem item) {
+        this.kakaoPlaceId = item.getId();
+        this.phone = toNullIfBlank(item.getPhone());
+        this.kakaoMapUrl = item.getPlaceUrl();
+    }
+
+    /**
+     * 인허가 데이터 기반 영업 상태 업데이트
+     *
+     * 서울시 인허가 정보 API를 통해 확인된 영업/폐업 상태를 엔티티에 반영
+     */
+    public void updateStatus(CafeStatus status) {
+        this.status = status;
+    }
+
+    /**
+     * 프렌차이즈 여부 업데이트
+     * 
+     * @param isFranchise 프렌차이즈 여부
+     */
+    public void updateFranchise(boolean isFranchise) {
+        this.franchise = isFranchise;
     }
 }

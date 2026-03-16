@@ -1,6 +1,6 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.dto.response.StoreListInUpjongItem;
+import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
