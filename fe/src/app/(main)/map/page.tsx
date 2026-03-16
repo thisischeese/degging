@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { StaticImageData } from 'next/image';
 import { Search, LocateFixed, Plus, ChevronDown } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
 import { Dropdown } from '@/common/components/Dropdown';
@@ -101,7 +101,22 @@ function MapContent() {
   const [isFranchiseIncluded, setIsFranchiseIncluded] = useState(false);
   const [sortBy, setSortBy] = useState('recommend');
   const [windowHeight, setWindowHeight] = useState(800);
+  const [activeCafeId, setActiveCafeId] = useState<string | null>(null);
+  // [수정] 최신 ID를 리스너에서 참조하기 위한 Ref
+  const activeCafeIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    activeCafeIdRef.current = activeCafeId;
+  }, [activeCafeId]);
+  const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimation();
 
+  // 1. 지도 인스턴스와 마커들을 관리할 Ref
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<kakao.maps.Map | null>(null);
+  const markersRef = useRef<kakao.maps.Marker[]>([]);
+  const userOverlayRef = useRef<kakao.maps.CustomOverlay | null>(null);
+  const watchIdRef = useRef<number | null>(null);
   // window height 관련 효과 최적화 (동기적 setState 방지)
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -111,14 +126,6 @@ function MapContent() {
       return () => window.removeEventListener('resize', handleResize);
     }
   }, []);
-
-  // 1. 지도 인스턴스와 마커들을 관리할 Ref
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<kakao.maps.Map | null>(null);
-  const markersRef = useRef<kakao.maps.Marker[]>([]);
-  const userOverlayRef = useRef<kakao.maps.CustomOverlay | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-
 
   // TanStack Query v5 suspense 쿼리
   const { data: cafes } = useSuspenseQuery({
@@ -151,17 +158,14 @@ function MapContent() {
       mapInstance.current = new window.kakao.maps.Map(mapContainerRef.current, options);
       setIsMapLoaded(true);
 
-      // 내 위치 마커(CustomOverlay) 초기화
-      const overlayContent = document.createElement('div');
-      overlayContent.className = 'w-4 h-4 bg-[#007EEB] rounded-full border-2 border-white shadow-[0_0_12px_rgba(0,126,235,0.6)]';
-
-      userOverlayRef.current = new window.kakao.maps.CustomOverlay({
-        position: center,
-        content: overlayContent,
-        map: undefined, // isTracking일 때만 활성화
+      // 지도 빈 영역 클릭 시 선택 해제 및 바텀 시트 내리기
+      window.kakao.maps.event.addListener(mapInstance.current, 'click', () => {
+        setActiveCafeId(null);
+        controls.start({ y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } }); // 시트 원위치
       });
+
     });
-  }, []); // 최초 1회 실행
+  }, []);
 
   // 3. 카페 데이터가 변경될 때마다 마커 업데이트 (지도가 로드된 상태 보장)
   useEffect(() => {
@@ -189,17 +193,29 @@ function MapContent() {
 
       // 클릭 이벤트: 공통적으로 지도를 해당 위치로 이동(panTo)
       window.kakao.maps.event.addListener(marker, 'click', () => {
-        if (mapInstance.current) {
-          mapInstance.current.panTo(markerPosition);
-        }
+        // [수정] Ref를 사용하여 최신 activeCafeId와 비교 (클로저 문제 해결)
+        if (activeCafeIdRef.current === cafe.id) {
+          setActiveCafeId(null);
+          controls.start({ y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } });
+        } else {
+          setActiveCafeId(cafe.id);
+          
+          const map = mapInstance.current;
+          if (map) {
+            map.panTo(markerPosition);
+            setTimeout(() => {
+              (map as unknown as { panBy: (dx: number, dy: number) => void }).panBy(0, 120); // 120px 정도 맵을 밀어 마커 위치 조정
+            }, 100);
+          }
 
-        router.push(`/cafes/${cafe.id}`);
+          controls.start({ y: -180, transition: { type: "spring", stiffness: 300, damping: 30 } });
+        }
       });
 
       marker.setMap(mapInstance.current);
       markersRef.current.push(marker);
     });
-  }, [cafes, router, isMapLoaded]);
+  }, [cafes, router, isMapLoaded, controls]);
 
   // 4. 위치 추적 (watchPosition) 및 UI 동기화
   useEffect(() => {
@@ -248,6 +264,24 @@ function MapContent() {
       }
     };
   }, [isTracking, setUserLocation, setTracking]);
+
+  // activeCafeId 변경 시 바텀 시트 내 해당 카드로 자동 스크롤
+  useEffect(() => {
+    if (activeCafeId && cardRefs.current[activeCafeId] && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const card = cardRefs.current[activeCafeId];
+      if (card && container) {
+        const containerTop = container.getBoundingClientRect().top;
+        const cardTop = card.getBoundingClientRect().top;
+        const scrollPos = container.scrollTop + (cardTop - containerTop) - 16; // 약간의 패딩 고려
+
+        container.scrollTo({
+          top: Math.max(0, scrollPos),
+          behavior: 'smooth',
+        });
+      }
+    }
+  }, [activeCafeId]);
 
   // 내 위치 버튼 핸들러 (토글)
   const handleLocateMe = () => {
@@ -315,7 +349,7 @@ function MapContent() {
       <button
         type="button"
         onClick={handleLocateMe}
-        className={`absolute bottom-[160px] right-4 z-10 flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg active:scale-95 transition-all border ${isTracking
+        className={`absolute bottom-[160px] right-4 z-20 flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg active:scale-95 transition-all border ${isTracking
           ? 'border-[#007EEB] text-[#007EEB]'
           : 'border-gray-100 text-gray-700 hover:bg-gray-50'
           }`}
@@ -325,6 +359,8 @@ function MapContent() {
 
       {/* Framer-Motion Bottom Sheet */}
       <motion.div
+        animate={controls}
+        initial={{ y: 0 }}
         drag="y"
         dragConstraints={{ top: 240 - windowHeight, bottom: 0 }}
         dragElastic={0.1}
@@ -345,19 +381,20 @@ function MapContent() {
           <Chip label="프차 포함" variant="map" isActive={isFranchiseIncluded} onClick={() => setIsFranchiseIncluded(!isFranchiseIncluded)} />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 no-scrollbar">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 no-scrollbar relative">
           {cafes.map((cafe) => (
-            <CafeCard
-              key={cafe.id}
-              id={cafe.id}
-              name={cafe.name}
-              // [핵심] 값이 없을 경우(undefined)를 대비해 || '' 를 붙여줍니다.
-              description={cafe.description || ''}
-              address={cafe.address || ''}
-              distance={cafe.distance || ''}
-              imageUrl={cafe.imageUrl || ''}
-              onClick={() => handleCafeClick(cafe)}
-            />
+            <div key={cafe.id} ref={(el) => { cardRefs.current[cafe.id] = el; }}>
+              <CafeCard
+                id={cafe.id}
+                name={cafe.name}
+                description={cafe.description || ''}
+                address={cafe.address || ''}
+                distance={cafe.distance || ''}
+                imageUrl={cafe.imageUrl || ''}
+                isActive={activeCafeId === cafe.id}
+                onClick={() => handleCafeClick(cafe)}
+              />
+            </div>
           ))}
         </div>
       </motion.div>

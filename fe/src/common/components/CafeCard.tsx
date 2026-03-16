@@ -13,19 +13,19 @@ export interface CafeCardProps {
   // isScrapped?: boolean;
   // onScrapClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onClick?: () => void;
+  isActive?: boolean;
 }
 
-export const CafeCard = ({
+export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
   id,
   name,
   description,
   address,
   distance,
   imageUrl,
-  // isScrapped = false,
-  // onScrapClick,
   onClick,
-}: CafeCardProps) => {
+  isActive,
+}, ref) => {
   // 스크랩 버튼 클릭 시 부모(카드) 클릭 이벤트 전달 차단
   // const handleScrapClick = (e: React.MouseEvent<HTMLButtonElement>) => {
   //   e.stopPropagation();
@@ -34,8 +34,11 @@ export const CafeCard = ({
 
   return (
     <div
+      ref={ref}
       onClick={onClick}
-      className="w-full font-pretendard flex p-4 bg-white border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors gap-4"
+      className={`box-border w-full font-pretendard flex p-4 bg-white border border-transparent rounded-2xl cursor-pointer hover:bg-gray-50 transition-all gap-4 ${
+        isActive ? 'ring-2 ring-inset ring-[#865B28] shadow-md' : '!border-gray-200'
+      }`}
     >
       {/* 1. 좌측 이미지 영역: 80x80 크기, rounded-xl */}
       <div className="relative w-20 h-20 shrink-0">
@@ -98,4 +101,5 @@ export const CafeCard = ({
       </div>
     </div>
   );
-};
+});
+CafeCard.displayName = 'CafeCard';
