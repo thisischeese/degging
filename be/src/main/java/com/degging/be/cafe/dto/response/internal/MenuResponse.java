@@ -1,5 +1,6 @@
 package com.degging.be.cafe.dto.response.internal;
 
+import com.degging.be.cafe.entity.CafeMenuEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,5 +22,20 @@ public class MenuResponse {
     private Integer price;  // 금액
 
     private String menuDescription; // 메뉴 설명
+
+    /**
+     * 메뉴 엔티티를 메뉴 응답 DTO로 변환
+     *
+     * @param entity 카페 메뉴 엔티티
+     * @return  가공된 메뉴 응답 DTO
+     */
+    public static MenuResponse from(CafeMenuEntity entity) {
+        return MenuResponse.builder()
+                .menuId(entity.getMenuId())
+                .menuName(entity.getMenuName())
+                .price(entity.getPrice())
+                .menuDescription(entity.getMenuDescription())
+                .build();
+    }
 
 }
