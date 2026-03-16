@@ -12,6 +12,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 스크랩-카페 연관관계 레포지토리
+ */
 @Repository
 public interface ScrapItemRepository extends JpaRepository<ScrapItemEntity, UUID> {
     // 회원의 특정 스크랩 중 최신 썸네일 4장 가져오기
@@ -21,7 +24,7 @@ public interface ScrapItemRepository extends JpaRepository<ScrapItemEntity, UUID
             "ORDER BY si.createdAt DESC")
     List<String> findTopImageUrlsByScrapId(@Param("scrapId") UUID scrapId, Pageable pageable);
 
-    // 전체 스크랩 중 최신 썸네일 4장 가져오기
+    // 특정 유저의 전체 스크랩 중 최신 썸네일 4장 가져오기
     @Query("SELECT c.thumbnailUrl FROM ScrapItemEntity si " +
             "JOIN si.cafe c " +
             "WHERE si.scrap.user.userId = :userId " +

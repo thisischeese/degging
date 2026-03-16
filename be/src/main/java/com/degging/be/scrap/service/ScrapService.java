@@ -10,23 +10,23 @@ import com.degging.be.scrap.dto.request.ScrapRequest;
 import com.degging.be.scrap.dto.response.ScrapCafeResponse;
 import com.degging.be.scrap.dto.response.ScrapDetailResponse;
 import com.degging.be.scrap.dto.response.ScrapResponse;
+import com.degging.be.scrap.dto.response.ScrapShareResponse;
 import com.degging.be.scrap.entity.ScrapEntity;
 import com.degging.be.scrap.entity.ScrapItemEntity;
+import com.degging.be.scrap.entity.ScrapShareLinkEntity;
 import com.degging.be.scrap.repository.ScrapItemRepository;
 import com.degging.be.scrap.repository.ScrapRepository;
+import com.degging.be.scrap.repository.ScrapShareLinkRepository;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * 카페 스크랩을 관리하는 서비스 클래스
@@ -39,6 +39,11 @@ public class ScrapService {
     private final UserRepository userRepository;
     private final CafeRepository cafeRepository;
     private final ScrapItemRepository scrapItemRepository;
+    private final ScrapShareLinkRepository scrapShareLinkRepository;
+    
+    @Value("${app.frontend.base-url}")
+    private String frontEndBaseUrl; // 토큰 생성에 사용
+
 
     // 썸네일 동기화 메서드 (스크랩에 카페 추가/삭제 시 호출)
     private void syncScrapThumbnails(ScrapEntity scrap) {
@@ -226,6 +231,43 @@ public class ScrapService {
 
         // 썸네일 동기화 (해당 카페가 삭제된 후 남은 최신 4장으로 갱신)
         syncScrapThumbnails(scrap);
+    }
+
+    /**
+     * 스크랩 공유 링크 (토큰)를 생성하는 메서드
+     */
+    @Transactional
+    public ScrapShareResponse generateShareLink(UUID userId, UUID scrapId){
+        // 유효성 검사
+        User user = getValidUser(userId);
+        ScrapEntity scrap = getValidScrap(scrapId);
+        validateUser(user, scrap);
+
+        Optional<ScrapShareLinkEntity> existingUrl = scrapShareLinkRepository.findByScrapAndIsActiveTrue(scrap);
+        if (existingUrl.isPresent()){
+            // 공유 중인 링크가 있다면 반환
+            return new ScrapShareResponse((buildShareUrl(existingUrl.get().getToken())));
+        }
+
+        // 없다면 새로 생성
+        String newToken = UUID.randomUUID().toString().replace("-", "");
+
+        ScrapShareLinkEntity entity = ScrapShareLinkEntity.builder()
+                .token(newToken)
+                .scrap(scrap)
+                .build();
+        // 추가
+        scrapShareLinkRepository.save(entity);
+
+        // 링크 생성 후 반환
+        return new ScrapShareResponse(buildShareUrl(newToken));
+    }
+
+    // TODO : MVP 끝나면 스크랩 상세 조회 메서드 추가
+
+    // 공유 링크 생성 메서드
+    public String buildShareUrl(String token){
+        return this.frontEndBaseUrl + token;
     }
 
     /**
