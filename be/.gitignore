@@ -46,3 +46,6 @@ application-local.properties
 
 ## docker
 docker-compose.yml
+
+## GCP
+gcp-key.json
