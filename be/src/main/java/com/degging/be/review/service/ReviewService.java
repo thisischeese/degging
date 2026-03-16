@@ -1,6 +1,7 @@
 package com.degging.be.review.service;
 
 import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.entity.CafeRatingStatsEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
@@ -12,6 +13,7 @@ import com.degging.be.review.dto.response.ReviewDetailResponse;
 import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
+import com.degging.be.review.repository.CafeRatingStatsRepository;
 import com.degging.be.review.repository.ReviewImageRepository;
 import com.degging.be.review.repository.ReviewRepository;
 import com.degging.be.user.entity.User;
@@ -39,6 +41,7 @@ public class ReviewService {
     private final ReviewImageRepository reviewImageRepository;
     private final UserRepository userRepository;
     private final CafeRepository cafeRepository;
+    private final CafeRatingStatsRepository cafeRatingStatsRepository;
 
     /**
      * 리뷰 생성 메서드
@@ -63,6 +66,21 @@ public class ReviewService {
 
         // Review_Image 테이블에 저장
         uploadReviewImages(entity, images, 0);
+
+        // cafe 테이블에 리뷰 평점 반영
+        CafeRatingStatsEntity stats = cafeRatingStatsRepository.findById(cafeId)
+                .orElseGet(() -> {
+                    // 해당 카페에 대한 통계 데이터가 아예 없다면(첫 리뷰라면) 새로 생성해서 반환
+                    return CafeRatingStatsEntity.builder()
+                            .cafe(cafe)
+                            .reviewCount(0)
+                            .ratingSum(0)
+                            .build();
+                });
+        stats.update(request.getRating());
+
+        // 새로 생성된 엔티티일 수 있어 명시적으로 save 호출해줌
+        cafeRatingStatsRepository.save(stats);
     }
 
     /**
@@ -127,11 +145,23 @@ public class ReviewService {
         for (ReviewImageEntity e : entities){
             e.updateSortOrder(order++);
         }
+        // 기존 평점 저장 (나중에 카페 평점에 반영)
+        int oldRating = review.getRating();
+
         // 새로 반영된 내용 추가 저장
         uploadReviewImages(review, images, order);
 
         // 변경된 내용, 별점 반영하여 저장, Dirty Checking 이용
         review.update(request);
+
+        UUID cafeId = review.getCafe().getCafeId();
+        CafeRatingStatsEntity stats = cafeRatingStatsRepository.findById(cafeId)
+                .orElseThrow(()-> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        if (oldRating != request.getRating()){
+            // 평점이 변경되었을 경우, 변경된 평점을 카페 평점에 반영
+            stats.modifyRating(oldRating, request.getRating());
+        }
     }
 
     /**
@@ -179,8 +209,17 @@ public class ReviewService {
                 .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
         validateAuthor(review, loginUser);
 
+        UUID cafeId = review.getCafe().getCafeId();
+        // 평점 저장
+        int rating = review.getRating();
+
         // 리뷰 삭제 (사진은 cascade 로 삭제)
         reviewRepository.delete(review);
+
+        // 리뷰 평점 삭제
+        CafeRatingStatsEntity stats = cafeRatingStatsRepository.findById(cafeId)
+                .orElseThrow(()-> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+        stats.deductRating(rating);
     }
 
     /**
