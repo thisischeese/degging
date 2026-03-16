@@ -9,6 +9,7 @@ import { ReviewItem as ReviewItemType } from "@/features/users/types";
 //   (reviewId, cafeId, cafeName, cafeImageUrl, content, createdAt)
 // ─────────────────────────────────────────────────────────
 export default function ReviewItem({
+  reviewId,
   cafeId,
   cafeName,
   cafeImageUrl,
@@ -18,7 +19,7 @@ export default function ReviewItem({
   const router = useRouter();
 
   const handleClick = () => {
-    router.push(`/cafes/${cafeId}`);
+    router.push(`/cafes/${cafeId}/reviews/${reviewId}`);
   };
 
   return (

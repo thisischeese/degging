@@ -12,7 +12,7 @@ import StepLoading from "@/features/auth/components/StepLoading";
 import StepWelcome from "@/features/auth/components/StepWelcome";
 
 // API 호출 함수 추가
-import { postSignup } from "@/features/auth/api/signup";
+import { postSignup } from "@/features/auth/api/signupApi";
 
 export default function SignupPage() {
   const [step, setStep] = useState(1);
