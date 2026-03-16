@@ -193,10 +193,7 @@ function MapContent() {
           mapInstance.current.panTo(markerPosition);
         }
 
-        // 추천 카페인 경우에만 상세 페이지로 리다이렉트 (필요 시 수정 가능)
-        if (cafe.isRecommend) {
-          router.push(`/cafe/city-coffee-yeoksam`);
-        }
+        router.push(`/cafes/${cafe.id}`);
       });
 
       marker.setMap(mapInstance.current);
@@ -259,10 +256,7 @@ function MapContent() {
 
   // 카페 카드 클릭 핸들러
   const handleCafeClick = (cafe: Cafe) => {
-    if (mapInstance.current) {
-      const markerPosition = new window.kakao.maps.LatLng(cafe.lat, cafe.lng);
-      mapInstance.current.panTo(markerPosition);
-    }
+    router.push(`/cafes/${cafe.id}`);
   };
 
   return (
