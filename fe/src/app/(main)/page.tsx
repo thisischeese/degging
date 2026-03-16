@@ -93,7 +93,7 @@ export default function MainPage() {
   ];
 
   return (
-    <div className="flex flex-col bg-bg_white font-pretendard">
+    <div className="flex flex-col bg-bg_white font-pretendard overflow-x-hidden">
       
       {/* 검색 바: StepNickname의 Input 구조 + full 사이즈(h-42) 적용 */}
       <header className="px-6 pt-5 mb-4">
@@ -148,7 +148,7 @@ export default function MainPage() {
       </section>
 
       {/* 인기 디저트 검색어: 비율 유지 및 세로 폭 확보 */}
-      <section className="px-6 pb-6 w-full">
+      <section className="px-6 pb-24 w-full">
         <div className="flex items-end justify-between mb-3 px-2">
           <h2 className="text-lg font-bold text-gray-900 mb-1 leading-none">인기 디저트 검색어 랭킹</h2>
           <span className="text-[9px] text-gray-400 font-medium leading-none pr-2 mb-[-7px]">{getUpdateTime()}</span>
