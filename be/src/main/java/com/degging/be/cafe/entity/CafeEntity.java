@@ -60,9 +60,8 @@ public class CafeEntity extends BaseEntity {
     /**
      * 상가정보 API 응답 데이터를 기반으로 기본 카페 엔티티 생성
      *
-     * TODO:
-     * 상가업소번호(bizesId)를 임시로 kakaoPlaceId에 저장
-     * 이후 카카오 API 매칭을 통해 실제 kakaoPlaceId로 업데이트할 예정
+     * 수집 시점에는 상가업소번호(bizesId)를 임시로 kakaoPlaceId에 저장
+     * 이후 카카오 API 매칭을 통해 실제 kakaoPlaceId로 업데이트
      *
      * @param item 상가정보 API에서 조회한 업소 데이터
      * @param location 카페 위치 정보 (PostGIS Point)
@@ -95,5 +94,18 @@ public class CafeEntity extends BaseEntity {
             return null;
         }
         return value;
+    }
+
+    /**
+     * 카카오 API 매칭 결과로 카페 정보를 업데이트
+     *
+     * @param kakaoPlaceId 카카오 장소 ID
+     * @param phone 카카오 API에서 조회한 전화번호
+     * @param kakaoMapUrl 카카오 지도 URL
+     */
+    public void updateKakaoPlaceInfo(String kakaoPlaceId, String phone, String kakaoMapUrl) {
+        this.kakaoPlaceId = kakaoPlaceId;
+        this.phone = toNullIfBlank(phone);
+        this.kakaoMapUrl = kakaoMapUrl;
     }
 }
