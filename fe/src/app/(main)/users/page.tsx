@@ -22,6 +22,8 @@ const MOCK_PROFILE: UserProfile = {
   email: "ssaffy@ssafy.com",
   profileImageUrl: "/images/auth/welcome.png",
   topHashtags: ["#차분한", "#힙한", "#따뜻한"],
+  birthDate: "1999.02.12",
+  gender: "여",
 };
 
 const MOCK_REVIEWS: ReviewItemType[] = [
@@ -151,7 +153,7 @@ function ProfileEditModal({
           <div className="flex-1 min-w-0">
             <Input
               label="생년월일"
-              value="1999.02.12"
+              value={profile.birthDate || "정보 없음"}
               readOnly
               className="bg-gray-100! border-gray-200! text-gray-400 cursor-not-allowed"
             />
@@ -160,7 +162,7 @@ function ProfileEditModal({
           <div className="w-[72px] shrink-0">
             <Input
               label="성별"
-              value="여"
+              value={profile.gender || "정보 없음"}
               readOnly
               className="bg-gray-100! border-gray-200! text-gray-400 cursor-not-allowed"
             />
@@ -469,12 +471,6 @@ export default function UserPage() {
   };
 
   const handleWithdrawClick = () => {
-    setIsProfileEditOpen(false);
-    setIsWithdrawOpen(true);
-  };
-
-  // 탈퇴하기: 프로필 모달 닫고 → 탈퇴 확인 모달 열기
-  const handleWithdraw = () => {
     setIsProfileEditOpen(false);
     setIsWithdrawOpen(true);
   };

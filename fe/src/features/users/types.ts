@@ -36,4 +36,8 @@ export interface UserProfile {
   profileImageUrl: string | null;
   /** 유저가 자주 보는 해시태그 리스트 (예: ["#차분한", "#힙한", "#따뜻한"]) */
   topHashtags: string[];
+  /** 생년월일 (예: "1999.02.12") */
+  birthDate?: string;
+  /** 성별 (예: "여") */
+  gender?: string;
 }
