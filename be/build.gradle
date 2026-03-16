@@ -71,7 +71,7 @@ dependencies {
     implementation 'org.locationtech.jts:jts-core'
 
     // Spring Cloud GCP Storage
-    implementation 'com.google.cloud:spring-cloud-gcp-starter-storage:5.10.0'
+//    implementation 'com.google.cloud:spring-cloud-gcp-starter-storage:5.10.0'
 }
 
 tasks.named('test') {
