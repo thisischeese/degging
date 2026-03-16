@@ -37,4 +37,32 @@ public class CafeRatingStatsEntity extends BaseEntity {
     private String dateRatio;   // 데이트 방문 비율
 
     private String friendsRatio;    // 친구 방문 비율
+
+    // 평점 업데이트 메서드 (리뷰 생성)
+    public void updateRating(int newRating){
+        this.ratingSum += newRating;
+        this.reviewCount++;
+    }
+
+    // 평점 수정 메서드 (리뷰 수정)
+    public void modifyRating(int oldRating, int newRating){
+        this.ratingSum = this.ratingSum - oldRating + newRating;
+    }
+
+    // 평점 삭제 메서드 (리뷰 삭제)
+    public void deductRating(int rating) {
+        this.ratingSum -= rating;
+        this.reviewCount--;
+    }
+
+    public static CafeRatingStatsEntity from(CafeEntity cafe){
+        return CafeRatingStatsEntity.builder()
+                .cafe(cafe)
+                .reviewCount(0)
+                .ratingSum(0)
+                .soloRatio("0")
+                .dateRatio("0")
+                .friendsRatio("0")
+                .build();
+    }
 }
