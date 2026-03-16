@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* 2. 앱 컨테이너 설정 */}
           <div className="w-full max-w-[375px] h-full bg-bg_white shadow-2xl relative flex flex-col overflow-hidden">
             {/* 3. 실제 콘텐츠 영역 */}
-            <main className="flex-1 w-full h-full relative">
+            <main className="flex-1 min-h-0 flex flex-col">
               {children}
             </main>
           </div>

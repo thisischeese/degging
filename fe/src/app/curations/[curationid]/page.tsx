@@ -16,10 +16,10 @@ export default function CurationDetailPage() {
   }));
 
   return (
-    <div className="flex flex-col bg_white min-h-screen font-nanum"> {/* 기본 폰트 나눔으로 변경 */}
+    <div className="flex flex-col flex-1 overflow-y-auto no-scrollbar bg_white font-nanum"> {/* 기본 폰트 나눔으로 변경 */}
       
       {/* --- 섹션 1: 메인 히어로 이미지 --- */}
-      <section className="relative w-full h-[520px]">
+      <section className="relative w-full h-[520px] shrink-0 overflow-hidden">
         <Image src="/images/curation/mangoBingsu.png" alt="메인 이미지" fill className="object-cover" />
         <div className="absolute inset-0 bg-black/25" />
         

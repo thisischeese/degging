@@ -83,7 +83,7 @@ export const Input = React.forwardRef<HTMLInputElement | HTMLTextAreaElement, In
             <div className={`flex flex-col w-full gap-2 ${containerClassName || ''}`}>
                 {/* 1. 상단 라벨 (font-nanum_bold 적용) */}
                 {label && (
-                    <label htmlFor={id} className="text-sm font-pretendard text-gray-800 px-1 tracking-tight">
+                    <label htmlFor={id} className="text-sm font-pretendard text-gray-800 px-1 tracking-tight whitespace-nowrap">
                         {label}
                     </label>
                 )}

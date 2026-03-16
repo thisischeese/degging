@@ -12,7 +12,7 @@ import StepLoading from "@/features/auth/components/StepLoading";
 import StepWelcome from "@/features/auth/components/StepWelcome";
 
 // API 호출 함수 추가
-import { postSignup } from "@/features/auth/api/signup";
+import { postSignup } from "@/features/auth/api/signupApi";
 
 export default function SignupPage() {
   const [step, setStep] = useState(1);
@@ -40,9 +40,9 @@ export default function SignupPage() {
   const prevStep = () => setStep((prev) => prev - 1);
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg_white">
+    <div className="flex flex-1 flex-col bg-bg_white">
       {/* 1~3단계는 피그마 디자인에 따라 헤더 없이 진행 */}
-      <main className="flex-1 flex flex-col px-6 py-8 relative overflow-hidden">
+      <main className="flex-1 min-h-0 flex flex-col px-6 py-8 relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -50,7 +50,7 @@ export default function SignupPage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -10 }}
             transition={{ duration: 0.3 }}
-            className="flex-1 flex flex-col"
+            className="flex-1 min-h-0 flex flex-col"
           >
             {step === 1 && <StepEmail next={nextStep} updateData={updateFormData} formData={formData} />}
             {step === 2 && <StepPassword next={nextStep} updateData={updateFormData} formData={formData} />}
