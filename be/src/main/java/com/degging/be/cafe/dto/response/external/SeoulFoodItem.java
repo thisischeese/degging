@@ -1,4 +1,4 @@
-package com.degging.be.cafe.dto.response;
+package com.degging.be.cafe.dto.response.external;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

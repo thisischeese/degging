@@ -1,6 +1,6 @@
 package com.degging.be.cafe.client;
 
-import com.degging.be.cafe.dto.response.SeoulFoodResponse;
+import com.degging.be.cafe.dto.response.external.SeoulFoodResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
