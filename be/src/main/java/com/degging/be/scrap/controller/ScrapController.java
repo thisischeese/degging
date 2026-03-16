@@ -123,4 +123,21 @@ public class ScrapController {
         scrapService.addCafeToScrap(userId, scrapId, cafeId);
         return BaseResponse.success();
     }
+
+    /**
+     * 스크랩한 카페를 삭제하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param scrapId 카페를 삭제하려는 스크랩 ID
+     * @param cafeId 삭제할 카페 ID
+     * @return 200
+     */
+    @DeleteMapping("/{scrapId}/cafes/{cafeId}")
+    public BaseResponse<?> removeCafeFromScrap(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "scrapId") UUID scrapId,
+            @PathVariable(value = "cafeId") UUID cafeId){
+        UUID userId = getUserId(user);
+        scrapService.removeCafeFromScrap(userId, scrapId, cafeId);
+        return BaseResponse.success();
+    }
 }

@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @Repository
 public interface ScrapItemRepository extends JpaRepository<ScrapItemEntity, UUID> {
-    // 회원의 특정 스크랩 중 최신 썸네일 4장 가져오기 
+    // 회원의 특정 스크랩 중 최신 썸네일 4장 가져오기
     @Query("SELECT c.thumbnailUrl FROM ScrapItemEntity si " +
             "JOIN si.cafe c " +
             "WHERE si.scrap.scrapId = :scrapId " +
@@ -27,11 +27,10 @@ public interface ScrapItemRepository extends JpaRepository<ScrapItemEntity, UUID
             "WHERE si.scrap.user.userId = :userId " +
             "ORDER BY si.createdAt DESC")
     List<String> findTopImageUrlsByUserId(@Param("userId") UUID userId, Pageable pageable);
+
     // 특정 스크랩 폴더에서 특정 카페 삭제하기
     void deleteByScrap_ScrapIdAndCafe_CafeId(UUID scrapId, UUID cafeId);
 
     // 중복 확인
     boolean existsByScrapAndCafe(ScrapEntity scrap, CafeEntity cafe);
-
-
 }

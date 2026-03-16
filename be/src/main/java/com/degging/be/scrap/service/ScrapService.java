@@ -209,6 +209,26 @@ public class ScrapService {
     }
 
     /**
+     * 스크랩에서 카페를 삭제하는 메서드 (스크랩 취소)
+     */
+    @Transactional
+    public void removeCafeFromScrap(UUID userId, UUID scrapId, UUID cafeId) {
+        // 유효성 검사
+        User user = getValidUser(userId);
+        ScrapEntity scrap = getValidScrap(scrapId);
+        validateUser(user, scrap);
+
+        // scrap 에서 cafe 삭제
+        scrapItemRepository.deleteByScrap_ScrapIdAndCafe_CafeId(scrapId, cafeId);
+
+        // 영속성 컨텍스트 플러시 (DB에 삭제 쿼리 즉시 반영)
+        scrapItemRepository.flush();
+
+        // 썸네일 동기화 (해당 카페가 삭제된 후 남은 최신 4장으로 갱신)
+        syncScrapThumbnails(scrap);
+    }
+
+    /**
      * 유효성 검사
      */
 
