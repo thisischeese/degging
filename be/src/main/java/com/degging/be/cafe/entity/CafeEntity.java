@@ -1,5 +1,6 @@
 package com.degging.be.cafe.entity;
 
+import com.degging.be.cafe.dto.response.KakaoPlaceItem;
 import com.degging.be.cafe.dto.response.StoreListInUpjongItem;
 import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -27,7 +28,10 @@ public class CafeEntity extends BaseEntity {
     private UUID cafeId;
 
     @Column(nullable = false, unique = true)
-    private String kakaoPlaceId;
+    private String bizesId; // 소상공인시장진흥공단 상가업소번호
+
+    @Column(unique = true)
+    private String kakaoPlaceId;    // 카카오 장소 검색 API 식별자
 
     @Column(nullable = false)
     private String name;    // 상호명
@@ -60,16 +64,14 @@ public class CafeEntity extends BaseEntity {
     /**
      * 상가정보 API 응답 데이터를 기반으로 기본 카페 엔티티 생성
      *
-     * 수집 시점에는 상가업소번호(bizesId)를 임시로 kakaoPlaceId에 저장
-     * 이후 카카오 API 매칭을 통해 실제 kakaoPlaceId로 업데이트
-     *
      * @param item 상가정보 API에서 조회한 업소 데이터
      * @param location 카페 위치 정보 (PostGIS Point)
      * @return 생성된 CafeEntity 객체
      */
     public static CafeEntity from(StoreListInUpjongItem item, Point location) {
         return CafeEntity.builder()
-                .kakaoPlaceId(item.getBizesId())
+                .bizesId(item.getBizesId())
+                .kakaoPlaceId(null) // 나중에 업데이트 되기 때문에 null 저장
                 .name(item.getBizesNm())
                 .address(toNullIfBlank(item.getLnoAdr()))
                 .roadAddress(toNullIfBlank(item.getRdnmAdr()))
@@ -99,13 +101,20 @@ public class CafeEntity extends BaseEntity {
     /**
      * 카카오 API 매칭 결과로 카페 정보를 업데이트
      *
-     * @param kakaoPlaceId 카카오 장소 ID
-     * @param phone 카카오 API에서 조회한 전화번호
-     * @param kakaoMapUrl 카카오 지도 URL
+     * @param item 상가 정보와 매칭된 카카오 api의 업체 정보
      */
-    public void updateKakaoPlaceInfo(String kakaoPlaceId, String phone, String kakaoMapUrl) {
-        this.kakaoPlaceId = kakaoPlaceId;
-        this.phone = toNullIfBlank(phone);
-        this.kakaoMapUrl = kakaoMapUrl;
+    public void updateKakaoPlaceInfo(KakaoPlaceItem item) {
+        this.kakaoPlaceId = item.getId();
+        this.phone = toNullIfBlank(item.getPhone());
+        this.kakaoMapUrl = item.getPlaceUrl();
+    }
+
+    /**
+     * 인허가 데이터 기반 영업 상태 업데이트
+     *
+     * 서울시 인허가 정보 API를 통해 확인된 영업/폐업 상태를 엔티티에 반영
+     */
+    public void updateStatus(CafeStatus status) {
+        this.status = status;
     }
 }
