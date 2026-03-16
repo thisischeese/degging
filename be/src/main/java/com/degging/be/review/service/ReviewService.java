@@ -7,6 +7,7 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
+import com.degging.be.infra.storage.s3.ImageService;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import com.degging.be.review.dto.response.ReviewDetailResponse;
@@ -42,6 +43,7 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final CafeRepository cafeRepository;
     private final CafeRatingStatsRepository cafeRatingStatsRepository;
+    private final ImageService imageService;
 
     /**
      * 리뷰 생성 메서드
@@ -64,7 +66,7 @@ public class ReviewService {
         // Dto -> Entity 후 Review 테이블에 저장
         ReviewEntity entity = reviewRepository.save(request.toEntity(user, cafe));
 
-        // Review_Image 테이블에 저장
+        // 이미지 업로드
         uploadReviewImages(entity, images, 0);
 
         // cafe 테이블에 리뷰 평점 반영
@@ -131,6 +133,11 @@ public class ReviewService {
         
         // 기존 이미지가 존재한다면 삭제 후 진행
         if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()){
+            // GCS 에서 해당 파일 삭제
+            List<ReviewImageEntity> targetImages = reviewImageRepository.findAllById(request.getDeleteImageIds());
+            targetImages.forEach(img -> imageService.deleteImage(img.getImageUrl()));
+            
+            // DB 에서도 삭제 
             reviewImageRepository.deleteAllById(request.getDeleteImageIds());
             reviewImageRepository.flush(); // 즉시 DB와 동기화
         }
@@ -178,14 +185,13 @@ public class ReviewService {
         for (int i = 0; i < images.size(); i++){
             MultipartFile file = images.get(i);
 
-            // TODO : S3 업로드 후 url 반환
-            // 임시 이미지 url
-            String tempUrl = "https://s3.cloud/test/" + file.getOriginalFilename();
+            // GCS 에 이미지 업로드 후 url 반환
+            String imageUrl = imageService.uploadImage(file, "review");
 
             // 이미지 Entity 생성 후 저장
             ReviewImageEntity imageEntity = ReviewImageEntity.builder()
                     .review(review)
-                    .imageUrl(tempUrl)
+                    .imageUrl(imageUrl)
                     .sortOrder(startOrder + i)
                     .build();
             entities.add(imageEntity);
@@ -204,6 +210,13 @@ public class ReviewService {
         ReviewEntity review = reviewRepository.findById(reviewId)
                 .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
         validateAuthor(review, loginUser);
+
+        // GCS 에서 이미지 파일 삭제
+        if (review.getReviewImages() != null) {
+            review.getReviewImages().forEach(imgEntity -> {
+                imageService.deleteImage(imgEntity.getImageUrl());
+            });
+        }
 
         UUID cafeId = review.getCafe().getCafeId();
         // 평점 저장
