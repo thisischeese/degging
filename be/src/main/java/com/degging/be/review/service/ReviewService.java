@@ -71,13 +71,9 @@ public class ReviewService {
         CafeRatingStatsEntity stats = cafeRatingStatsRepository.findById(cafeId)
                 .orElseGet(() -> {
                     // 해당 카페에 대한 통계 데이터가 아예 없다면(첫 리뷰라면) 새로 생성해서 반환
-                    return CafeRatingStatsEntity.builder()
-                            .cafe(cafe)
-                            .reviewCount(0)
-                            .ratingSum(0)
-                            .build();
+                    return CafeRatingStatsEntity.from(cafe);
                 });
-        stats.update(request.getRating());
+        stats.updateRating(request.getRating());
 
         // 새로 생성된 엔티티일 수 있어 명시적으로 save 호출해줌
         cafeRatingStatsRepository.save(stats);
