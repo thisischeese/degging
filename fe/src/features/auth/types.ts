@@ -1,5 +1,3 @@
-// src/features/auth/types.ts
-
 export interface SignupFormData {
   email: string;
   password?: string;
