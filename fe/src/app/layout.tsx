@@ -34,13 +34,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script src={KAKAO_SDK_URL} strategy="beforeInteractive" />
       </head>
       {/* 1. 배경색 지정 및 중앙 정렬 */}
-      <body 
-      className="bg-gray-100 m-0 flex justify-center min-h-screen font-pretendard"> 
+      <body className="bg-gray-100 m-0 flex justify-center h-[100dvh] font-pretendard overflow-hidden"> 
         <QueryProvider>
           {/* 2. 앱 컨테이너 설정 */}
-          <div className="w-full max-w-[375px] min-h-screen bg-bg_white shadow-2xl relative flex flex-col overflow-x-hidden">
+          <div className="w-full max-w-[375px] h-full bg-bg_white shadow-2xl relative flex flex-col overflow-hidden">
             {/* 3. 실제 콘텐츠 영역 */}
-            <main className="flex-1 w-full">
+            <main className="flex-1 w-full h-full relative">
               {children}
             </main>
           </div>
