@@ -60,7 +60,7 @@ public class ScrapEntity extends BaseEntity {
         this.thumbnailUrls = urls;
     }
 
-    // 업데이트
+    // 스크랩 정보 업데이트
     public void update(String name, String color) {
         if (name != null && !name.isBlank()) {
             this.name = name;

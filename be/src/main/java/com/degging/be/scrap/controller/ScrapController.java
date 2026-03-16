@@ -6,6 +6,7 @@ import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.scrap.dto.request.ScrapRequest;
 import com.degging.be.scrap.dto.response.ScrapDetailResponse;
 import com.degging.be.scrap.dto.response.ScrapResponse;
+import com.degging.be.scrap.dto.response.ScrapShareResponse;
 import com.degging.be.scrap.service.ScrapService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -105,5 +106,54 @@ public class ScrapController {
         UUID userId = getUserId(user);
         scrapService.deleteScrap(userId, scrapId);
         return BaseResponse.success();
+    }
+
+    /**
+     * 특점 스크랩에 특정 카페를 추가하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param scrapId 카페를 추가하려는 스크랩 ID
+     * @param cafeId 추가할 카페 ID
+     * @return 200
+     */
+    @PostMapping("/{scrapId}/cafes/{cafeId}")
+    public BaseResponse<?> addCafeToScrap(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "scrapId") UUID scrapId,
+            @PathVariable(value = "cafeId") UUID cafeId){
+        UUID userId = getUserId(user);
+        scrapService.addCafeToScrap(userId, scrapId, cafeId);
+        return BaseResponse.success();
+    }
+
+    /**
+     * 스크랩한 카페를 삭제하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param scrapId 카페를 삭제하려는 스크랩 ID
+     * @param cafeId 삭제할 카페 ID
+     * @return 200
+     */
+    @DeleteMapping("/{scrapId}/cafes/{cafeId}")
+    public BaseResponse<?> removeCafeFromScrap(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "scrapId") UUID scrapId,
+            @PathVariable(value = "cafeId") UUID cafeId){
+        UUID userId = getUserId(user);
+        scrapService.removeCafeFromScrap(userId, scrapId, cafeId);
+        return BaseResponse.success();
+    }
+
+    /**
+     * 스크랩 공유 링크를 생성하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param scrapId 공유하려는 스크랩 ID
+     * @return 200, 공유 링크
+     */
+    @PostMapping("/{scrapId}/share-links")
+    public BaseResponse<ScrapShareResponse> getShareLink(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "scrapId") UUID scrapId){
+        UUID userId = getUserId(user);
+        ScrapShareResponse url = scrapService.generateShareLink(userId, scrapId);
+        return BaseResponse.success(url);
     }
 }
