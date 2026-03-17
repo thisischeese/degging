@@ -1,6 +1,8 @@
 package com.degging.be.cafe.service;
 
+import com.degging.be.cafe.dto.request.CafeMapRequest;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
+import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
@@ -13,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -59,5 +63,28 @@ public class CafeService {
 
         // 가공된 데이터와 엔티티를 DTO 정적 팩토리 메서드에 전달
         return CafeDetailResponse.of(cafe, averageRating, totalReviews, isScrapped, scrapColor);
+    }
+
+    /**
+     * 사용자 현재 위치를 기준으로 반경 2km 내의 카페 마커 목록을 조회합니다.
+     *
+     * @param request 사용자의 현재 위도(latitude)와 경도(longitude)를 담은 요청 객체
+     * @return 조회된 카페들의 마커 정보(ID, 위도, 경도) 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<CafeMapResponse> getCafeMarkers(CafeMapRequest request) {
+        // 위/경도 좌표를 PostGIS POINT(경도 위도) 포맷 문자열로 변환
+        String point = String.format("POINT(%f %f)", request.getLongitude(), request.getLatitude());
+
+        // 고정된 반경 2,000미터(2km) 설정
+        double radiusInMeters = 2000.0;
+
+        // 레포지토리 호출해 리스트 가져오기
+        List<CafeEntity> cafes = cafeRepository.findMarkersByRadius(point, radiusInMeters);
+
+        // 정적 팩토리 메서드를 활용하여 DTO로 변환 후 반환
+        return cafes.stream()
+                .map(CafeMapResponse::from)
+                .collect(Collectors.toList());
     }
 }
