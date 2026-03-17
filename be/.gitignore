@@ -49,3 +49,6 @@ docker-compose.yml
 
 ## GCP
 gcp-key.json
+
+# HTTP Client files
+*.http
