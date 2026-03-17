@@ -1,10 +1,11 @@
 'use client';
 
-import React, { use } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Pencil, Star } from 'lucide-react';
+import PopUp from '@/common/components/PopUp';
 
 interface Review {
   id: string;
@@ -40,8 +41,44 @@ export default function CafeReviewsPage({ params }: { params: Promise<{ cafeid: 
   // React 18/19 compatibility for params
   const resolvedParams = params instanceof Promise ? use(params) : params;
 
+  const [reviews, setReviews] = useState<Review[]>(mockReviews);
+  const [showPopup, setShowPopup] = useState(false);
+
+  useEffect(() => {
+    // Load local reviews from LocalStorage asynchronously to avoid cascading renders
+    const timer = setTimeout(() => {
+        const localReviewsStr = localStorage.getItem(`cafeReviews-${resolvedParams.cafeid}`);
+        if (localReviewsStr) {
+            try {
+                const localReviews = JSON.parse(localReviewsStr);
+                setReviews([...localReviews, ...mockReviews]);
+            } catch(e) {
+                console.error('Failed to parse local reviews', e);
+            }
+        }
+    }, 0);
+
+    // Check if we just submitted a review asynchronously to avoid cascading renders
+    const popupTimer = setTimeout(() => {
+        if (sessionStorage.getItem('reviewSuccess') === 'true') {
+            setShowPopup(true);
+            sessionStorage.removeItem('reviewSuccess');
+        }
+    }, 0);
+
+    return () => {
+        clearTimeout(timer);
+        clearTimeout(popupTimer);
+    };
+  }, [resolvedParams.cafeid]);
+
   return (
-    <div className="w-full min-h-[100dvh] bg-[#FFFFFF] font-pretendard flex flex-col">
+    <div className="w-full min-h-[100dvh] bg-[#FFFFFF] font-pretendard flex flex-col relative">
+      <PopUp 
+        message="리뷰 작성이 완료되었습니다." 
+        isVisible={showPopup} 
+        onClose={() => setShowPopup(false)} 
+      />
       {/* 헤더 섹션 */}
       <header className="sticky top-0 z-10 bg-[#F9F9F4] border-b border-gray-200">
         <div className="flex items-center justify-between h-14 px-4 pt-safe-top">
@@ -53,6 +90,7 @@ export default function CafeReviewsPage({ params }: { params: Promise<{ cafeid: 
           </button>
           <h1 className="text-[16px] font-bold text-gray-900">아우어베이커리 역삼점</h1>
           <button
+            onClick={() => router.push(`/cafes/${resolvedParams.cafeid}/reviews/new`)}
             className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-900 bg-transparent hover:bg-gray-100 transition-colors"
           >
             <Pencil className="w-5 h-5 text-gray-900" strokeWidth={1.2} />
@@ -68,7 +106,7 @@ export default function CafeReviewsPage({ params }: { params: Promise<{ cafeid: 
           transition={{ duration: 0.4, ease: 'easeOut' }}
           className="space-y-6 w-full max-w-md"
         >
-          {mockReviews.map((review) => (
+          {reviews.map((review) => (
             <div
               key={review.id}
               onClick={() => router.push(`/reviews/${review.id}`)}
@@ -85,10 +123,10 @@ export default function CafeReviewsPage({ params }: { params: Promise<{ cafeid: 
               </div>
               <div className="p-4 flex flex-col gap-2.5">
                 <div className="flex items-center gap-1.5">
-                  <Star className="w-5 h-5 text-[#FFC107] fill-[#FFC107]" />
+                  <Star className="w-5 h-5 text-[#FFD700] fill-[#FFD700]" />
                   <span className="text-[14px] font-medium text-gray-900">{review.rating}</span>
                 </div>
-                <p className="text-[14px] text-gray-900 leading-relaxed break-keep">
+                <p className="text-[14px] text-gray-900 leading-relaxed break-all line-clamp-2">
                   {review.content}
                 </p>
               </div>

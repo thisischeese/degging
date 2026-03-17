@@ -37,6 +37,43 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
     roadAddress: "서울 강남구 언주로85길 29 1층"
   };
 
+  const [reviewData, setReviewData] = React.useState<ReviewDetail>(mockReviewDetail);
+
+  React.useEffect(() => {
+    // If it's a locally created review, find it in localStorage
+    if (resolvedParams.reviewId.startsWith('local-')) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cafeReviews-')) {
+          try {
+            const localReviews = JSON.parse(localStorage.getItem(key) || '[]');
+            const foundReview = localReviews.find((r: any) => r.id === resolvedParams.reviewId);
+            if (foundReview) {
+              setReviewData(prev => ({
+                ...prev,
+                reviewId: foundReview.id,
+                rating: foundReview.rating,
+                content: foundReview.content,
+                imageUrls: [foundReview.imageUrl],
+                createdAt: foundReview.timestamp ? new Date(foundReview.timestamp).toISOString() : new Date().toISOString()
+              }));
+              break;
+            }
+          } catch(e) {
+            console.error(e);
+          }
+        }
+      }
+    } else {
+        // Handle basic mock review differences across mock ids
+        if (resolvedParams.reviewId === '2') {
+            setReviewData(prev => ({...prev, imageUrls: ['/images/cafe/cafe2.png']}));
+        } else if (resolvedParams.reviewId === '3') {
+            setReviewData(prev => ({...prev, imageUrls: ['/images/cafe/cafe1.png']}));
+        }
+    }
+  }, [resolvedParams.reviewId]);
+
   // 날짜 포맷팅 함수 (예: 2026년 2월 25일 오후 2시 52분)
   const formatDate = (dateString: string) => {
     const d = new Date(dateString);
@@ -57,10 +94,10 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
   // CafeCard에 넘길 데이터 매핑
   const cafeData = {
     id: "cafe-id-placeholder", // API Spec에 cafeId가 필요하다면 추가, 여기선 placeholder
-    name: mockReviewDetail.name,
-    description: mockReviewDetail.cafeIntro,
-    address: mockReviewDetail.roadAddress,
-    imageUrl: mockReviewDetail.imageUrls[0] || '/images/cafe/baseCafeImage.png', // 카페의 대표 이미지가 따로 없다면 리뷰 이미지나 기본 이미지 사용
+    name: reviewData.name,
+    description: reviewData.cafeIntro,
+    address: reviewData.roadAddress,
+    imageUrl: mockReviewDetail.imageUrls[0] || '/images/cafe/baseCafeImage.png', // 카페 카드는 리뷰 사진이 아닌 원래 카페 썸네일 사용
   };
 
   // Slider State
@@ -148,16 +185,16 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
                      if (swipe < -50 || velocity.x < -500) {
                        // Next image (Swipe Left)
                        setDirection(1);
-                       setCurrentIndex((prev) => (prev + 1) % mockReviewDetail.imageUrls.length);
+                       setCurrentIndex((prev) => (prev + 1) % reviewData.imageUrls.length);
                      } else if (swipe > 50 || velocity.x > 500) {
                        // Previous image (Swipe Right)
                        setDirection(-1);
-                       setCurrentIndex((prev) => (prev - 1 + mockReviewDetail.imageUrls.length) % mockReviewDetail.imageUrls.length);
+                       setCurrentIndex((prev) => (prev - 1 + reviewData.imageUrls.length) % reviewData.imageUrls.length);
                      }
                    }}
                  >
                    <Image
-                     src={mockReviewDetail.imageUrls[currentIndex]}
+                     src={reviewData.imageUrls[currentIndex]}
                      alt={`리뷰 상세 이미지 ${currentIndex + 1}`}
                      fill
                      className="object-cover pointer-events-none"
@@ -168,9 +205,9 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
                </AnimatePresence>
 
                {/* 페이지네이션 닷 (이미지가 2개 이상일 때만 표시) */}
-               {mockReviewDetail.imageUrls.length > 1 && (
+               {reviewData.imageUrls.length > 1 && (
                  <div className="absolute bottom-4 inset-x-0 flex justify-center items-center gap-1.5 z-20 pointer-events-none">
-                   {mockReviewDetail.imageUrls.map((_, i) => (
+                   {reviewData.imageUrls.map((_, i) => (
                      <div 
                        key={i} 
                        className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${i === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'}`} 
@@ -185,16 +222,16 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
           <div className="px-5 flex items-center justify-between mt-4 mb-3">
             <div className="flex flex-col justify-center">
               <span className="text-[15px] font-bold text-gray-900 mb-0.5">
-                @{mockReviewDetail.nickname}
+                @{reviewData.nickname}
               </span>
               <span className="text-[13px] text-gray-500 font-medium">
-                {formatDate(mockReviewDetail.createdAt)}
+                {formatDate(reviewData.createdAt)}
               </span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0 self-start mt-1">
               <Star className="w-[22px] h-[22px] text-[#FFC107] fill-[#FFC107]" />
               <span className="text-[17px] font-bold text-gray-900 leading-none mt-0.5">
-                {mockReviewDetail.rating}
+                {reviewData.rating}
               </span>
             </div>
           </div>
@@ -202,8 +239,8 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
           {/* 리뷰 내용 박스 */}
           <div className="px-5">
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-              <p className="text-[15px] text-gray-900 leading-relaxed whitespace-pre-line break-keep font-medium">
-                {mockReviewDetail.content}
+              <p className="text-[15px] text-gray-900 leading-relaxed whitespace-pre-line break-words break-all font-medium">
+                {reviewData.content}
               </p>
             </div>
           </div>
