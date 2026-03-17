@@ -1,5 +1,6 @@
 package com.degging.be.cafe.repository;
 
+import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -47,6 +48,8 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      */
     List<CafeEntity> findAllByBrandName(String brandName);
 
+//----------------------------------------------------------------------------------------------
+
     /**
      * 카페 상세 조회를 위한 페치 조인 쿼리
      */
@@ -58,4 +61,15 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             "LEFT JOIN FETCH vt.vibe " +
             "WHERE c.cafeId = :cafeId")
     Optional<CafeEntity> findByIdWithDetail(@Param("cafeId") UUID cafeId);
+
+    /**
+     * 사용자 현재 위치 기준 반경 내 카페 목록 조회
+     *
+     * @param point 사용자의 현재 위치
+     * @param radius 조회 반경
+     * @return 반경 내 카페 엔티티 리스트
+     */
+    @Query("SELECT c FROM CafeEntity c " +
+            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius")
+    List<CafeEntity> findMarkersByRadius(@Param("point") String point, @Param("radius") Double radius);
 }
