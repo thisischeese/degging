@@ -35,6 +35,7 @@ public class CafeService {
      * @return 가공된 카페 상세 정보 DTO
      */
     public CafeDetailResponse getCafeDetail(UUID userId, UUID cafeId) {
+
         // 유저 정보 조회
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
@@ -73,6 +74,7 @@ public class CafeService {
      */
     @Transactional(readOnly = true)
     public List<CafeMapResponse> getCafeMarkers(CafeMapRequest request) {
+
         // 위/경도 좌표를 PostGIS POINT(경도 위도) 포맷 문자열로 변환
         String point = String.format("POINT(%f %f)", request.getLongitude(), request.getLatitude());
 
