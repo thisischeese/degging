@@ -178,7 +178,10 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
             <Image src="/images/map/reviewStarIcon.png" alt="평점" width={20} height={20} className="w-5 h-5 object-contain" />
             <span className="text-[17px] font-medium text-gray-900">{cafe.rating}</span>
           </div>
-          <button className="flex items-center text-gray-900 text-[15px] font-medium hover:text-gray-600 transition-colors">
+          <button 
+            onClick={() => router.push(`/cafes/${cafeid}/reviews`)}
+            className="flex items-center text-gray-900 text-[15px] font-medium hover:text-gray-600 transition-colors"
+          >
             Review {cafe.reviewCount} <span className="ml-1.5 text-gray-400 font-light">&gt;</span>
           </button>
         </div>

@@ -7,7 +7,7 @@ import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { LoginResponse } from "@/features/auth/types";
 import { useRouter } from "next/navigation";
-import { postLogin } from "@/features/auth/api/login";
+import { postLogin } from "@/features/auth/api/loginApi";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,21 +16,21 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleLogin = async () => {
-  try {
-    // 1. API 호출
-    const result = await postLogin({ email, password }) as { status: number; data: LoginResponse };
-    
-    // 2. 성공 시 (테스트용 응답의 status가 200일 때)
-    if (result.status === 200) {
-      console.log("로그인 성공!", result.data);
-      // TODO: 토큰 저장 로직 (LocalStorage 등)
-      router.push("/main"); // 메인으로 이동
+    try {
+      // 1. API 호출
+      const result = await postLogin({ email, password }) as { status: number; data: LoginResponse };
+
+      // 2. 성공 시 (테스트용 응답의 status가 200일 때)
+      if (result.status === 200) {
+        console.log("로그인 성공!", result.data);
+        // TODO: 토큰 저장 로직 (LocalStorage 등)
+        router.push("/main"); // 메인으로 이동
+      }
+    } catch (error) {
+      console.error("로그인 실패:", error);
+      alert("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
-  } catch (error) {
-    console.error("로그인 실패:", error);
-    alert("이메일 또는 비밀번호가 올바르지 않습니다.");
-  }
-};
+  };
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-y-auto no-scrollbar px-6 py-12 font-pretendard">

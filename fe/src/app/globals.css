@@ -14,3 +14,30 @@ body {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/* 얇고 마우스를 올릴 때만 보이는 연한 회색 스크롤바 */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px; /* 스크롤바 너비 (매우 얇게) */
+}
+
+/* 스크롤바 트랙 (배경) - 투명하게 처리하여 본문 위에 떠있는 느낌을 줌 */
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 스크롤바 썸 (막대) */
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(200, 200, 200, 0.4); /* 연한 회색, 평소에는 거의 안 보임 */
+  border-radius: 10px; /* 둥근 모서리 */
+}
+
+/* 막대에 마우스를 올렸을 때 조금 더 진해짐 */
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(180, 180, 180, 0.7);
+}
+
+/* Firefox 지원 */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200, 200, 200, 0.4) transparent;
+}
