@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { pushGtmEvent } from "@/lib/abTest";
 
 // 테스트를 위한 임시 가짜 데이터 (Mock Data)
 // 나중에 서버(AI)에서 받아올 예시 데이터
@@ -20,7 +22,18 @@ const MOCK_FEEDS = [
 export default function DiscoveryPage() {
   const router = useRouter();
 
+  useEffect(() => {
+    const startTime = Date.now();
+    return () => {
+      const dwellTime = Math.round((Date.now() - startTime) / 1000);
+      if (dwellTime > 1) {
+        pushGtmEvent('discovery_dwell_time', { duration_seconds: dwellTime });
+      }
+    };
+  }, []);
+
   const handleImageClick = (cafeId: number) => {
+    pushGtmEvent('discovery_item_click', { cafe_id: cafeId });
     router.push(`/cafes/${cafeId}`);
   };
 

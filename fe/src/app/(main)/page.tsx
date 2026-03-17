@@ -1,15 +1,33 @@
 'use client';
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import { RankingItem } from "@/features/ranks/types";
+import { pushGtmEvent, getAbGroup } from "@/lib/abTest";
 import searchIcon from "@/assets/icons/searchIcon.png";
+import SurveyModal from "@/features/ranks/components/SurveyModal";
 
 export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  const [abGroup, setAbGroup] = useState<'A' | 'B' | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const startTime = Date.now();
+    const timer = setTimeout(() => {
+      setAbGroup(getAbGroup());
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      const dwellTime = Math.round((Date.now() - startTime) / 1000);
+      if (dwellTime > 1) {
+        pushGtmEvent('main_page_dwell_time', { duration_seconds: dwellTime });
+      }
+    };
+  }, []);
 
   // PC 환경 마우스 드래그 스크롤을 위한 상태
 
@@ -58,11 +76,12 @@ export default function MainPage() {
   };
 
   // 아이템 클릭 핸들러 (드래그 시 라우팅 방지)
-  const handleItemClick = (e: React.MouseEvent, path: string) => {
+  const handleItemClick = (e: React.MouseEvent, path: string, itemId: number) => {
     if (isDragPassed.current) {
       e.preventDefault();
       return;
     }
+    pushGtmEvent('curation_click', { curation_id: itemId });
     router.push(path);
   };
 
@@ -79,6 +98,7 @@ export default function MainPage() {
   const handleSearch = (keyword?: string) => {
     const target = keyword || searchQuery;
     if (target.trim()) {
+      pushGtmEvent('search_keyword', { keyword: target.trim() });
       router.push(`/map?keyword=${encodeURIComponent(target)}`);
     }
   };
@@ -131,7 +151,7 @@ export default function MainPage() {
             <div 
               key={item} 
               className="relative flex-none shrink-0 w-[260px] h-[300px] snap-center rounded-[24px] overflow-hidden cursor-pointer shadow-sm select-none"
-              onClick={(e) => handleItemClick(e, `/curations/${item}`)}
+              onClick={(e) => handleItemClick(e, `/curations/${item}`, item)}
             >
               <Image draggable={false} src="/images/curation/mangoBingsu.png" alt="큐레이션" fill className="object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-5">
@@ -144,6 +164,29 @@ export default function MainPage() {
           ))}
           {/* 오른쪽 끝 여백 유지를 위한 빈 박스 */}
           <div className="flex-none w-1" />
+        </div>
+      </section>
+
+      {/* 이벤트 배너 영역 (설문조사 유도) */}
+      <section className="px-6 mb-7">
+        <div 
+          onClick={() => setIsSurveyOpen(true)}
+          className="bg-[#FCD82B] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform"
+        >
+          <div className="flex flex-col z-10">
+            <span className="text-black font-extrabold text-[16px] leading-tight">
+              Degging 서비스 오픈 기념<br />설문하고 기프티콘 받자!
+            </span>
+            <span className="text-[#8B7404] text-[12px] font-bold mt-1.5 bg-white/40 px-2.5 py-1 rounded-md inline-block w-fit">
+              최대 1만원 상당 디저트 지원
+            </span>
+          </div>
+          <div className="text-5xl z-10">
+            🎁
+          </div>
+          {/* Background decoration */}
+          <div className="absolute right-[-10px] top-[-10px] w-24 h-24 bg-white opacity-20 rounded-full"></div>
+          <div className="absolute right-[40px] bottom-[-20px] w-16 h-16 bg-white opacity-20 rounded-full"></div>
         </div>
       </section>
 
@@ -160,7 +203,10 @@ export default function MainPage() {
           {rankings.map((item, index) => (
             <div 
               key={index}
-              onClick={() => handleSearch(item.keyword)}
+              onClick={() => {
+                pushGtmEvent('ranking_click', { keyword: item.keyword, rank: item.rank });
+                handleSearch(item.keyword);
+              }}
               className={`flex items-center justify-between px-5 w-full h-[42px] cursor-pointer active:bg-gray-50 transition-colors ${
                 index !== rankings.length - 1 ? 'border-b border-gray-50' : ''
               }`}
@@ -177,6 +223,11 @@ export default function MainPage() {
           ))}
         </div>
       </section>
+
+      {/* 설문조사 모달 */}
+      {isSurveyOpen && (
+        <SurveyModal abGroup={abGroup} onClose={() => setIsSurveyOpen(false)} />
+      )}
     </div>
   );
 }

@@ -1,0 +1,60 @@
+stages:
+  - deploy
+
+# ── BE 배포 (be/default 브랜치 push 시) ──────────────────────
+deploy-backend:
+  stage: deploy
+  only:
+    - be/default
+  tags:
+    - degging
+  before_script:
+    - chmod 400 $SSH_PRIVATE_KEY
+    - apt-get update -qq && apt-get install -y -qq openssh-client
+  script:
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+        cd /home/ubuntu/app &&
+        rm -rf temp_repo &&
+        git clone https://gitlab-ci-token:${GITLAB_TOKEN}@lab.ssafy.com/s14-bigdata-recom-sub1/S14P21A501.git temp_repo &&
+        cd temp_repo && git checkout be/default &&
+        cp -r be /home/ubuntu/app/ &&
+        cd /home/ubuntu/app && rm -rf temp_repo &&
+        docker compose up -d --build springboot-container
+      "
+
+# ── AI 배포 (ai/default 브랜치 push 시) ──────────────────────
+deploy-ai:
+  stage: deploy
+  only:
+    - ai/default
+  tags:
+    - degging
+  before_script:
+    - chmod 400 $SSH_PRIVATE_KEY
+    - apt-get update -qq && apt-get install -y -qq openssh-client
+  script:
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+        cd /home/ubuntu/app &&
+        rm -rf temp_repo &&
+        git clone https://gitlab-ci-token:${GITLAB_TOKEN}@lab.ssafy.com/s14-bigdata-recom-sub1/S14P21A501.git temp_repo &&
+        cd temp_repo && git checkout ai/default &&
+        cp -r ai /home/ubuntu/app/ &&
+        cd /home/ubuntu/app && rm -rf temp_repo &&
+        docker compose up -d --build ai-container
+      "
+
+# ── FE 배포 (fe/default 브랜치 push 시) ──────────────────────
+deploy-frontend:
+  stage: deploy
+  only:
+    - fe/default
+  tags:
+    - degging
+  image: node:18-alpine
+  before_script:
+    - npm install -g vercel
+  script:
+    - cd fe
+    - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+    - vercel build --prod --token=$VERCEL_TOKEN
+    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
