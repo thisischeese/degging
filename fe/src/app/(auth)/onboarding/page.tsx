@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Button from "@/common/components/Button";
+import { pushGtmEvent } from "@/lib/abTest";
 
 // 이미지 경로 확인 필요
 
@@ -69,7 +70,10 @@ export default function OnboardingPage() {
               <Button
                 variant="brown" // tailwind.config.ts에 등록한 brown 사용
                 size="full"
-                onClick={() => router.push("/signup")}
+                onClick={() => {
+                  pushGtmEvent('onboarding_action', { type: 'signup' });
+                  router.push("/signup");
+                }}
                 className="!bg-primary_btn_brown" // !중요도로 갈색 강제 적용
               >
                 회원가입
@@ -78,7 +82,10 @@ export default function OnboardingPage() {
               <Button
                 variant="gray"
                 size="full"
-                onClick={() => router.push("/login")}
+                onClick={() => {
+                  pushGtmEvent('onboarding_action', { type: 'login' });
+                  router.push("/login");
+                }}
                 className="!text-[#444]"
               >
                 로그인

@@ -7,7 +7,7 @@ import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import Modal from "@/common/components/Modal";
 
-import { postFindPassword } from "@/features/auth/api/password";
+import { postFindPassword } from "@/features/auth/api/passwordApi";
 
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("");

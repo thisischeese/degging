@@ -7,7 +7,7 @@ import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { LoginResponse } from "@/features/auth/types";
 import { useRouter } from "next/navigation";
-import { postLogin } from "@/features/auth/api/login";
+import { postLogin } from "@/features/auth/api/loginApi";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
