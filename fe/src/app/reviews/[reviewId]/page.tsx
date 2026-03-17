@@ -12,12 +12,20 @@ interface ReviewDetail {
   reviewId: string;
   rating: number;
   content: string;
-  createdAt: string; // ISO 8601 string or pre-formatted depending on API
+  createdAt: string; // API에 따라 ISO 8601 문자열 또는 미리 포맷된 형태
   imageUrls: string[];
   nickname: string;
-  name: string;       // Cafe Name
-  cafeIntro: string;  // Cafe Description
-  roadAddress: string;// Cafe Address
+  name: string;       // 카페 이름
+  cafeIntro: string;  // 카페 설명
+  roadAddress: string;// 카페 주소
+}
+
+interface LocalReview {
+  id: string;
+  rating: number;
+  content: string;
+  imageUrl: string;
+  timestamp: number;
 }
 
 export default function ReviewDetailPage({ params }: { params: Promise<{ reviewId: string }> | { reviewId: string } }) {
@@ -40,14 +48,14 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
   const [reviewData, setReviewData] = React.useState<ReviewDetail>(mockReviewDetail);
 
   React.useEffect(() => {
-    // If it's a locally created review, find it in localStorage
+    // 로컬에서 생성된 리뷰인 경우 localStorage에서 찾기
     if (resolvedParams.reviewId.startsWith('local-')) {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('cafeReviews-')) {
           try {
-            const localReviews = JSON.parse(localStorage.getItem(key) || '[]');
-            const foundReview = localReviews.find((r: any) => r.id === resolvedParams.reviewId);
+            const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
+            const foundReview = localReviews.find((r) => r.id === resolvedParams.reviewId);
             if (foundReview) {
               setReviewData(prev => ({
                 ...prev,
@@ -65,7 +73,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
         }
       }
     } else {
-        // Handle basic mock review differences across mock ids
+        // 목업 ID별로 기본적인 목업 리뷰 차이 처리
         if (resolvedParams.reviewId === '2') {
             setReviewData(prev => ({...prev, imageUrls: ['/images/cafe/cafe2.png']}));
         } else if (resolvedParams.reviewId === '3') {
@@ -100,7 +108,7 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
     imageUrl: mockReviewDetail.imageUrls[0] || '/images/cafe/baseCafeImage.png', // 카페 카드는 리뷰 사진이 아닌 원래 카페 썸네일 사용
   };
 
-  // Slider State
+  // 슬라이더 상태
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [direction, setDirection] = React.useState(0);
 
@@ -181,16 +189,16 @@ export default function ReviewDetailPage({ params }: { params: Promise<{ reviewI
                    dragConstraints={{ left: 0, right: 0 }}
                    dragElastic={0.2}
                    onDragEnd={(e, { offset, velocity }) => {
-                     const swipe = offset.x;
-                     if (swipe < -50 || velocity.x < -500) {
-                       // Next image (Swipe Left)
-                       setDirection(1);
-                       setCurrentIndex((prev) => (prev + 1) % reviewData.imageUrls.length);
-                     } else if (swipe > 50 || velocity.x > 500) {
-                       // Previous image (Swipe Right)
-                       setDirection(-1);
-                       setCurrentIndex((prev) => (prev - 1 + reviewData.imageUrls.length) % reviewData.imageUrls.length);
-                     }
+                      const swipe = offset.x;
+                      if (swipe < -50 || velocity.x < -500) {
+                        // 다음 이미지 (왼쪽으로 스와이프)
+                        setDirection(1);
+                        setCurrentIndex((prev) => (prev + 1) % reviewData.imageUrls.length);
+                      } else if (swipe > 50 || velocity.x > 500) {
+                        // 이전 이미지 (오른쪽으로 스와이프)
+                        setDirection(-1);
+                        setCurrentIndex((prev) => (prev - 1 + reviewData.imageUrls.length) % reviewData.imageUrls.length);
+                      }
                    }}
                  >
                    <Image

@@ -23,7 +23,7 @@ export default function ReviewCreatePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const starContainerRef = useRef<HTMLDivElement>(null);
 
-    // Clean up preview URLs
+    // 미리보기 URL 해제
     useEffect(() => {
         return () => {
             previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -40,8 +40,8 @@ export default function ReviewCreatePage() {
             const totalImages = images.length + fileArray.length;
             
             if (totalImages > 3) {
-                // If the total images exceed 3, show the notice text and don't add
-                // Using an empty return prevents the file upload
+                // 이미지가 3개를 초과하면 안내 문구를 표시하고 추가하지 않음
+                // 빈 반환값은 파일 업로드를 방지함
                 setIsOverLimit(true);
             } else {
                 setIsOverLimit(false);
@@ -50,7 +50,7 @@ export default function ReviewCreatePage() {
                 setPreviewUrls(prev => [...prev, ...urls]);
             }
         }
-        // Reset file input value so same files can be selected again if needed
+        // 필요한 경우 동일한 파일을 다시 선택할 수 있도록 파일 입력값 초기화
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -70,10 +70,10 @@ export default function ReviewCreatePage() {
         if (!starContainerRef.current) return;
 
         const rect = starContainerRef.current.getBoundingClientRect();
-        // Calculate the relative mouse position within the star container
-        // Total width is roughly 5 stars + gaps (4 gaps). Let's calculate per star index.
-        const gap = 4; // gap-1 is 4px
-        const starWidth = 32; // w-[32px] is 32px
+        // 별 컨테이너 내의 상대적인 마우스 위치 계산
+        // 전체 너비는 약 별 5개 + 간격(4개)입니다. 별 인덱스별로 계산합니다.
+        const gap = 4; // gap-1은 4px입니다.
+        const starWidth = 32; // w-[32px]는 32px입니다.
 
         let newRating = 0;
         const x = e.clientX - rect.left;
@@ -91,11 +91,11 @@ export default function ReviewCreatePage() {
                 }
                 break;
             } else if (i < 4 && x > starEnd && x < starEnd + gap) {
-                // clicked in gap, consider it as the previous star full
+                // 간격 클릭 시, 이전 별이 가득 찬 것으로 간주
                 newRating = i + 1;
                 break;
             } else if (x > starEnd) {
-                newRating = i + 1; // Passed this star
+                newRating = i + 1; // 이 별을 지남
             }
         }
 
@@ -104,9 +104,9 @@ export default function ReviewCreatePage() {
         }
     };
 
-    // Allow dragging pointer over stars
+    // 별 위에서 포인터 드래그 허용
     const handleStarPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (e.buttons !== 1) return; // Only trigger while mouse button is held down
+        if (e.buttons !== 1) return; // 마우스 버튼을 누르고 있는 동안에만 트리거
         handleStarPointerDown(e);
     };
 
@@ -120,16 +120,16 @@ export default function ReviewCreatePage() {
                 formData.append('images', image);
             });
 
-            // Assuming API call is made here with formData
-            // Example: await fetch(`/api/cafes/${cafeid}/reviews`, { method: 'POST', body: formData })
+            // 여기서 formData와 함께 API 호출이 이루어지는 것으로 가정
+            // 예시: await fetch(`/api/cafes/${cafeid}/reviews`, { method: 'POST', body: formData })
             console.log('Sending Review Data:', {
                 rating,
                 content,
                 imageCount: images.length
             });
 
-            // Read image as base64 to store in localStorage
-            let base64Image = '/images/cafe/cafe1.png'; // default
+            // localStorage에 저장하기 위해 이미지를 base64로 읽기
+            let base64Image = '/images/cafe/cafe1.png'; // 기본값
             if (images.length > 0) {
                 const fileReader = new FileReader();
                 const file = images[0];
@@ -150,13 +150,13 @@ export default function ReviewCreatePage() {
                 timestamp: Date.now()
             };
 
-            // Save to localStorage
+            // localStorage에 저장
             const existingReviewsStr = localStorage.getItem(`cafeReviews-${cafeid}`);
             const existingReviews = existingReviewsStr ? JSON.parse(existingReviewsStr) : [];
             localStorage.setItem(`cafeReviews-${cafeid}`, JSON.stringify([newReview, ...existingReviews]));
-            sessionStorage.setItem('reviewSuccess', 'true'); // Keep this for showing popup once
-
-            router.push(`/cafes/${cafeid}/reviews`);
+            sessionStorage.setItem('reviewSuccess', 'true'); // 팝업을 한 번만 표시하기 위해 유지
+            // 히스토리에 여러 리뷰 목록 페이지가 쌓이지 않도록 push 대신 replace 사용
+            router.replace(`/cafes/${cafeid}/reviews`);
         } catch (error) {
             console.error('Failed to submit review:', error);
             alert('리뷰 등록에 실패했습니다.');
@@ -167,7 +167,7 @@ export default function ReviewCreatePage() {
 
     return (
         <div className="flex flex-col h-[100dvh] bg-[#FFFFFF] overflow-hidden max-w-md mx-auto w-full relative">
-            {/* Header */}
+            {/* 헤더 */}
             <header className="sticky top-0 z-10 bg-[#F9F9F4] border-b border-gray-200">
                 <div className="flex items-center justify-between h-14 px-4 pt-safe-top">
                     <button
@@ -184,10 +184,10 @@ export default function ReviewCreatePage() {
             <main className="flex-1 overflow-y-auto px-5 py-6 no-scrollbar flex flex-col items-center">
                 <div className="w-full flex-1 flex flex-col justify-between">
                     <div className="w-full">
-                        {/* Cafe Name */}
+                        {/* 카페 이름 */}
                         <h2 className="text-[18px] font-bold text-gray-900 mb-4 tracking-tight">아우어베이커리 역삼점</h2>
 
-                {/* Image Slider */}
+                {/* 이미지 슬라이더 */}
                 {previewUrls.length > 0 && (
                     <div className="flex overflow-x-auto gap-2 pb-2 mb-4 snap-x snap-mandatory no-scrollbar -mx-5 px-5">
                         <AnimatePresence>
@@ -218,7 +218,7 @@ export default function ReviewCreatePage() {
                     </div>
                 )}
 
-                {/* Rating */}
+                {/* 별점 */}
                 <div className="flex items-center gap-2 mb-6 mt-4">
                     <span className="text-[16px] font-bold font-pretendard whitespace-nowrap mr-1 text-gray-800">별점 :</span>
                     <div
@@ -246,7 +246,7 @@ export default function ReviewCreatePage() {
                     </div>
                 </div>
 
-                {/* Content */}
+                {/* 내용 */}
                 <div className="mb-2">
                     <Input
                         isMultiline
@@ -264,7 +264,7 @@ export default function ReviewCreatePage() {
                 )}
                 </div>
 
-                {/* Bottom Actions */}
+                {/* 하단 동작 */}
                 <div className="w-full pt-4 pb-4 flex items-center justify-between z-10 gap-4 mt-auto">
                     <input
                         type="file"
