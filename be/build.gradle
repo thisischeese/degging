@@ -24,6 +24,12 @@ repositories {
     mavenCentral()
 }
 
+
+// plain Jar 안만들기 위한 조건
+jar {
+    enabled = false
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'
