@@ -33,8 +33,8 @@ public class SeoulFoodApiClient {
      * @return 서울시 API 응답 데이터 DTO
      */
     public SeoulFoodResponse fetchCafeStatus(int start, int end) {
-        // 서울시 API 구조: BASE_URL/인증키/json/localdata_072405/시작/종료
-        String url = String.format("%s/%s/json/localdata_072405/%d/%d", BASE_URL, serviceKey, start, end);
+        // 서울시 API 구조: BASE_URL/인증키/json/LOCALDATA_072405/시작/종료
+        String url = String.format("%s/%s/json/LOCALDATA_072405/%d/%d", BASE_URL, serviceKey, start, end);
 
         return webClient.get()
                 .uri(url)
