@@ -3,6 +3,7 @@ package com.degging.be.cafe.controller;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
+import com.degging.be.cafe.dto.response.internal.CafeOnboardingResponse;
 import com.degging.be.cafe.service.CafeService;
 import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.global.exception.BaseException;
@@ -68,4 +69,20 @@ public class CafeController {
 
         return BaseResponse.success(response);
     }
+
+    /**
+     * 온보딩 화면에서 사용할 랜덤 카페 아이템 리스트를 조회합니다.
+     * 상호명 없이 썸네일 이미지만 포함된 8개의 카페 정보를 반환합니다.
+     *
+     * @return 8개의 랜덤 카페 온보딩 정보 리스트
+     */
+    @GetMapping("/onboarding")
+    public BaseResponse<List<CafeOnboardingResponse>> getOnboardingItems() {
+
+        // 8개의 카페 추출 요청
+        List<CafeOnboardingResponse> responses = cafeService.getRandomOnboardingItems(8);
+
+        return BaseResponse.success(responses);
+    }
+
 }
