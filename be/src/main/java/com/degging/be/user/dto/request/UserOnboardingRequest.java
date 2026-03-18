@@ -17,6 +17,10 @@ import java.util.UUID;
 @AllArgsConstructor
 public class UserOnboardingRequest {
 
+    // 회원가입 시 발급된 임시 온보딩 토큰
+    @NotNull
+    private String onboardingToken;
+
     // 선택한 카페 ID 리스트 (정확히 3개)
     @NotNull
     @Size(min = 3, max = 3)
