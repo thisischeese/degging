@@ -7,7 +7,7 @@ _pool: asyncpg.Pool | None = None
 async def connect_postgresql() -> None:
     global _pool
     _pool = await asyncpg.create_pool(
-        dsn=settings.postgres_dsn,
+        dsn=str(settings.postgres_dsn),
         min_size=2,
         max_size=10,
     )
