@@ -17,14 +17,14 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     try {
-      // 1. API 호출
-      const result = await postLogin({ email, password }) as { status: number; data: LoginResponse };
+      // 1. API 호출 (postLogin은 response.data를 반환합니다)
+      const result = await postLogin({ email, password }) as unknown as { code: number; message: string; data: LoginResponse };
 
-      // 2. 성공 시 (테스트용 응답의 status가 200일 때)
-      if (result.status === 200) {
+      // 2. 성공 시 (테스트용 응답의 code가 200일 때)
+      if (result.code === 200) {
         console.log("로그인 성공!", result.data);
         // TODO: 토큰 저장 로직 (LocalStorage 등)
-        router.push("/main"); // 메인으로 이동
+        router.push("/"); // 메인으로 이동
       }
     } catch (error) {
       console.error("로그인 실패:", error);

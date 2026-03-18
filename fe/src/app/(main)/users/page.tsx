@@ -86,7 +86,7 @@ function ProfileEditModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} size="lg" disableBackdropClick>
       <div className="flex flex-col gap-5">
         {/* 상단: 탈퇴하기 버튼 */}
         <div className="flex justify-end">
@@ -204,7 +204,7 @@ function WithdrawModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} size="sm" disableBackdropClick>
       <div className="flex flex-col items-center gap-6 py-2">
         {/* 제목 & 경고 메세지 */}
         <div className="flex flex-col items-center gap-2 text-center">
@@ -330,7 +330,7 @@ function PasswordChangeModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} size="lg" disableBackdropClick>
       <div className="flex flex-col gap-5">
         <h2 className="text-[16px] font-bold text-gray-900 mb-1">회원 비밀번호 변경</h2>
 
@@ -346,16 +346,24 @@ function PasswordChangeModal({
           }}
           placeholder="비밀번호를 입력하세요"
           error={currentPwError}
+          disabled={currentPwVerified} // 확인 성공 시 수정 불가
           rightElement={
             <button
               type="button"
               onClick={handleVerifyCurrentPw}
-              className="px-4 py-2 bg-[#C3304F] rounded-full text-white text-[13px] font-semibold whitespace-nowrap active:opacity-80 transition-opacity"
+              disabled={currentPwVerified}
+              className={`px-4 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap transition-opacity
+                ${currentPwVerified ? "bg-green-500 text-white cursor-not-allowed" : "bg-[#C3304F] text-white active:opacity-80"}
+              `}
             >
-              확인
+              {currentPwVerified ? "확인됨" : "확인"}
             </button>
           }
         />
+        {/* 확인 완료 후 안내 메세지 */}
+        {currentPwVerified && (
+          <p className="text-[12px] text-green-600 px-1 -mt-3">✅ 비밀번호가 확인되었습니다.</p>
+        )}
 
         {/* 새로운 비밀번호 */}
         <Input
@@ -365,6 +373,7 @@ function PasswordChangeModal({
           onChange={(e) => handleNewPwChange((e.target as HTMLInputElement).value)}
           placeholder="8~16자 이내의 영문, 숫자, 특수문자"
           error={newPwError}
+          disabled={!currentPwVerified} // 기존 비밀번호 확인 전까지 비활성화
         />
 
         {/* 비밀번호 확인 */}
@@ -375,6 +384,7 @@ function PasswordChangeModal({
           onChange={(e) => handleConfirmPwChange((e.target as HTMLInputElement).value)}
           placeholder="새로운 비밀번호를 다시 입력하세요"
           error={confirmPwError}
+          disabled={!currentPwVerified} // 기존 비밀번호 확인 전까지 비활성화
         />
 
         {/* 하단 버튼 */}
@@ -440,9 +450,10 @@ function SettingsDropdown({
   );
 }
 
-// ─────────────────────────────────────────────────────────
+import { useEffect } from "react";
+import { getUserInfo } from "@/features/users/api/userApi";
+
 // 메인 마이페이지
-// ─────────────────────────────────────────────────────────
 export default function UserPage() {
   const router = useRouter();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -452,8 +463,35 @@ export default function UserPage() {
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
 
-  // 프로필 데이터 상태 관리 (MOCK_PROFILE 기반)
+  // 프로필 데이터 상태 관리 (초기값은 API에서 받아올 때까지 null 또는 MOCK_PROFILE 등 활용 가능)
+  // 여기서는 API 로딩 화면을 보여주기 위해 null을 사용할 수도 있지만, 기존 에러를 방지하기 위해 일단 MOCK_PROFILE을 넣고 바로 덮어씁니다.
   const [profile, setProfile] = useState<UserProfile>(MOCK_PROFILE);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const result = await getUserInfo() as unknown as { code: number; data: Record<string, unknown> };
+        if (result.code === 200) {
+          // MSW에서 오는 데이터(result.data)를 UserProfile 규격에 맞게 변환하거나 그대로 덮어씁니다.
+          // 현재 MSW 데이터는 { id: 1, email: "user...", name: "김다희", nickname: "와아앙", profileImgUrl: "...", tags: [...], reviewCount: 15 } 입니다.
+          const apiData = result.data;
+          setProfile({
+            userId: Number(apiData.id),
+            nickname: String(apiData.nickname),
+            email: String(apiData.email),
+            profileImageUrl: String(apiData.profileImgUrl),
+            topHashtags: Array.isArray(apiData.tags) ? apiData.tags.map((tag: unknown) => `#${String(tag)}`) : [],
+            birthDate: "정보 없음", // MSW 데이터에 없으므로 기본값
+            gender: "정보 없음",   // MSW 데이터에 전송되지 않으므로 기본값
+          });
+        }
+      } catch (error) {
+        console.error("유저 정보 불러오기 실패:", error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   const handleUpdateProfile = (newNickname: string, newImageUrl: string | null) => {
     setProfile(prev => ({
@@ -588,23 +626,29 @@ export default function UserPage() {
         </div>
       </div>
 
-      {/* ── 모달들 ── */}
-      <ProfileEditModal
-        isOpen={isProfileEditOpen}
-        onClose={() => setIsProfileEditOpen(false)}
-        onWithdraw={handleWithdrawClick}
-        profile={profile}
-        onUpdate={handleUpdateProfile}
-      />
-      <WithdrawModal
-        isOpen={isWithdrawOpen}
-        onClose={() => setIsWithdrawOpen(false)}
-        nickname={profile.nickname}
-      />
-      <PasswordChangeModal
-        isOpen={isPasswordChangeOpen}
-        onClose={() => setIsPasswordChangeOpen(false)}
-      />
+      {/* ── 모달들 (조건부 렌더링으로 닫힐 때마다 모든 데이터 완벽하게 리셋!) ── */}
+      {isProfileEditOpen && (
+        <ProfileEditModal
+          isOpen={isProfileEditOpen}
+          onClose={() => setIsProfileEditOpen(false)}
+          onWithdraw={handleWithdrawClick}
+          profile={profile}
+          onUpdate={handleUpdateProfile}
+        />
+      )}
+      {isWithdrawOpen && (
+        <WithdrawModal
+          isOpen={isWithdrawOpen}
+          onClose={() => setIsWithdrawOpen(false)}
+          nickname={profile.nickname}
+        />
+      )}
+      {isPasswordChangeOpen && (
+        <PasswordChangeModal
+          isOpen={isPasswordChangeOpen}
+          onClose={() => setIsPasswordChangeOpen(false)}
+        />
+      )}
     </div>
   );
 }
