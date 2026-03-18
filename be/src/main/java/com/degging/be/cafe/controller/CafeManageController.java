@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 카페 데이터 관리 및 외부 수집 전용 컨트롤러
- *
- * collect -> match -> status 순차적 실행
  */
 @Slf4j
 @RestController
@@ -24,26 +22,14 @@ public class CafeManageController {
     private final CafeStatusService cafeStatusService;
 
     /**
-     * 카페 데이터 수집
+     * 카페 데이터 통합 수집 (공공데이터 + 카카오 매칭)
      * 
      * @return 데이터 수집 실행 성공 응답
      */
     @PostMapping("/collect")
     public BaseResponse<Void> collect() {
-        log.info("소상공인 상가정보 API 데이터 수집 시작");
+        log.info("통합 카페 데이터 수집 시작");
         cafeCollectService.collectCafes();
-        return BaseResponse.success();
-    }
-
-    /**
-     * 카카오 API 기반 카페 데이터 정교화
-     *
-     * @return 성공 응답
-     */
-    @PostMapping("/match")
-    public BaseResponse<Void> match() {
-        log.info("카카오 API 매칭 시작");
-        cafeDuplicateService.matchKakaoPlaces();
         return BaseResponse.success();
     }
 
