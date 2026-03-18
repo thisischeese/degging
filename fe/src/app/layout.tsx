@@ -2,6 +2,7 @@ import './globals.css';
 import localFont from 'next/font/local';
 import Script from 'next/script';
 import QueryProvider from '@/common/components/providers/QueryProvider';
+import { MSWProvider } from '@/common/components/providers/MSWProvider';
 
 export const metadata = {
   title: 'Degging',
@@ -54,15 +55,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
-        <QueryProvider>
-          {/* 2. 앱 컨테이너 설정 */}
-          <div className="w-full max-w-[375px] h-full bg-bg_white shadow-2xl relative flex flex-col overflow-hidden">
-            {/* 3. 실제 콘텐츠 영역 */}
-            <main className="flex-1 min-h-0 flex flex-col">
-              {children}
-            </main>
-          </div>
-        </QueryProvider>
+        {/* <MSWProvider> */}
+          <QueryProvider>
+            {/* 2. 앱 컨테이너 설정 */}
+            <div className="w-full max-w-[375px] h-full bg-bg_white shadow-2xl relative flex flex-col overflow-hidden">
+              {/* 3. 실제 콘텐츠 영역 */}
+              <main className="flex-1 min-h-0 flex flex-col">
+                {children}
+              </main>
+            </div>
+          </QueryProvider>
+        {/* </MSWProvider> */}
       </body>
     </html>
   );
