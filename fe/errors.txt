@@ -1,0 +1,2 @@
+src/mocks/authHandlers.ts(6,3): error TS1137: Expression or comma expected.
+src/mocks/authHandlers.ts(82,1): error TS1109: Expression expected.

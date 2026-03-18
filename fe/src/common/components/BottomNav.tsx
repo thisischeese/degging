@@ -65,8 +65,12 @@ export default function BottomNav() {
     <nav className="fixed bottom-0 left-1/2 z-50 h-16 w-full max-w-[375px] -translate-x-1/2 border-t border-gray-100 bg-white px-2 shadow-[0_-1px_10px_rgba(0,0,0,0.05)]">
       <div className="flex h-full items-center justify-around">
         {NAV_ITEMS.map((item) => {
-          // 현재 경로와 메뉴의 경로가 일치하는지 확인
-          const isActive = pathname === item.path;
+          // /cafes/* 경로는 지도(/map) 탭을 활성화
+          const cafePageActiveMap = pathname.startsWith('/cafes') ? '/map' : null;
+
+          const isActive = item.path === '/'
+            ? pathname === '/'
+            : cafePageActiveMap === item.path || pathname.startsWith(item.path);
 
           return (
             <Link key={item.path} href={item.path} className="flex flex-col items-center gap-1 flex-1">

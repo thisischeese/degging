@@ -21,7 +21,6 @@ const nextConfig: NextConfig = {
       ],
   },
 
-  // (선택 사항) Turbopack 관련 설정이나 리다이렉트가 필요하면 여기에 추가합니다.
 };
 
 export default nextConfig;
