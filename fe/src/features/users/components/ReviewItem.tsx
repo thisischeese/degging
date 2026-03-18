@@ -1,8 +1,9 @@
+'use client'; // 클라이언트 컴포넌트 선언 (useState 사용을 위해 필요)
+
+import { useState } from "react"; // 1. useState 추가
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-
 import { ReviewItem as ReviewItemType } from "@/features/users/types";
-
 // ─────────────────────────────────────────────────────────
 // Props 설명:
 // - ReviewItemType 타입을 그대로 props로 받습니다.
@@ -18,8 +19,12 @@ export default function ReviewItem({
 }: ReviewItemType) {
   const router = useRouter();
 
+  // 2. 이미지 에러 여부를 관리할 상태 (기본값은 서버에서 온 주소)
+  const [imgSrc, setImgSrc] = useState(cafeImageUrl || "/images/cafe/baseCafeImage.png");
+
   const handleClick = () => {
-    router.push(`/cafes/${cafeId}/reviews/${reviewId}`);
+    // 마이 리뷰 상세 조회 페이지로 바로 이동하도록 라우팅 주소를 수정합니다.
+    router.push(`/users/reviews/${reviewId}`);
   };
 
   return (
@@ -41,6 +46,9 @@ export default function ReviewItem({
           alt={`${cafeName} 썸네일`}
           fill // 부모(relative 박스)를 꽉 채우는 next/image 특수 옵션
           className="object-cover" // 이미지 비율을 유지하며 박스를 꽉 채움 (잘릴 수 있음)
+          onError={() => {
+            setImgSrc("/images/cafe/baseCafeImage.png");
+          }}
         />
       </div>
 

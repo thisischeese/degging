@@ -56,3 +56,11 @@ export interface ReviewFilter {
   startDate: Date | null;
   endDate: Date | null;
 }
+
+// 6. 백엔드의 모든 응답 구조
+export interface ApiResponse<T> {
+  status: string;
+  code: string;
+  message: string;
+  data: T; // 실제 우리가 필요한 데이터는 여기에 들어있음
+}

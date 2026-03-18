@@ -1,15 +1,26 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /* config options here */
   images: {
+    // [추가] 외부 이미지 호스트 허용 설정
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "example.com",
+        protocol: 'https',
+        hostname: 's3.cloud', // 에러가 났던 목업 이미지 도메인
+        port: '',
+        pathname: '/**', // 해당 도메인의 모든 경로 허용
       },
-      // 필요 시 나중에 S3, 카카오 프로필 등 추가
-    ],
+      // Tip: 나중에 실제 S3 버킷 주소가 나오면 여기에 같은 방식으로 추가하세요
+      // {
+      //   protocol: 'https',
+      //   hostname: '본인의-s3-버킷명.s3.ap-northeast-2.amazonaws.com',
+      //   port: '',
+      //   pathname: '/**',
+      // },
+      ],
   },
+
 };
 
 export default nextConfig;
