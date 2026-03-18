@@ -17,7 +17,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 @RequiredArgsConstructor
 public class SeoulFoodApiClient {
 
-    private final WebClient.Builder webClientBuilder;
+    // Builder가 아니라 이미 build된 WebClient를 직접 주입
+    private final WebClient webClient;
 
     @Value("${public-data.seoul-food.service-key}")
     private String serviceKey;
@@ -32,10 +33,10 @@ public class SeoulFoodApiClient {
      * @return 서울시 API 응답 데이터 DTO
      */
     public SeoulFoodResponse fetchCafeStatus(int start, int end) {
-        // 서울시 API 구조: BASE_URL/인증키/json/localdata_072405/시작/종료
-        String url = String.format("%s/%s/json/localdata_072405/%d/%d", BASE_URL, serviceKey, start, end);
+        // 서울시 API 구조: BASE_URL/인증키/json/LOCALDATA_072405/시작/종료
+        String url = String.format("%s/%s/json/LOCALDATA_072405/%d/%d", BASE_URL, serviceKey, start, end);
 
-        return webClientBuilder.build().get()
+        return webClient.get()
                 .uri(url)
                 .retrieve()
                 .bodyToMono(SeoulFoodResponse.class)

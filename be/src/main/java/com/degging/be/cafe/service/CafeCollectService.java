@@ -3,19 +3,15 @@ package com.degging.be.cafe.service;
 import com.degging.be.cafe.client.CommercialStoreApiClient;
 import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
 import com.degging.be.cafe.dto.response.external.StoreListInUpjongResponse;
-import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,10 +36,7 @@ public class CafeCollectService {
     private final CommercialStoreApiClient commercialStoreApiClient;
     private final CafeFilterService cafeFilterService;
     private final CafeRepository cafeRepository;
-
-    // SRID 4326 기준 Point 생성용 GeometryFactory
-    // 위도/경도를 PostGIS로 바꿀 때 사용
-    private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+    private final CafeDuplicateService cafeDuplicateService;
 
     /**
      * 서울 내의 카페 전체 데이터 수집
@@ -78,6 +71,9 @@ public class CafeCollectService {
             // 현재 페이지에 있는 업소 목록
             List<StoreListInUpjongItem> items = response.getBody().getItems();
 
+            // CafeDuplicateService로 넘겨줄 매칭 후보 리스트
+            List<StoreListInUpjongItem> validCandidates = new ArrayList<>();
+
             for (StoreListInUpjongItem item : items) {
 
                 // 서울 데이터만 저장
@@ -100,18 +96,17 @@ public class CafeCollectService {
                     continue;
                 }
 
-                // 업소의 경도/위도를 Point 타입으로 변환
-                Point location = createPoint(item.getLon(), item.getLat());
+                // 모든 기준 통과한 카페 정보 매칭 후보로 추가
+                validCandidates.add(item);
 
-                // API 응답 데이터를 기반으로 저장할 카페 엔티티 생성
-                CafeEntity cafe = CafeEntity.from(item, location);
-
-                // DB에 저장
-                cafeRepository.save(cafe);
-
-                savedCount++;
             }
+
+            // 필터링된 리스트를 DuplicateService로 넘겨 매칭 및 저장 수행
+            savedCount += cafeDuplicateService.matchKakaoPlaces(validCandidates);
+            log.info("페이지 {} 완료. 현재까지 누적 저장: {}", pageNo, savedCount);
+
             pageNo++;
+
         } while ((pageNo - 1) * numOfRows < totalCount);
 
         log.info("서울 카페 데이터 수집 완료. 총 저장된 카페 수: {}", savedCount);
@@ -122,8 +117,4 @@ public class CafeCollectService {
         return TARGET_REGION.equals(item.getCtprvnNm());
     }
 
-    // 경도/위도를 Point로 변환
-    private Point createPoint(Double longitude, Double latitude) {
-        return geometryFactory.createPoint(new Coordinate(longitude, latitude));
-    }
 }

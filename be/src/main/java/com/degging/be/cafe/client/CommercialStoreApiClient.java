@@ -19,7 +19,8 @@ public class CommercialStoreApiClient {
     // 카페 업종 코드 I21201 하드코딩
     private static final String CAFE_SMALL_UPJONG_CODE = "I21201";
 
-    private final WebClient.Builder webClientBuilder;
+    // Builder가 아니라 이미 build된 WebClient를 직접 주입
+    private final WebClient webClient;
 
     @Value("${public-data.commercial-store.service-key}")
     private String serviceKey;
@@ -32,8 +33,7 @@ public class CommercialStoreApiClient {
      * @return 업종별 상가업소 조회 응답 DTO
      */
     public StoreListInUpjongResponse fetchCafeStores(int pageNo, int rows) {
-        return webClientBuilder.build()
-                .get()
+        return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .scheme("https")
                         .host("apis.data.go.kr")
