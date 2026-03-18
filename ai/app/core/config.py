@@ -7,12 +7,12 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    # PostgreSQL
-    postgres_host: str = "localhost"
-    postgres_port: int = 5432
-    postgres_db: str = "cafe_db"
-    postgres_user: str = "postgres"
-    postgres_password: str  # 기본값 없음 — .env 필수
+    # PostgreSQL — 기본값 없음, .env 필수
+    postgres_host: str
+    postgres_port: int
+    postgres_db: str
+    postgres_user: str
+    postgres_password: str
 
     # MongoDB
     mongo_uri: str  # 인증 정보 포함 URI — 기본값 없음, .env 필수
