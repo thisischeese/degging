@@ -153,8 +153,8 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
           <div className="relative flex items-center justify-center w-10 h-10">
             <Dropdown
               options={[
-                { label: '수정하기', value: 'edit' },
-                { label: '삭제하기', value: 'delete' }
+                { label: '수정', value: 'edit' },
+                { label: '삭제', value: 'delete' }
               ]}
               value=""
               onChange={handleDropdown}
