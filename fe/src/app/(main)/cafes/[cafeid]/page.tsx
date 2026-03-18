@@ -4,6 +4,11 @@ import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X, Check, Info } from 'lucide-react';
+import Modal from '@/common/components/Modal';
+import Button from '@/common/components/Button';
+import { Input } from '@/common/components/Input';
+import { StarColor } from '@/features/scraps/types';
 
 interface CafeDetail {
   id: string;
@@ -17,6 +22,29 @@ interface CafeDetail {
   imageUrls: string[];
   menuList: { name: string; price: string; imageUrl: string }[];
 }
+
+// 스크랩 카테고리 (오버레이용)
+interface ScrapCategoryOption {
+  categoryId: number;
+  name: string;
+}
+
+const MOCK_SCRAP_CATEGORIES: ScrapCategoryOption[] = [
+  { categoryId: 0, name: "기본 스크랩" },
+  { categoryId: 1, name: "연남 분좋카 투어" },
+  { categoryId: 2, name: "내 사랑 소금빵" },
+  { categoryId: 3, name: "세계 챔피언 바리스타" },
+  { categoryId: 4, name: "2026년도 신상 서울 카페" },
+];
+
+const STAR_COLORS: { value: StarColor; hex: string }[] = [
+  { value: 'red', hex: '#E54B4B' },
+  { value: 'pink', hex: '#FF8B8B' },
+  { value: 'ivory', hex: '#F9F7E8' },
+  { value: 'mint', hex: '#61BFAD' },
+  { value: 'green', hex: '#167C80' },
+  { value: 'sky', hex: '#B7E3E4' },
+];
 
 const mockFetchDetail = async (cafeid: string): Promise<CafeDetail> => {
   return new Promise((resolve) => {
@@ -45,15 +73,265 @@ const mockFetchDetail = async (cafeid: string): Promise<CafeDetail> => {
   });
 };
 
+// ─────────────────────────────────────────────────────────
+// 스크랩 생성 모달 (오버레이 안에서 띄움)
+// ─────────────────────────────────────────────────────────
+function CreateScrapModal({
+  isOpen,
+  onClose,
+  onAdd,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (name: string, color: StarColor) => void;
+}) {
+  const [name, setName] = useState("");
+  const [selectedColor, setSelectedColor] = useState<StarColor>("red");
+  const [error, setError] = useState("");
+
+  const handleNameChange = (val: string) => {
+    setName(val);
+    if (val.length > 20) {
+      setError("스크랩명은 20자 이내로 입력해주세요.");
+    } else {
+      setError("");
+    }
+  };
+
+  const handleAdd = () => {
+    if (!name.trim()) return;
+    if (name.length > 20) return;
+    onAdd(name.trim(), selectedColor);
+    setName("");
+    setSelectedColor("red");
+    setError("");
+    onClose();
+  };
+
+  const handleClose = () => {
+    setName("");
+    setSelectedColor("red");
+    setError("");
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} size="sm">
+      <div className="flex flex-col gap-5">
+        <h2 className="text-[16px] font-bold text-gray-900">스크랩명</h2>
+
+        <Input
+          placeholder="새로운 스크랩명을 입력하세요"
+          value={name}
+          onChange={(e) => handleNameChange((e.target as HTMLInputElement).value)}
+          error={error}
+        />
+
+        {/* 컬러 선택 */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[13px] font-medium text-gray-600">색상선택</span>
+          <div className="flex gap-3">
+            {STAR_COLORS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setSelectedColor(c.value)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor === c.value
+                  ? 'ring-2 ring-offset-2 ring-gray-400 scale-110'
+                  : ''
+                  }`}
+                style={{ backgroundColor: c.hex }}
+              >
+                {selectedColor === c.value && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 하단 버튼 */}
+        <div className="flex gap-3 mt-1">
+          <Button
+            variant="gray"
+            size="full"
+            onClick={handleClose}
+            className="h-[48px] rounded-xl! text-gray-700!"
+          >
+            취소
+          </Button>
+          <Button
+            variant="primary"
+            size="full"
+            onClick={handleAdd}
+            className="h-[48px] rounded-xl! bg-[#ab353a]! text-white"
+          >
+            저장
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// 저장 완료 토스트
+// ─────────────────────────────────────────────────────────
+function SavedToast({ isVisible, onClose }: { isVisible: boolean; onClose: () => void }) {
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] w-[340px] max-w-[90vw]">
+      <div className="flex items-center gap-3 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.12)] border border-gray-100 px-5 py-4">
+        <Info size={24} className="text-gray-600 shrink-0" />
+        <span className="text-[15px] font-medium text-gray-800 flex-1">스크랩에 저장되었습니다.</span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 p-0.5 text-gray-600 active:opacity-60"
+        >
+          <X size={22} strokeWidth={2} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// 스크랩 카테고리 선택 오버레이
+// ─────────────────────────────────────────────────────────
+function ScrapCategoryOverlay({
+  isOpen,
+  onClose,
+  categories,
+  initialSelectedIds,
+  onSave,
+  onCreateCategory,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  categories: ScrapCategoryOption[];
+  initialSelectedIds: number[];
+  onSave: (selectedIds: number[]) => void;
+  onCreateCategory: (name: string, color: StarColor) => void;
+}) {
+  const [selectedIds, setSelectedIds] = useState<number[]>(initialSelectedIds);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // 모달이 열릴 때마다 이전에 저장된 상태로 초기화 (저장 안 하고 닫았을 때 대비)
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedIds(initialSelectedIds);
+    }
+  }, [isOpen, initialSelectedIds]);
+
+  const toggleCategory = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+
+  const handleSave = () => {
+    onSave(selectedIds);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[100] flex flex-col">
+        {/* 반투명 배경 */}
+        <div className="absolute inset-0 bg-black/80" onClick={onClose} />
+
+        {/* 콘텐츠 */}
+        <div className="relative z-10 flex flex-col h-full max-w-[375px] mx-auto w-full">
+          {/* X 닫기 버튼 - 우측 상단 더 위로 */}
+          <div className="flex justify-end px-5 pt-8">
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 text-white active:opacity-60 transition-opacity"
+            >
+              <X size={28} strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* SCRAP 타이틀 */}
+          <div className="text-center mt-4 mb-10">
+            <h2 className="text-[24px] font-bold text-white tracking-widest">SCRAP</h2>
+          </div>
+
+          {/* 카테고리 리스트 */}
+          <div className="flex-1 overflow-y-auto px-6">
+            <div className="flex flex-col">
+              {categories.map((cat) => {
+                const isSelected = selectedIds.includes(cat.categoryId);
+                return (
+                  <button
+                    key={cat.categoryId}
+                    type="button"
+                    onClick={() => toggleCategory(cat.categoryId)}
+                    className="flex items-center justify-center py-4 border-t border-white/30 active:bg-white/5 transition-colors relative"
+                  >
+                    <span className="text-[16px] font-medium text-white">{cat.name}</span>
+                    {isSelected && (
+                      <Check size={22} strokeWidth={2.5} className="text-white absolute right-2" />
+                    )}
+                  </button>
+                );
+              })}
+              <div className="border-t border-white/30" />
+            </div>
+          </div>
+
+          {/* 하단 버튼 영역 - 흰색 배경 */}
+          <div className="px-8 py-6 pb-24 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="flex-1 h-[48px] rounded-full bg-white text-gray-700 text-[15px] font-medium active:bg-gray-100 transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.12)]"
+            >
+              생성
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex-1 h-[48px] rounded-full bg-white border border-[#C3304F] text-[#C3304F] text-[15px] font-bold active:bg-red-50 transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.12)]"
+            >
+              저장
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 새 카테고리 생성 모달 */}
+      <CreateScrapModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onAdd={(name, color) => {
+          onCreateCategory(name, color);
+        }}
+      />
+    </>
+  );
+}
+
 export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: string }> | { cafeid: string } }) {
   const router = useRouter();
   const [cafe, setCafe] = useState<CafeDetail | null>(null);
+  const [isScrapOpen, setIsScrapOpen] = useState(false);
+  const [isScrapped, setIsScrapped] = useState(false);
+  const [savedCategoryIds, setSavedCategoryIds] = useState<number[]>([]);
+  const [showSavedToast, setShowSavedToast] = useState(false);
+  const [scrapCategories, setScrapCategories] = useState<ScrapCategoryOption[]>(MOCK_SCRAP_CATEGORIES);
 
   // Slider State
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  // React 18/19 compatibility for params (Next.js 15+ provides it as a Promise, older as an object)
   const resolvedParams = params instanceof Promise ? use(params) : params;
   const cafeid = resolvedParams.cafeid;
 
@@ -62,6 +340,27 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
       mockFetchDetail(cafeid).then(setCafe);
     }
   }, [cafeid]);
+
+  const handleScrapSave = (selectedIds: number[]) => {
+    setSavedCategoryIds(selectedIds);
+    if (selectedIds.length > 0) {
+      setIsScrapped(true);
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 3000);
+    } else {
+      setIsScrapped(false);
+    }
+    console.log('Saved to categories:', selectedIds);
+  };
+
+  const handleCreateCategory = (name: string, color: StarColor) => {
+    const newCat: ScrapCategoryOption = {
+      categoryId: Date.now(),
+      name,
+    };
+    setScrapCategories((prev) => [...prev, newCat]);
+    // Optionally automatically select the newly created category if needed later
+  };
 
   if (!cafe) {
     return (
@@ -88,7 +387,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
               enter: (dir: number) => ({
                 x: dir > 0 ? 100 : -100,
                 opacity: 0,
-                zIndex: 1, // 새 이미지는 위로
+                zIndex: 1,
               }),
               center: {
                 zIndex: 1,
@@ -96,9 +395,9 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
                 opacity: 1,
               },
               exit: (dir: number) => ({
-                zIndex: 0, // 이전 이미지는 뒤로
-                x: dir > 0 ? -50 : 50, // 조금 덜 이동해서 오버랩 강조
-                opacity: 0, // 서서히 뒷 배경으로 사라짐
+                zIndex: 0,
+                x: dir > 0 ? -50 : 50,
+                opacity: 0,
               }),
             }}
             initial="enter"
@@ -114,13 +413,10 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
             dragElastic={0.2}
             onDragEnd={(e, { offset, velocity }) => {
               const swipe = offset.x;
-              // velocity를 고려하거나 offset 민감도 조절
               if (swipe < -50 || velocity.x < -500) {
-                // Next image (Swipe Left)
                 setDirection(1);
                 setCurrentIndex((prev) => (prev + 1) % cafe.imageUrls.length);
               } else if (swipe > 50 || velocity.x > 500) {
-                // Previous image (Swipe Right)
                 setDirection(-1);
                 setCurrentIndex((prev) => (prev - 1 + cafe.imageUrls.length) % cafe.imageUrls.length);
               }
@@ -145,20 +441,28 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
           <Image src="/images/map/backIcon.png" alt="뒤로가기" width={40} height={40} className="w-10 h-10 object-contain drop-shadow-md pointer-events-none" draggable={false} />
         </button>
 
-        {/* 스크랩(별) 버튼 */}
+        {/* 스크랩(별) 버튼 - 저장 여부에 따라 아이콘 변경 */}
         <button
+          onClick={() => setIsScrapOpen(true)}
           className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity pointer-events-auto"
         >
-          <Image src="/images/map/unscrappedIcon.png" alt="스크랩" width={40} height={40} className="w-10 h-10 object-contain drop-shadow-md pointer-events-none" draggable={false} />
+          <Image
+            src={isScrapped ? "/images/map/scrappedIcon.png" : "/images/map/unscrappedIcon.png"}
+            alt="스크랩"
+            width={40}
+            height={40}
+            className="w-10 h-10 object-contain drop-shadow-md pointer-events-none"
+            draggable={false}
+          />
         </button>
 
-        {/* 하단 그라데이션 및 정보 오버레이 (고정) */}
+        {/* 하단 그라데이션 및 정보 오버레이 */}
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end px-5 pb-8 text-white z-10 pointer-events-none">
           <h1 className="text-[24px] font-semibold mb-2">{cafe.name}</h1>
           <p className="text-[14px] text-gray-200 leading-snug w-[90%]">{cafe.description}</p>
         </div>
 
-        {/* 인디케이터 (페이지네이션 도트) - 동적 렌더링 */}
+        {/* 인디케이터 */}
         <div className="absolute bottom-4 inset-x-0 flex justify-center items-center gap-1.5 z-20 pointer-events-none">
           {cafe.imageUrls.map((_, idx) => (
             <div
@@ -172,13 +476,13 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
 
       {/* 바디 컨텐츠 */}
       <div className="flex-1">
-        {/* 리뷰 평점 및 버튼 섹션 */}
+        {/* 리뷰 평점 */}
         <div className="px-5 py-5 flex items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-1.5">
             <Image src="/images/map/reviewStarIcon.png" alt="평점" width={20} height={20} className="w-5 h-5 object-contain" />
             <span className="text-[17px] font-medium text-gray-900">{cafe.rating}</span>
           </div>
-          <button 
+          <button
             onClick={() => router.push(`/cafes/${cafeid}/reviews`)}
             className="flex items-center text-gray-900 text-[15px] font-medium hover:text-gray-600 transition-colors"
           >
@@ -186,7 +490,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
           </button>
         </div>
 
-        {/* 기본 정보 섹션 */}
+        {/* 기본 정보 */}
         <div className="px-5 py-6 border-b border-gray-100 border-b-[8px]">
           <h2 className="text-[16px] font-bold text-gray-900 mb-4">기본 정보</h2>
           <div className="space-y-3.5">
@@ -205,21 +509,15 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
           </div>
         </div>
 
-        {/* 메뉴 섹션 */}
+        {/* 메뉴 */}
         <div className="px-5 py-6">
           <h2 className="text-[16px] font-bold text-gray-900 mb-5">메뉴</h2>
           <div className="space-y-5">
-            {/* 메뉴 데이터가 있을 때만 map을 돌리고, 없으면 안내 문구를 보여줍니다. */}
             {cafe.menuList && cafe.menuList.length > 0 ? (
               cafe.menuList.map((menu, idx) => (
                 <div key={idx} className="flex gap-4 cursor-pointer hover:bg-gray-50/50 p-1 -m-1 rounded-xl transition-colors">
                   <div className="w-24 h-24 relative shrink-0">
-                    <Image
-                      src={menu.imageUrl}
-                      alt={menu.name}
-                      fill
-                      className="object-cover rounded-xl"
-                    />
+                    <Image src={menu.imageUrl} alt={menu.name} fill className="object-cover rounded-xl" />
                   </div>
                   <div className="flex flex-col justify-center">
                     <h3 className="text-[16px] font-bold text-gray-900 mb-1.5">{menu.name}</h3>
@@ -228,16 +526,29 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
                 </div>
               ))
             ) : (
-              // 데이터가 없을 때 표시될 UI
               <div className="py-12 flex flex-col items-center justify-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <p className="text-[14px] text-gray-500 font-medium">
-                  현재 메뉴 정보 수집 중입니다.
-                </p>
+                <p className="text-[14px] text-gray-500 font-medium">현재 메뉴 정보 수집 중입니다.</p>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* 스크랩 카테고리 선택 오버레이 */}
+      <ScrapCategoryOverlay
+        isOpen={isScrapOpen}
+        onClose={() => setIsScrapOpen(false)}
+        categories={scrapCategories}
+        initialSelectedIds={savedCategoryIds}
+        onSave={handleScrapSave}
+        onCreateCategory={handleCreateCategory}
+      />
+
+      {/* 저장 완료 토스트 */}
+      <SavedToast
+        isVisible={showSavedToast}
+        onClose={() => setShowSavedToast(false)}
+      />
     </motion.div>
   );
 }
