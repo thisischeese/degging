@@ -2,6 +2,7 @@ package com.degging.be.review.dto.request;
 
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.review.entity.ReviewEntity;
+import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.user.entity.User;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -33,12 +34,13 @@ public class ReviewRequest {
     private List<MultipartFile> images; // 이미지
 
     // 이미지는 서비스에서 추가
-    public ReviewEntity toEntity(User loginUser, CafeEntity cafe){
+    public ReviewEntity toEntity(User loginUser, CafeEntity cafe, List<ReviewImageEntity> imageEntities){
         return ReviewEntity.builder()
                 .cafe(cafe)
                 .rating(this.getRating())
                 .content(this.getContent())
                 .user(loginUser)
+                .reviewImages(imageEntities)
                 .build();
     }
 }

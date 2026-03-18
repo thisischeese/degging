@@ -40,6 +40,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    // MockMultipartFile이 포함된 라이브러리
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation 'org.springframework:spring-test'
 
     // Spring Security
     implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -78,6 +81,9 @@ dependencies {
 
     // S3
     implementation 'software.amazon.awssdk:s3:2.20.162'
+
+    // 이미지 리사이징을 위한 라이브러리
+    implementation 'net.coobird:thumbnailator:0.4.20'
 }
 
 tasks.named('test') {

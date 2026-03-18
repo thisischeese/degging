@@ -7,6 +7,7 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
+import com.degging.be.global.util.ImageUtils;
 import com.degging.be.infra.storage.s3.ImageService;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -63,11 +65,31 @@ public class ReviewService {
             throw new BaseException(CafeErrorCode.REVIEW_ALREADY_EXISTS);
         }
 
-        // Dto -> Entity 후 Review 테이블에 저장
-        ReviewEntity entity = reviewRepository.save(request.toEntity(user, cafe));
+        // 이미지 리사이징
+        List<MultipartFile> resized = images.stream()
+                .map(image -> {
+                    try {
+                        return ImageUtils.resizeImage(image, 800);
+                    } catch (IOException e) {
+                        // TODO : 에러처리 변경
+                        throw new RuntimeException(e);
+                    }
+                })
+                .toList();
 
+        // 리뷰 엔티티 생성
+        ReviewEntity entity = request.toEntity(user, cafe, resized);
+
+
+        // TODO : 리뷰는 괜찮은데 스크랩은 썸네일용 더 작은 이미지도 필요함
         // S3 에 이미지 업로드
-        uploadReviewImages(entity, images, 0);
+        uploadReviewImages(entity, resized, 0);
+
+
+        // Dto -> Entity 후 Review 테이블에 저장
+        ReviewEntity entity = request.toEntity(user, cafe, resized);
+        reviewRepository.save(entity);
+
 
         // cafe 테이블에 리뷰 평점 반영
         CafeRatingStatsEntity stats = cafeRatingStatsRepository.findById(cafeId)
