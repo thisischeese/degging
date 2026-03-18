@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────
 export interface ReviewItem {
   /** 이 리뷰 고유 번호 (각 리뷰를 구별하는 ID) */
-  reviewId: number;
+  reviewId: number | string;
   /** 리뷰가 달려있는 카페의 고유 번호 */
   cafeId: number;
   /** 카페 이름 */

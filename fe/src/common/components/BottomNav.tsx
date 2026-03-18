@@ -5,14 +5,14 @@ import { usePathname } from 'next/navigation';
 import Image, { StaticImageData } from 'next/image';
 
 // 아이콘 임포트
-import HomeIcon from '@/assets/icons/homeIcon.png';      
-import HomeSelectedIcon from '@/assets/icons/homeSelectedIcon.png';      
-import LocationIcon from '@/assets/icons/locationIcon.png'; 
+import HomeIcon from '@/assets/icons/homeIcon.png';
+import HomeSelectedIcon from '@/assets/icons/homeSelectedIcon.png';
+import LocationIcon from '@/assets/icons/locationIcon.png';
 import LocationSelectedIcon from '@/assets/icons/locationSelected.png'; // 예외 케이스 반영
-import SearchIcon from '@/assets/icons/searchIcon.png';    
-import SearchSelectedIcon from '@/assets/icons/searchSelectedIcon.png';    
-import BookmarkIcon from '@/assets/icons/bookmarkIcon.png'; 
-import BookmarkSelectedIcon from '@/assets/icons/bookmarkSelectedIcon.png'; 
+import SearchIcon from '@/assets/icons/searchIcon.png';
+import SearchSelectedIcon from '@/assets/icons/searchSelectedIcon.png';
+import BookmarkIcon from '@/assets/icons/bookmarkIcon.png';
+import BookmarkSelectedIcon from '@/assets/icons/bookmarkSelectedIcon.png';
 import UserIcon from '@/assets/icons/userIcon.png';
 import UserSelectedIcon from '@/assets/icons/userSelectedIcon.png';
 
@@ -26,33 +26,33 @@ interface NavItem {
 
 // 메뉴 데이터 관리
 const NAV_ITEMS: NavItem[] = [
-  { 
-    name: '메인 화면', 
-    path: '/', 
+  {
+    name: '메인 화면',
+    path: '/',
     icon: HomeIcon,
     selectedIcon: HomeSelectedIcon,
   },
-  { 
-    name: '지도', 
-    path: '/map', 
+  {
+    name: '지도',
+    path: '/map',
     icon: LocationIcon,
     selectedIcon: LocationSelectedIcon,
   },
-  { 
-    name: '탐색', 
-    path: '/discovery', 
+  {
+    name: '탐색',
+    path: '/discovery',
     icon: SearchIcon,
     selectedIcon: SearchSelectedIcon,
   },
-  { 
-    name: '스크랩', 
-    path: '/scraps', 
+  {
+    name: '스크랩',
+    path: '/scraps',
     icon: BookmarkIcon,
     selectedIcon: BookmarkSelectedIcon,
   },
-  { 
-    name: '마이페이지', 
-    path: '/users', 
+  {
+    name: '마이페이지',
+    path: '/users',
     icon: UserIcon,
     selectedIcon: UserSelectedIcon,
   },
@@ -71,11 +71,15 @@ export default function BottomNav() {
           return (
             <Link key={item.path} href={item.path} className="flex flex-col items-center gap-1 flex-1">
               <div className="relative h-6 w-6 flex items-center justify-center">
-                <Image src={isActive ? item.selectedIcon : item.icon} alt={item.name} width={24} height={24} className="object-contain transition-all" />
+                <Image
+                  src={isActive ? item.selectedIcon : item.icon}
+                  alt={item.name}
+                  fill // 부모 요소(h-6 w-6 relative div)를 꽉 채움
+                  className="object-contain transition-all" // 비율 유지 + 중앙 정렬 + 깨짐 방지
+                />
               </div>
-              <span className={`text-[10px] ${
-                isActive ? 'text-[#C3304F] font-bold' : 'text-gray-400'
-              }`}>
+              <span className={`text-[10px] ${isActive ? 'text-[#C3304F] font-bold' : 'text-gray-400'
+                }`}>
                 {item.name}
               </span>
             </Link>
