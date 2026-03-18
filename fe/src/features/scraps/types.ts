@@ -14,3 +14,12 @@ export interface ScrapCategory {
     starColor: StarColor;
     thumbnails: ScrapThumbnail[];
 }
+
+// 스크랩 카테고리 내 카페 아이템 (상세 조회용)
+export interface ScrapCafeItem {
+    cafeId: number;
+    name: string;
+    description: string;
+    address: string;
+    imageUrl: string;
+}
