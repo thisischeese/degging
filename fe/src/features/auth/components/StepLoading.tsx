@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 
 interface StepLoadingProps {
@@ -11,8 +11,15 @@ interface StepLoadingProps {
 
 export default function StepLoading({ next, onSignup }: StepLoadingProps) {
   
-    useEffect(() => {
+  const hasRequested = useRef(false);
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     const runSignup = async () => {
+      if (hasRequested.current) return;
+      hasRequested.current = true;
+
       try {
         // 1. 서버 통신 시작 (onSignup 실행)
         if (onSignup) {
@@ -20,16 +27,21 @@ export default function StepLoading({ next, onSignup }: StepLoadingProps) {
         }
         
         // 2. 통신이 성공하면 3초간 "분석 중" 화면을 보여준 뒤 다음 단계로
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           next();
         }, 3000);
       } catch (error) {
         console.error("가입 중 에러 발생:", error);
         // 에러 시 로직 (예: 이전 단계로 돌보내기 등)을 여기에 추가할 수 있습니다.
+        hasRequested.current = false; // 에러 시 다시 시도할 수 있도록 초기화
       }
     };
 
     runSignup();
+
+    return () => {
+      clearTimeout(timeoutId); // 언마운트 시 타이머 정리
+    };
   }, [next, onSignup]);
 
   return (
