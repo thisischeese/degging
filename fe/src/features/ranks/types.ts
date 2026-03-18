@@ -6,7 +6,10 @@ export interface RankingItem {
 
 /** 랭킹 API 응답 타입 */
 export interface RankingResponse {
-  rankings: RankingItem[];
-  // 나중에 필요하다면 업데이트 시간 등을 추가할 수 있습니다.
-  // updatedAt?: string; 
+  status: string;    // "success"
+  code: string;      // "200"
+  message: string;   // 응답 메시지
+  data: {
+    rankings: RankingItem[];
+  };
 }

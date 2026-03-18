@@ -8,6 +8,9 @@ import { RankingItem } from "@/features/ranks/types";
 import { pushGtmEvent, getAbGroup } from "@/lib/abTest";
 import searchIcon from "@/assets/icons/searchIcon.png";
 import SurveyModal from "@/features/ranks/components/SurveyModal";
+import { useQuery } from "@tanstack/react-query";
+import { getRealTimeRankings } from "@/features/ranks/api/rankingApi";
+import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 
 export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,14 +106,15 @@ export default function MainPage() {
     }
   };
 
-  // 랭킹 데이터 (정의한 타입 적용)
-  const rankings: RankingItem[] = [
-    { rank: 1, keyword: "두쫀득" },
-    { rank: 2, keyword: "던킨 두바이 먼치킨" },
-    { rank: 3, keyword: "초코 소금빵" },
-    { rank: 4, keyword: "바나나 크림 머시기" },
-    { rank: 5, keyword: "딸기 빙수" },
-  ];
+  // 랭킹 데이터 조회 (React Query 연동)
+  const { data: rankingData } = useQuery({
+    queryKey: ["rankings", "realtime"],
+    queryFn: getRealTimeRankings,
+    ...QUERY_OPTIONS.GENERAL,
+  });
+
+  // API 응답 구조에서 rankings 배열 추출 (데이터 로딩 전에는 빈 배열)
+  const rankings: RankingItem[] = rankingData?.data.rankings || [];
 
   return (
     <div className="flex flex-col bg-bg_white font-pretendard overflow-x-hidden">
