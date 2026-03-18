@@ -110,10 +110,7 @@ public class CafeService {
         // 요청된 개수만큼 추출하여 DTO로 변환 후 반환
         return cafes.stream()
                 .limit(count)
-                .map(cafe -> CafeOnboardingResponse.builder()
-                        .cafeId(cafe.getCafeId())
-                        .thumbnailUrl(cafe.getThumbnailUrl())
-                        .build())
+                .map(CafeOnboardingResponse::from)
                 .toList();
     }
 

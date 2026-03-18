@@ -1,5 +1,6 @@
 package com.degging.be.cafe.dto.response.internal;
 
+import com.degging.be.cafe.entity.CafeEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,5 +22,18 @@ public class CafeOnboardingResponse {
 
     // 카페 대표 이미지 URL
     private String thumbnailUrl;
+
+    /**
+     * 카페 엔티티를 바탕으로 온보딩 응답 DTO 생성
+     *
+     * @param cafe 카페 엔티티
+     * @return 변환된 온보딩 응답 DTO
+     */
+    public static CafeOnboardingResponse from(CafeEntity cafe) {
+        return CafeOnboardingResponse.builder()
+                .cafeId(cafe.getCafeId())
+                .thumbnailUrl(cafe.getThumbnailUrl())
+                .build();
+    }
 
 }
