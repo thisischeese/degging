@@ -1,5 +1,16 @@
 import { axios_instance } from "@/api/axios_instance";
-import { MyReviewsResponse } from "../types";
+import { ApiResponse, MyReviewsResponse,Review } from "../types";
+
+/**
+ * LocalStorage에 저장된 리뷰 데이터의 구조 정의
+ */
+interface StoredLocalReview {
+  id: string;
+  rating: number;
+  content: string;
+  imageUrl: string;
+  timestamp: number;
+}
 
 /**
  * 내 리뷰 전체 조회 API
@@ -14,14 +25,108 @@ export const getMyReviews = async (
   startDate?: string,
   endDate?: string
 ): Promise<MyReviewsResponse> => {
-  const params: Record<string, string | number> = { page, size };
-  
-  if (startDate) params.startDate = startDate;
-  if (endDate) params.endDate = endDate;
+  // 1. [로컬 데이터 로드] any 없이 StoredLocalReview 인터페이스 사용
+  const getLocalReviews = (): Review[] => {
+    if (typeof window === "undefined") return [];
 
-  const response = await axios_instance.get<MyReviewsResponse>("/api/reviews/mine", {
-    params,
-  });
-  
-  return response.data;
+    const allLocalReviews: Review[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('cafeReviews-') || key === 'cafeReviews-mock')) {
+        try {
+          const rawData = localStorage.getItem(key);
+          if (!rawData) continue;
+
+          // [해결] any 대신 명확한 타입을 지정하여 파싱합니다.
+          const items: StoredLocalReview[] = JSON.parse(rawData);
+          
+          items.forEach((item) => {
+            allLocalReviews.push({
+              reviewId: item.id,
+              rating: item.rating,
+              content: item.content,
+              createdAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              nickname: "김싸피", 
+              images: [{ imageId: `local-${item.id}`, imageUrl: item.imageUrl }],
+              cafeName: "아우어베이커리 역삼점"
+            });
+          });
+        } catch (e) {
+          console.error("Local Storage 파싱 에러:", e);
+        }
+      }
+    }
+    return allLocalReviews;
+  };
+
+  // 2. 기본 하드코딩 Mock 데이터 (ID 중복 테스트용)
+  const baseMockContent: Review[] = [
+    {
+      reviewId: "eed475e0-424d-4ae4-ac49-cc2e1119d167",
+      rating: 5,
+      content: "카페가 정말 예뻐요!~~~~~~~~",
+      createdAt: "2026-03-12T17:12:49.718464",
+      updatedAt: "2026-03-12T17:12:49.718464",
+      nickname: "김싸피",
+      images: [
+        { imageId: "1", imageUrl: "/images/cafe/cafe1.png" }, 
+        { imageId: "2", imageUrl: "/images/cafe/cafe2.png" }
+      ],
+      cafeName: "아우어베이커리 역삼점"
+    }
+  ];
+
+  // 3. [데이터 병합 및 중복 제거] ID 기준
+  const localData = getLocalReviews();
+  let combinedContent = [...localData, ...baseMockContent.filter(bm => 
+    !localData.some(ld => ld.reviewId === bm.reviewId)
+  )];
+
+  // 4. [날짜 필터링]
+  if (startDate || endDate) {
+    combinedContent = combinedContent.filter(review => {
+      const reviewDate = review.createdAt.split('T')[0];
+      if (startDate && reviewDate < startDate) return false;
+      if (endDate && reviewDate > endDate) return false;
+      return true;
+    });
+  }
+
+  // 최신순 정렬
+  combinedContent.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const mockResponse: MyReviewsResponse = {
+    content: combinedContent.slice(page * size, (page + 1) * size),
+    pageable: {
+      pageNumber: page,
+      pageSize: size,
+      sort: { empty: false, sorted: true, unsorted: false },
+      offset: page * size,
+      unpaged: false,
+      paged: true
+    },
+    size: size,
+    number: page,
+    sort: { empty: false, sorted: true, unsorted: false },
+    first: page === 0,
+    last: (page + 1) * size >= combinedContent.length,
+    numberOfElements: combinedContent.length,
+    empty: combinedContent.length === 0
+  };
+
+  try {
+    const params: Record<string, string | number> = { page, size };
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+
+    const response = await axios_instance.get<ApiResponse<MyReviewsResponse>>("/api/reviews/mine", {
+      params,
+    }) as unknown as ApiResponse<MyReviewsResponse>;
+    
+    return response.data;
+  } catch (error) {
+    console.warn("서버 연결 실패: 로컬 저장소와 병합된 Mock 데이터를 사용합니다.");
+    return mockResponse;
+  }
 };

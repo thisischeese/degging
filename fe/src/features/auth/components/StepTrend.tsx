@@ -4,15 +4,23 @@ import { useState } from "react";
 import { Chip } from "@/common/components/Chip";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
+import { useQuery } from "@tanstack/react-query";
+import { getOnboardingRankings } from "@/features/ranks/api/rankingApi";
+import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 
-const DUMMY_MENUS = [
-  "아메리카노", "소금빵", "휘낭시에", "에이드", "까눌레", 
-  "라떼", "바닐라빈 라떼", "티라미수", "크루아상", "에그타르트",
-  "스콘", "푸딩", "마들렌", "치즈케이크", "베이글", 
-  "두쫀쿠", "버블티", "망고빙수", "초코라떼", "아이스티"
-];
+// 기존 DUMMY_MENUS를 제거하고 API 데이터를 사용합니다.
 
 export default function StepTrend({ next, updateData, formData }: SignupStepProps) {
+  // 온보딩 랭킹 데이터 조회 (정적 데이터 성격이 강하므로 STATIC 옵션 적용)
+  const { data: rankingData } = useQuery({
+    queryKey: ["rankings", "onboarding"],
+    queryFn: getOnboardingRankings,
+    ...QUERY_OPTIONS.STATIC,
+  });
+  
+  // 랭킹 키워드만 추출하여 메뉴 리스트 생성
+  const menus = rankingData?.data.rankings.map(item => item.keyword) || [];
+
   const [selectedMenus, setSelectedMenus] = useState<string[]>(formData.trends || []);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -46,7 +54,7 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
       <div className="flex-1 flex items-center justify-center min-h-0 py-6">
         <div className="max-h-full overflow-y-auto no-scrollbar">
           <div className="flex flex-wrap gap-x-2 gap-y-4 justify-center max-w-[360px] mx-auto pb-4">
-            {DUMMY_MENUS.map((menu, index) => {
+            {menus.map((menu, index) => {
               const uniqueKey = `${menu}-${index}`;
               const isActive = selectedMenus.includes(uniqueKey);
               return (
@@ -93,8 +101,8 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
             next();
           }}
           // 버튼 위치가 고정되도록 상단 여백이나 크기 변화 요소를 최소화함
-          className={`h-[54px] !rounded-xl transition-all ${
-            selectedMenus.length > 0 ? "!bg-[#C3304F] !text-white shadow-md" : ""
+          className={`h-[54px] rounded-xl! transition-all ${
+            selectedMenus.length > 0 ? "bg-[#C3304F]! text-white! shadow-md" : ""
           }`}
         >
           다음 단계로

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface DropdownOption {
     value: string;
@@ -13,9 +14,10 @@ export interface DropdownProps {
     value: string;
     onChange: (value: string) => void;
     className?: string;
+    triggerNode?: React.ReactNode;
 }
 
-export const Dropdown = ({ options, value, onChange, className = '' }: DropdownProps) => {
+export const Dropdown = ({ options, value, onChange, className = '', triggerNode }: DropdownProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -33,36 +35,52 @@ export const Dropdown = ({ options, value, onChange, className = '' }: DropdownP
 
     return (
         <div className={`relative ${className}`} ref={dropdownRef}>
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-medium text-gray-900 active:bg-gray-50 transition-colors"
-            >
-                {selectedOption.label}
-                <ChevronDown
-                    className={`w-4 h-4 text-gray-900 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                    strokeWidth={2.5}
-                />
-            </button>
-
-            {isOpen && (
-                <div className="absolute top-full mt-1.5 left-0 w-max min-w-[120px] bg-white border border-gray-200 rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] z-50 overflow-hidden flex flex-col">
-                    {options.map((option, index) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                                onChange(option.value);
-                                setIsOpen(false);
-                            }}
-                            className={`w-full flex items-center px-4 py-3 text-[14px] text-gray-800 bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors ${index !== options.length - 1 ? 'border-b border-gray-100' : ''
-                                }`}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
+            {triggerNode ? (
+                <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
+                    {triggerNode}
                 </div>
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-medium text-gray-900 active:bg-gray-50 transition-colors"
+                >
+                    {selectedOption.label}
+                    <ChevronDown
+                        className={`w-4 h-4 text-gray-900 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                        strokeWidth={2.5}
+                    />
+                </button>
             )}
+
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute top-full mt-1.5 right-0 w-max min-w-[120px] bg-white border border-gray-200 rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.08)] z-50 overflow-hidden flex flex-col"
+                    >
+                        {options.map((option, index) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                    onChange(option.value);
+                                    setIsOpen(false);
+                                }}
+                                // [delete일 때 빨간 글씨 되도록 수정, 글 중앙 정렬]
+                                className={`w-full flex items-center justify-center px-4 py-3 text-[16px] transition-colors hover:bg-gray-50 active:bg-gray-100 ${index !== options.length - 1 ? 'border-b border-gray-100' : ''
+                                    } ${option.value === 'delete' ? 'text-[#C3304F]' : 'text-gray-800'
+                                    }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

@@ -238,7 +238,7 @@ export default function MyReviewsPage() {
               <ReviewItem 
                 key={review.reviewId} 
                 {...({
-                  reviewId: Number(review.reviewId.split('-')[0]) || 0, // 기존 컴포넌트 구식 ID 호환 (임시)
+                  reviewId: review.reviewId, // 아이디 원본 유지
                   cafeId: 0, 
                   cafeName: review.cafeName || "카페 정보 없음",
                   cafeImageUrl: review.images[0]?.imageUrl || "/images/curation/mangoBingsu.png",
