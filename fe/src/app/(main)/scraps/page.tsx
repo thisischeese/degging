@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "@/common/components/Header";
 import Modal from "@/common/components/Modal";
@@ -309,6 +310,7 @@ function DeleteConfirmModal({
 // 메인 스크랩 페이지
 // ─────────────────────────────────────────────────────────
 export default function ScrapsPage() {
+    const router = useRouter();
     const [categories, setCategories] = useState<ScrapCategory[]>(MOCK_CATEGORIES);
     const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -438,6 +440,8 @@ export default function ScrapsPage() {
                                     setEditingCategory(category);
                                 } else if (mode === 'delete') {
                                     setDeletingCategory(category);
+                                } else {
+                                    router.push(`/scraps/${category.categoryId}`);
                                 }
                             }}
                             className={`flex flex-col items-center gap-2 cursor-pointer transition-opacity ${mode === 'default' ? 'active:opacity-80' : ''}`}
