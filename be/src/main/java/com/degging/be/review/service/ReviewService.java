@@ -66,7 +66,7 @@ public class ReviewService {
         // Dto -> Entity 후 Review 테이블에 저장
         ReviewEntity entity = reviewRepository.save(request.toEntity(user, cafe));
 
-        // 이미지 업로드
+        // S3 에 이미지 업로드
         uploadReviewImages(entity, images, 0);
 
         // cafe 테이블에 리뷰 평점 반영
@@ -89,10 +89,16 @@ public class ReviewService {
         // 유효성 검증
         validateUser(userId);
         checkCafeValidation(cafeId);
-        
-        // 카페 ID로 리뷰와 리뷰, 이미지, 작성자 조회하여 반환
-        Slice<ReviewEntity> reviewSlice = reviewRepository.findAllByCafeIdWithImages(cafeId, pageable);
-        return reviewSlice.map(ReviewResponse::toDto);
+
+        // 카페 ID로 리뷰와 리뷰, 작성자 조회하여 반환
+        Slice<ReviewResponse> reviewSlice = reviewRepository.findReviewDtosByCafeId(cafeId, pageable);
+
+        // 이미지 조회 후 채우기
+        reviewSlice.forEach(response -> {
+            List<ReviewImageEntity> images = reviewImageRepository.findByReviewReviewId(response.getReviewId());
+            response.updateImages(images);
+        });
+        return reviewSlice;
     }
 
     /**
@@ -133,7 +139,7 @@ public class ReviewService {
         
         // 기존 이미지가 존재한다면 삭제 후 진행
         if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()){
-            // GCS 에서 해당 파일 삭제
+            // S3 에서 해당 파일 삭제
             List<ReviewImageEntity> targetImages = reviewImageRepository.findAllById(request.getDeleteImageIds());
             targetImages.forEach(img -> imageService.deleteImage(img.getImageUrl()));
             
@@ -185,7 +191,7 @@ public class ReviewService {
         for (int i = 0; i < images.size(); i++){
             MultipartFile file = images.get(i);
 
-            // GCS 에 이미지 업로드 후 url 반환
+            // S3 에 이미지 업로드 후 url 반환
             String imageUrl = imageService.uploadImage(file, "review");
 
             // 이미지 Entity 생성 후 저장
