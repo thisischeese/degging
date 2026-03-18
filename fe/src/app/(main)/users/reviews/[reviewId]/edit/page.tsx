@@ -9,11 +9,11 @@ import Button from '@/common/components/Button';
 import Image from 'next/image';
 
 interface LocalReview {
-  id: string;
-  rating: number;
-  content: string;
-  imageUrl: string;
-  timestamp: number;
+    id: string;
+    rating: number;
+    content: string;
+    imageUrl: string;
+    timestamp: number;
 }
 
 export default function MyReviewEditPage({ params }: { params: Promise<{ reviewId: string }> | { reviewId: string } }) {
@@ -25,7 +25,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
     const [content, setContent] = useState<string>('');
     const [images, setImages] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-    
+
     // 수정 페이지이므로 초기값을 설정할 때 쓸 카페 이름 등
     const [cafeName, setCafeName] = useState<string>("아우어베이커리 역삼점");
 
@@ -42,24 +42,24 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
             const key = localStorage.key(i);
             if (key && key.startsWith('cafeReviews-')) {
                 try {
-                const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
-                const foundReview = localReviews.find((r) => r.id === reviewId);
-                if (foundReview) {
-                    setRating(foundReview.rating);
-                    setContent(foundReview.content);
-                    // 이미지가 한 장 저장된 상태라면
-                    setPreviewUrls([foundReview.imageUrl]);
-                    isLocalFound = true;
-                    break;
-                }
-                } catch(e) {
-                console.error(e);
+                    const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
+                    const foundReview = localReviews.find((r) => r.id === reviewId);
+                    if (foundReview) {
+                        setRating(foundReview.rating);
+                        setContent(foundReview.content);
+                        // 이미지가 한 장 저장된 상태라면
+                        setPreviewUrls([foundReview.imageUrl]);
+                        isLocalFound = true;
+                        break;
+                    }
+                } catch (e) {
+                    console.error(e);
                 }
             }
         }
 
         // 로컬에 없으면 목업 데이터 표시
-        if(!isLocalFound) {
+        if (!isLocalFound) {
             setRating(3.5);
             setContent("유명하다해서 기대하며 방문했는데 생각보다 응대가 친절하지 않았어요. ....... ㅜㅜ\n\n그래도 커피 메뉴도 다양하고 특히 시그니처 메뉴인 더티 초코가 먹기는 힘들었지만 정말 맛있었어요. 그리고 공간이 넓어서 모임하기 좋았어요.");
             setPreviewUrls(["/images/cafe/cafe1.png"]);
@@ -70,7 +70,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
     useEffect(() => {
         return () => {
             previewUrls.forEach(url => {
-                if(url.startsWith('blob:')) {
+                if (url.startsWith('blob:')) {
                     URL.revokeObjectURL(url);
                 }
             });
@@ -85,7 +85,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
         if (e.target.files) {
             const fileArray = Array.from(e.target.files);
             const totalImages = previewUrls.length + fileArray.length;
-            
+
             if (totalImages > 3) {
                 setIsOverLimit(true);
             } else {
@@ -104,7 +104,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
         setPreviewUrls(prev => {
             const newUrls = [...prev];
             const urlToRemove = newUrls[indexToRemove];
-            if(urlToRemove.startsWith('blob:')) {
+            if (urlToRemove.startsWith('blob:')) {
                 URL.revokeObjectURL(urlToRemove);
             }
             newUrls.splice(indexToRemove, 1);
@@ -158,7 +158,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
     const handleSubmit = async () => {
         try {
             setIsSubmitting(true);
-            
+
             // 이미지 base64 변환 로직 (목업 포함)
             let finalImageStr = previewUrls[0] || '/images/cafe/cafe1.png'; // 기존 첫 이미지 유지
             if (images.length > 0) {
@@ -191,14 +191,14 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
                             updated = true;
                             break;
                         }
-                    } catch(e) {}
+                    } catch (e) { }
                 }
             }
 
-            if(updated) {
-               alert('리뷰가 수정되었습니다.');
+            if (updated) {
+                alert('리뷰가 수정되었습니다.');
             } else {
-               alert('목업 리뷰는 로컬 스토리지에 저장되지 않습니다.');
+                alert('목업 리뷰는 로컬 스토리지에 저장되지 않습니다.');
             }
 
             // 목록 또는 상세 페이지로 replace
@@ -228,7 +228,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
                 </div>
             </header>
 
-            <main className="flex-1 overflow-y-auto px-5 py-6 no-scrollbar flex flex-col items-center">
+            <main className="flex-1 overflow-y-auto px-5 py-6 pb-28 no-scrollbar flex flex-col items-center">
                 <div className="w-full flex-1 flex flex-col justify-start">
                     <div className="w-full">
                         <h2 className="text-[18px] font-bold text-gray-900 mb-4 tracking-tight">{cafeName}</h2>
@@ -256,7 +256,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
                                                 onClick={() => removeImage(index)}
                                                 className="absolute bottom-3 right-3 w-[34px] h-[34px] rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center transition-all active:scale-90 overflow-hidden"
                                             >
-                                                <Image src="/images/review/deleteIcon.png" alt="delete" height={18} width={18} className="object-contain" onError={(e) => { e.currentTarget.style.display='none'; }}/>
+                                                <Image src="/images/review/deleteIcon.png" alt="delete" height={18} width={18} className="object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                                 <Trash2 size={16} className="text-white absolute" />
                                             </button>
                                         </motion.div>
@@ -301,7 +301,7 @@ export default function MyReviewEditPage({ params }: { params: Promise<{ reviewI
                                 className="h-[140px] rounded-[16px] text-[15px] pt-4 px-4 bg-white border border-gray-200"
                             />
                         </div>
-                        
+
                         {isOverLimit && (
                             <div className="w-full text-center mt-2 mb-2">
                                 <span className="text-[14px] text-[#c8325a] font-pretendard tracking-tight">리뷰 사진은 최대 3개까지 등록 가능합니다.</span>

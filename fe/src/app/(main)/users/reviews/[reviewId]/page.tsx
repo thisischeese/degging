@@ -32,7 +32,7 @@ interface ReviewDetail {
 export default function MyReviewDetailPage({ params }: { params: Promise<{ reviewId: string }> | { reviewId: string } }) {
   const router = useRouter();
   const resolvedParams = params instanceof Promise ? use(params) : params;
-  
+
   const mockReviewDetail: ReviewDetail = {
     reviewId: resolvedParams.reviewId,
     rating: 3.5,
@@ -50,29 +50,40 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
   const [direction, setDirection] = useState(0);
 
   useEffect(() => {
-    // localStorage에서 리뷰 찾기
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('cafeReviews-')) {
-        try {
-          const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
-          const foundReview = localReviews.find((r) => r.id === resolvedParams.reviewId);
-          if (foundReview) {
-            setReviewData(prev => ({
-              ...prev,
-              reviewId: foundReview.id,
-              rating: foundReview.rating,
-              content: foundReview.content,
-              imageUrls: [foundReview.imageUrl],
-              createdAt: foundReview.timestamp ? new Date(foundReview.timestamp).toISOString() : new Date().toISOString()
-            }));
-            break;
+    // localStorage에서 리뷰 찾기 로직
+    const loadLocalData = () => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cafeReviews-')) {
+          try {
+            const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
+            const foundReview = localReviews.find((r) => r.id === resolvedParams.reviewId);
+
+            if (foundReview) {
+              // [오류 해결] setTimeout을 사용하여 다음 틱(Task)에서 업데이트되도록 합니다.
+              // 이렇게 하여 "동기적 호출(Synchronous)" 경고 해결
+              setTimeout(() => {
+                setReviewData(prev => ({
+                  ...prev,
+                  reviewId: foundReview.id,
+                  rating: foundReview.rating,
+                  content: foundReview.content,
+                  imageUrls: [foundReview.imageUrl],
+                  createdAt: foundReview.timestamp
+                    ? new Date(foundReview.timestamp).toISOString()
+                    : new Date().toISOString()
+                }));
+              }, 0);
+              break;
+            }
+          } catch (e) {
+            console.error(e);
           }
-        } catch(e) {
-          console.error(e);
         }
       }
-    }
+    };
+
+    loadLocalData();
   }, [resolvedParams.reviewId]);
 
   const formatDate = (dateString: string) => {
@@ -80,14 +91,14 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
     const year = d.getFullYear();
     const month = d.getMonth() + 1;
     const day = d.getDate();
-    
+
     let hours = d.getHours();
     const minutes = d.getMinutes().toString().padStart(2, '0');
     const ampm = hours >= 12 ? '오후' : '오전';
-    
+
     hours = hours % 12;
     hours = hours ? hours : 12;
-    
+
     return `${year}년 ${month}월 ${day}일 ${ampm} ${hours}시 ${minutes}분`;
   };
 
@@ -103,26 +114,26 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
     if (val === 'edit') {
       router.push(`/users/reviews/${resolvedParams.reviewId}/edit`);
     } else if (val === 'delete') {
-       if(window.confirm('리뷰를 삭제하시겠습니까?')) {
-          for (let i = 0; i < localStorage.length; i++) {
-             const key = localStorage.key(i);
-             if (key && key.startsWith('cafeReviews-')) {
-                try {
-                   const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
-                   const filtered = localReviews.filter((r) => r.id !== resolvedParams.reviewId);
-                   if (filtered.length !== localReviews.length) {
-                      localStorage.setItem(key, JSON.stringify(filtered));
-                      break;
-                   }
-                } catch(e) {}
-             }
+      if (window.confirm('리뷰를 삭제하시겠습니까?')) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('cafeReviews-')) {
+            try {
+              const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
+              const filtered = localReviews.filter((r) => r.id !== resolvedParams.reviewId);
+              if (filtered.length !== localReviews.length) {
+                localStorage.setItem(key, JSON.stringify(filtered));
+                break;
+              }
+            } catch (e) { }
           }
-          // 수정된 사항 반영을 위해 목록으로 이동 후 새로고침 (문제 구체적인 로직 반영)
-          router.replace('/users/reviews');
-          setTimeout(() => {
-              window.location.reload();
-          }, 50);
-       }
+        }
+        // 수정된 사항 반영을 위해 목록으로 이동 후 새로고침 (문제 구체적인 로직 반영)
+        router.replace('/users/reviews');
+        setTimeout(() => {
+          window.location.reload();
+        }, 50);
+      }
     }
   };
 
@@ -140,19 +151,19 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
             마이 리뷰
           </h1>
           <div className="relative flex items-center justify-center w-10 h-10">
-             <Dropdown 
-                options={[
-                    { label: '수정하기', value: 'edit' },
-                    { label: '삭제하기', value: 'delete' }
-                ]}
-                value=""
-                onChange={handleDropdown}
-                triggerNode={
-                    <button className="flex items-center justify-center w-10 h-10 rounded-full bg-transparent hover:bg-gray-100 transition-colors pointer-events-auto">
-                        <MoreVertical className="w-6 h-6 text-gray-900" strokeWidth={1.5} />
-                    </button>
-                }
-             />
+            <Dropdown
+              options={[
+                { label: '수정하기', value: 'edit' },
+                { label: '삭제하기', value: 'delete' }
+              ]}
+              value=""
+              onChange={handleDropdown}
+              triggerNode={
+                <button className="flex items-center justify-center w-10 h-10 rounded-full bg-transparent hover:bg-gray-100 transition-colors pointer-events-auto">
+                  <MoreVertical className="w-6 h-6 text-gray-900" strokeWidth={1.5} />
+                </button>
+              }
+            />
           </div>
         </div>
       </header>
@@ -178,71 +189,71 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
 
           <div className="px-5 relative w-full shrink-0">
             <div className="w-full relative rounded-2xl overflow-hidden shadow-sm aspect-square bg-gray-100 touch-pan-y">
-               <AnimatePresence initial={false} custom={direction}>
-                 <motion.div
-                   key={currentIndex}
-                   custom={direction}
-                   variants={{
-                     enter: (dir: number) => ({
-                       x: dir > 0 ? 100 : -100,
-                       opacity: 0,
-                       zIndex: 1,
-                     }),
-                     center: {
-                       zIndex: 1,
-                       x: 0,
-                       opacity: 1,
-                     },
-                     exit: (dir: number) => ({
-                       zIndex: 0,
-                       x: dir > 0 ? -50 : 50,
-                       opacity: 0,
-                     }),
-                   }}
-                   initial="enter"
-                   animate="center"
-                   exit="exit"
-                   transition={{
-                     x: { type: "spring", stiffness: 300, damping: 30 },
-                     opacity: { duration: 0.3 },
-                   }}
-                   className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
-                   drag="x"
-                   dragConstraints={{ left: 0, right: 0 }}
-                   dragElastic={0.2}
-                   onDragEnd={(e, { offset, velocity }) => {
-                      const swipe = offset.x;
-                      if (swipe < -50 || velocity.x < -500) {
-                        setDirection(1);
-                        setCurrentIndex((prev) => (prev + 1) % reviewData.imageUrls.length);
-                      } else if (swipe > 50 || velocity.x > 500) {
-                        setDirection(-1);
-                        setCurrentIndex((prev) => (prev - 1 + reviewData.imageUrls.length) % reviewData.imageUrls.length);
-                      }
-                   }}
-                 >
-                   <Image
-                     src={reviewData.imageUrls[currentIndex]}
-                     alt={`리뷰 상세 이미지 ${currentIndex + 1}`}
-                     fill
-                     className="object-cover pointer-events-none"
-                     draggable={false}
-                     priority={currentIndex === 0}
-                     unoptimized
-                   />
-                 </motion.div>
-               </AnimatePresence>
+              <AnimatePresence initial={false} custom={direction}>
+                <motion.div
+                  key={currentIndex}
+                  custom={direction}
+                  variants={{
+                    enter: (dir: number) => ({
+                      x: dir > 0 ? 100 : -100,
+                      opacity: 0,
+                      zIndex: 1,
+                    }),
+                    center: {
+                      zIndex: 1,
+                      x: 0,
+                      opacity: 1,
+                    },
+                    exit: (dir: number) => ({
+                      zIndex: 0,
+                      x: dir > 0 ? -50 : 50,
+                      opacity: 0,
+                    }),
+                  }}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.3 },
+                  }}
+                  className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.2}
+                  onDragEnd={(e, { offset, velocity }) => {
+                    const swipe = offset.x;
+                    if (swipe < -50 || velocity.x < -500) {
+                      setDirection(1);
+                      setCurrentIndex((prev) => (prev + 1) % reviewData.imageUrls.length);
+                    } else if (swipe > 50 || velocity.x > 500) {
+                      setDirection(-1);
+                      setCurrentIndex((prev) => (prev - 1 + reviewData.imageUrls.length) % reviewData.imageUrls.length);
+                    }
+                  }}
+                >
+                  <Image
+                    src={reviewData.imageUrls[currentIndex]}
+                    alt={`리뷰 상세 이미지 ${currentIndex + 1}`}
+                    fill
+                    className="object-cover pointer-events-none"
+                    draggable={false}
+                    priority={currentIndex === 0}
+                    unoptimized
+                  />
+                </motion.div>
+              </AnimatePresence>
 
-               {reviewData.imageUrls.length > 1 && (
-                 <div className="absolute bottom-4 inset-x-0 flex justify-center items-center gap-1.5 z-20 pointer-events-none">
-                   {reviewData.imageUrls.map((_, i) => (
-                     <div 
-                       key={i} 
-                       className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${i === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'}`} 
-                     />
-                   ))}
-                 </div>
-               )}
+              {reviewData.imageUrls.length > 1 && (
+                <div className="absolute bottom-4 inset-x-0 flex justify-center items-center gap-1.5 z-20 pointer-events-none">
+                  {reviewData.imageUrls.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${i === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

@@ -2,6 +2,17 @@ import { axios_instance } from "@/api/axios_instance";
 import { ApiResponse, MyReviewsResponse,Review } from "../types";
 
 /**
+ * LocalStorage에 저장된 리뷰 데이터의 구조 정의
+ */
+interface StoredLocalReview {
+  id: string;
+  rating: number;
+  content: string;
+  imageUrl: string;
+  timestamp: number;
+}
+
+/**
  * 내 리뷰 전체 조회 API
  * @param page 페이지 번호 (0부터 시작)
  * @param size 한 페이지당 크기
@@ -14,8 +25,43 @@ export const getMyReviews = async (
   startDate?: string,
   endDate?: string
 ): Promise<MyReviewsResponse> => {
-  // 1. 실제 서버가 없을 때를 대비한 Mock 데이터 생성 (any 키워드 배제)
-  const mockContent: Review[] = [
+  // 1. [로컬 데이터 로드] any 없이 StoredLocalReview 인터페이스 사용
+  const getLocalReviews = (): Review[] => {
+    if (typeof window === "undefined") return [];
+
+    const allLocalReviews: Review[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('cafeReviews-') || key === 'cafeReviews-mock')) {
+        try {
+          const rawData = localStorage.getItem(key);
+          if (!rawData) continue;
+
+          // [해결] any 대신 명확한 타입을 지정하여 파싱합니다.
+          const items: StoredLocalReview[] = JSON.parse(rawData);
+          
+          items.forEach((item) => {
+            allLocalReviews.push({
+              reviewId: item.id,
+              rating: item.rating,
+              content: item.content,
+              createdAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              nickname: "김싸피", 
+              images: [{ imageId: `local-${item.id}`, imageUrl: item.imageUrl }],
+              cafeName: "아우어베이커리 역삼점"
+            });
+          });
+        } catch (e) {
+          console.error("Local Storage 파싱 에러:", e);
+        }
+      }
+    }
+    return allLocalReviews;
+  };
+
+  // 2. 기본 하드코딩 Mock 데이터 (ID 중복 테스트용)
+  const baseMockContent: Review[] = [
     {
       reviewId: "eed475e0-424d-4ae4-ac49-cc2e1119d167",
       rating: 5,
@@ -24,28 +70,34 @@ export const getMyReviews = async (
       updatedAt: "2026-03-12T17:12:49.718464",
       nickname: "김싸피",
       images: [
-        // [수정] 가짜 S3 주소 대신 로컬 이미지 경로 사용
         { imageId: "1", imageUrl: "/images/cafe/cafe1.png" }, 
         { imageId: "2", imageUrl: "/images/cafe/cafe2.png" }
       ],
-      cafeName: "아우어베이커리 역삼점" // 옵셔널 필드 활용
-    },
-    {
-      reviewId: "81068c41-597d-4d78-b5da-d42f84061945",
-      rating: 3,
-      content: "수정이요~~",
-      createdAt: "2026-03-11T12:47:31.777753",
-      updatedAt: "2026-03-12T17:30:14.479359",
-      nickname: "김싸피",
-      images: [
-        // [수정] 가짜 S3 주소 대신 로컬 이미지 경로 사용
-        { imageId: "1", imageUrl: "/images/cafe/cafe2.png" }
-      ]
+      cafeName: "아우어베이커리 역삼점"
     }
   ];
 
+  // 3. [데이터 병합 및 중복 제거] ID 기준
+  const localData = getLocalReviews();
+  let combinedContent = [...localData, ...baseMockContent.filter(bm => 
+    !localData.some(ld => ld.reviewId === bm.reviewId)
+  )];
+
+  // 4. [날짜 필터링]
+  if (startDate || endDate) {
+    combinedContent = combinedContent.filter(review => {
+      const reviewDate = review.createdAt.split('T')[0];
+      if (startDate && reviewDate < startDate) return false;
+      if (endDate && reviewDate > endDate) return false;
+      return true;
+    });
+  }
+
+  // 최신순 정렬
+  combinedContent.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
   const mockResponse: MyReviewsResponse = {
-    content: mockContent,
+    content: combinedContent.slice(page * size, (page + 1) * size),
     pageable: {
       pageNumber: page,
       pageSize: size,
@@ -58,27 +110,23 @@ export const getMyReviews = async (
     number: page,
     sort: { empty: false, sorted: true, unsorted: false },
     first: page === 0,
-    last: true,
-    numberOfElements: mockContent.length,
-    empty: mockContent.length === 0
+    last: (page + 1) * size >= combinedContent.length,
+    numberOfElements: combinedContent.length,
+    empty: combinedContent.length === 0
   };
 
-  // 2. 서버 통신 로직 (네트워크 에러 시 Mock 데이터 반환하도록 try-catch 구성)
   try {
     const params: Record<string, string | number> = { page, size };
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
 
-    // 제네릭에 ApiResponse<MyReviewsResponse>를 넣습니다.
-    // 인터셉터 덕분에 response 변수는 이미 { status, data, ... } 형태의 객체입니다.
-    // Axios 라이브러리의 타입 추론 한계 때문에, 인터셉터 결과를 반영하려면 'as unknown as ...' 처리가 필요할 수 있습니다.
     const response = await axios_instance.get<ApiResponse<MyReviewsResponse>>("/api/reviews/mine", {
       params,
     }) as unknown as ApiResponse<MyReviewsResponse>;
     
-    return response.data; // 백엔드 JSON 구조의 'data' 필드를 반환
+    return response.data;
   } catch (error) {
-    console.warn("서버 연결 실패: Mock 데이터를 사용합니다.", error);
+    console.warn("서버 연결 실패: 로컬 저장소와 병합된 Mock 데이터를 사용합니다.");
     return mockResponse;
   }
 };
