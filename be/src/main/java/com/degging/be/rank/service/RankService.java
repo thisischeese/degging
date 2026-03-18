@@ -73,11 +73,11 @@ public class RankService {
     }
 
     /**
-     * 실시간 디저트 순위를 1위부터 5위까지 조회하는 메서드
-     */ 
-    public RankResponse getTop5(){
-        // Redis 에서 내림차순(점수) 0위부터 5위까지 꺼냄
-        Set<String> keywords = redisTemplate.opsForZSet().reverseRange(RANKING_KEY, 0, 4);
+     * 실시간 디저트 순위 1~count 위를 조회하는 메서드
+     */
+    public RankResponse getTopRanks(int count){
+        // Redis 에서 내림차순(점수) 1위부터 count 위까지 꺼냄
+        Set<String> keywords = redisTemplate.opsForZSet().reverseRange(RANKING_KEY, 0, count-1);
 
         // 데이터 유효성 검사
         if (keywords.isEmpty()){
