@@ -135,3 +135,99 @@
 {"name": "메가MGC커피 마곡역점", "status": "ok", "elapsed": 31.1}
 {"name": "하우스오브바이닐 망원점", "status": "ok", "elapsed": 31.5}
 {"name": "컴포즈커피 송파사거리점", "status": "ok", "elapsed": 31.6}
+{"name": "아리스타커피", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 32.9}
+{"name": "홀릭", "status": "ok", "elapsed": 57.4}
+{"name": "커피스토리", "status": "ok", "elapsed": 65.5}
+{"name": "서울커피", "status": "ok", "elapsed": 63.3}
+{"name": "92도", "status": "ok", "elapsed": 58.9}
+{"name": "이디야커피", "status": "ok", "elapsed": 64.0}
+{"name": "ThePianowasdrinking，notme", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 26.4}
+{"name": "구스토", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.5}
+{"name": "김종영미술관카페", "status": "ok", "elapsed": 69.6}
+{"name": "혜화동콩집", "status": "ok", "elapsed": 62.4}
+{"name": "피피앤에프", "status": "ok", "elapsed": 64.4}
+{"name": "백년건강음료", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.2}
+{"name": "더스키", "status": "ok", "elapsed": 63.1}
+{"name": "스탐티쉬", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.3}
+{"name": "홍스커피홍，sCoffee", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 26.4}
+{"name": "커피한잔", "status": "ok", "elapsed": 61.3}
+{"name": "나무요일", "status": "ok", "elapsed": 57.7}
+{"name": "카페드람브르", "status": "ok", "elapsed": 58.8}
+{"name": "자스", "status": "ok", "elapsed": 60.8}
+{"name": "갤러리카페모짜르트", "status": "ok", "elapsed": 58.8}
+{"name": "금농", "status": "ok", "elapsed": 58.7}
+{"name": "소마", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.2}
+{"name": "오후", "status": "ok", "elapsed": 63.8}
+{"name": "커피스트", "status": "ok", "elapsed": 59.9}
+{"name": "컴포즈커피동묘롯데", "status": "ok", "elapsed": 59.4}
+{"name": "커피홀릭", "status": "ok", "elapsed": 63.2}
+{"name": "디저트카페스테이", "status": "ok", "elapsed": 65.6}
+{"name": "델리카", "status": "ok", "elapsed": 63.6}
+{"name": "덤", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.2}
+{"name": "초당", "status": "ok", "elapsed": 60.2}
+{"name": "홈스테드", "status": "ok", "elapsed": 59.3}
+{"name": "코피티암", "status": "ok", "elapsed": 65.5}
+{"name": "보티", "status": "ok", "elapsed": 60.6}
+{"name": "화동커피", "status": "ok", "elapsed": 64.2}
+{"name": "카페모노블럭", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.2}
+{"name": "베스트빈", "status": "ok", "elapsed": 61.7}
+{"name": "브람스", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.4}
+{"name": "커피팩토리", "status": "ok", "elapsed": 63.7}
+{"name": "키미아트", "status": "ok", "elapsed": 64.7}
+{"name": "조셉의커피나무", "status": "ok", "elapsed": 71.2}
+{"name": "커피다이어리", "status": "ok", "elapsed": 62.7}
+{"name": "엠케이투", "status": "ok", "elapsed": 66.5}
+{"name": "엘빈", "status": "ok", "elapsed": 54.3}
+{"name": "문화공간아리랑", "status": "ok", "elapsed": 52.9}
+{"name": "미스터브리즈커피", "status": "ok", "elapsed": 68.6}
+{"name": "동네커피", "status": "ok", "elapsed": 66.7}
+{"name": "커피투어", "status": "ok", "elapsed": 60.6}
+{"name": "태을커피", "status": "ok", "elapsed": 63.6}
+{"name": "불라여행카페", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 27.3}
+{"name": "커피친구", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.5}
+{"name": "TheMonoCo.", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 26.4}
+{"name": "이공오도씨", "status": "ok", "elapsed": 64.0}
+{"name": "지커뮨홀", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 25.8}
+{"name": "소연", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.5}
+{"name": "바닐라스카이", "status": "ok", "elapsed": 64.3}
+{"name": "수래연", "status": "ok", "elapsed": 66.3}
+{"name": "브라운팩토리", "status": "ok", "elapsed": 69.0}
+{"name": "커피로스팅하우스", "status": "ok", "elapsed": 56.9}
+{"name": "CAFE하비비", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.4}
+{"name": "지음", "status": "ok", "elapsed": 63.1}
+{"name": "산모퉁이", "status": "ok", "elapsed": 64.6}
+{"name": "수다방", "status": "ok", "elapsed": 66.6}
+{"name": "스튜디오잇", "status": "ok", "elapsed": 55.8}
+{"name": "비스트로에버", "status": "ok", "elapsed": 2505.3}
+{"name": "웬즈데이", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 28.2}
+{"name": "카페마루", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.4}
+{"name": "디끌레", "status": "ok", "elapsed": 62.0}
+{"name": "카페통", "status": "ok", "elapsed": 65.4}
+{"name": "커피브론즈", "status": "ok", "elapsed": 62.3}
+{"name": "문경새재", "status": "ok", "elapsed": 62.5}
+{"name": "커피온리역점", "status": "ok", "elapsed": 59.7}
+{"name": "카페효제눅", "status": "ok", "elapsed": 62.7}
+{"name": "모노커피", "status": "ok", "elapsed": 59.9}
+{"name": "카페마지오", "status": "ok", "elapsed": 58.4}
+{"name": "타르트앤", "status": "ok", "elapsed": 67.0}
+{"name": "어반스테이", "status": "ok", "elapsed": 53.8}
+{"name": "아이커피샵", "status": "ok", "elapsed": 60.6}
+{"name": "일립스", "status": "ok", "elapsed": 65.0}
+{"name": "카페지밥", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.4}
+{"name": "카페헐리우드", "status": "ok", "elapsed": 55.1}
+{"name": "더한옥", "status": "ok", "elapsed": 61.5}
+{"name": "카페감", "status": "ok", "elapsed": 69.1}
+{"name": "다인스카페", "status": "ok", "elapsed": 52.7}
+{"name": "에코레카페앤그로서리", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.4}
+{"name": "카페자스", "status": "ok", "elapsed": 61.7}
+{"name": "아리스타", "status": "ok", "elapsed": 65.0}
+{"name": "크레프트라온", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 26.4}
+{"name": "카페다커피독립문", "status": "ok", "elapsed": 60.7}
+{"name": "왕관커피숍", "status": "fail", "error": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed": 24.4}
+{"name": "모모모", "status": "ok", "elapsed": 63.9}
+{"name": "나인커피로스터스", "status": "ok", "elapsed": 63.5}
+{"name": "더커피", "status": "ok", "elapsed": 54.3}
+{"name": "코피발리", "status": "ok", "elapsed": 61.9}
+{"name": "카페이드라", "status": "ok", "elapsed": 60.2}
+{"name": "레이지", "status": "ok", "elapsed": 69.9}
+{"name": "글라세라떼", "status": "ok", "elapsed": 61.6}

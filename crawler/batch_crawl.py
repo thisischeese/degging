@@ -18,13 +18,14 @@ from pathlib import Path
 from crawler import run_crawl, OUTPUT_DIR, BLOCK_MARKER
 
 DATA_DIR  = Path(__file__).parent / "data"
-CAFE_JSON = DATA_DIR / "cafes.json"
+CAFE_JSON = DATA_DIR / "cafe_test_data.json"
 LOG_FILE  = DATA_DIR / "batch_crawl_log.jsonl"
 
 
 def load_cafes(offset: int, limit: int) -> list[str]:
     cafes = json.loads(CAFE_JSON.read_text(encoding="utf-8"))
-    return cafes[offset : offset + limit]
+    entries = cafes[offset : offset + limit]
+    return [e["name"] if isinstance(e, dict) else e for e in entries]
 
 
 def already_crawled(name: str) -> bool:
