@@ -17,7 +17,7 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
     queryFn: getOnboardingRankings,
     ...QUERY_OPTIONS.STATIC,
   });
-
+  
   // 랭킹 키워드만 추출하여 메뉴 리스트 생성
   const menus = rankingData?.data.rankings.map(item => item.keyword) || [];
 
