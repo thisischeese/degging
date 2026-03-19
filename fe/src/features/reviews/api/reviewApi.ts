@@ -1,62 +1,54 @@
 import { axios_instance } from "@/api/axios_instance";
-import { ApiResponse, MyReviewsResponse,Review } from "../types";
+import { BaseResponse } from "@/types/api";
+import {
+  ApiResponse,
+  CafeReviewsSliceResponse,
+  MyReviewsResponse,
+  Review,
+  StoredCafeReview,
+} from "../types";
 
-/**
- * LocalStorage에 저장된 리뷰 데이터의 구조 정의
- */
-interface StoredLocalReview {
-  id: string;
-  rating: number;
-  content: string;
-  imageUrl: string;
-  timestamp: number;
-}
-
-/**
- * 내 리뷰 전체 조회 API
- * @param page 페이지 번호 (0부터 시작)
- * @param size 한 페이지당 크기
- * @param startDate 시작일 (YYYY-MM-DD 형식 문자열)
- * @param endDate 종료일 (YYYY-MM-DD 형식 문자열)
- */
 export const getMyReviews = async (
   page: number = 0,
   size: number = 10,
   startDate?: string,
   endDate?: string
 ): Promise<MyReviewsResponse> => {
-  // 1. [로컬 데이터 로드] any 없이 StoredLocalReview 인터페이스 사용
   const getLocalReviews = (): Review[] => {
     if (typeof window === "undefined") return [];
 
     const allLocalReviews: Review[] = [];
+
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('cafeReviews-') || key === 'cafeReviews-mock')) {
+
+      if (key && (key.startsWith("cafeReviews-") || key === "cafeReviews-mock")) {
         try {
           const rawData = localStorage.getItem(key);
           if (!rawData) continue;
 
-          // [해결] any 대신 명확한 타입을 지정하여 파싱합니다.
-          const items: StoredLocalReview[] = JSON.parse(rawData);
-          
+          const items: StoredCafeReview[] = JSON.parse(rawData);
+
           items.forEach((item) => {
             allLocalReviews.push({
               reviewId: item.id,
               rating: item.rating,
               content: item.content,
-              createdAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+              createdAt: item.timestamp
+                ? new Date(item.timestamp).toISOString()
+                : new Date().toISOString(),
               updatedAt: new Date().toISOString(),
-              nickname: "김싸피", 
+              nickname: "킴싸피",
               images: [{ imageId: `local-${item.id}`, imageUrl: item.imageUrl }],
-              cafeName: "아우어베이커리 역삼점"
+              cafeName: "카페",
             });
           });
-        } catch (e) {
-          console.error("Local Storage 파싱 에러:", e);
+        } catch (error) {
+          console.error("Failed to parse local reviews:", error);
         }
       }
     }
+
     return allLocalReviews;
   };
 
@@ -65,28 +57,29 @@ export const getMyReviews = async (
     {
       reviewId: "eed475e0-424d-4ae4-ac49-cc2e1119d167",
       rating: 5,
-      content: "카페가 정말 예뻐요!~~~~~~~~",
+      content: "카페가 정말 예쁘네요!~~~~~~~~",
       createdAt: "2026-03-12T17:12:49.718464",
       updatedAt: "2026-03-12T17:12:49.718464",
-      nickname: "김싸피",
+      nickname: "킴싸피",
       images: [
-        { imageId: "1", imageUrl: "/images/cafe/cafe1.png" }, 
-        { imageId: "2", imageUrl: "/images/cafe/cafe2.png" }
+        { imageId: "1", imageUrl: "/images/cafe/cafe1.png" },
+        { imageId: "2", imageUrl: "/images/cafe/cafe2.png" },
       ],
-      cafeName: "아우어베이커리 역삼점"
-    }
+      cafeName: "카페",
+    },
   ];
 
   // 3. [데이터 병합 및 중복 제거] ID 기준
   const localData = getLocalReviews();
-  let combinedContent = [...localData, ...baseMockContent.filter(bm => 
-    !localData.some(ld => ld.reviewId === bm.reviewId)
-  )];
+  let combinedContent = [
+    ...localData,
+    ...baseMockContent.filter((mockItem) => !localData.some((localItem) => localItem.reviewId === mockItem.reviewId)),
+  ];
 
   // 4. [날짜 필터링]
   if (startDate || endDate) {
-    combinedContent = combinedContent.filter(review => {
-      const reviewDate = review.createdAt.split('T')[0];
+    combinedContent = combinedContent.filter((review) => {
+      const reviewDate = review.createdAt.split("T")[0];
       if (startDate && reviewDate < startDate) return false;
       if (endDate && reviewDate > endDate) return false;
       return true;
@@ -104,15 +97,15 @@ export const getMyReviews = async (
       sort: { empty: false, sorted: true, unsorted: false },
       offset: page * size,
       unpaged: false,
-      paged: true
+      paged: true,
     },
-    size: size,
+    size,
     number: page,
     sort: { empty: false, sorted: true, unsorted: false },
     first: page === 0,
     last: (page + 1) * size >= combinedContent.length,
     numberOfElements: combinedContent.length,
-    empty: combinedContent.length === 0
+    empty: combinedContent.length === 0,
   };
 
   try {
@@ -120,13 +113,28 @@ export const getMyReviews = async (
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
 
-    const response = await axios_instance.get<ApiResponse<MyReviewsResponse>>("/api/reviews/mine", {
+    const response = (await axios_instance.get<ApiResponse<MyReviewsResponse>>("/api/reviews/mine", {
       params,
-    }) as unknown as ApiResponse<MyReviewsResponse>;
-    
+    })) as ApiResponse<MyReviewsResponse>;
+
     return response.data;
   } catch (error) {
-    console.warn("서버 연결 실패: 로컬 저장소와 병합된 Mock 데이터를 사용합니다.");
+    console.warn("Falling back to mock my-reviews data:", error);
     return mockResponse;
   }
+};
+
+export const getCafeReviews = async (
+  cafeId: string,
+  page: number = 0,
+  size: number = 10
+): Promise<CafeReviewsSliceResponse> => {
+  const response = (await axios_instance.get<BaseResponse<CafeReviewsSliceResponse>>(
+    `/api/cafes/${cafeId}/reviews`,
+    {
+      params: { page, size },
+    }
+  )) as BaseResponse<CafeReviewsSliceResponse>;
+
+  return response.data;
 };
