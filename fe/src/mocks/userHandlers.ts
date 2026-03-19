@@ -14,21 +14,22 @@ export const userHandlers = [
   }),
 
   // 2. 사용자 정보 조회
-  http.get(`${API_BASE_URL}/api/users`, async () => {
-    return HttpResponse.json({
-      code: 200,
-      message: '요청에 성공하였습니다.',
-      data: {
-        id: 1,
-        email: "user@example.com",
-        name: "김다희",
-        nickname: "와아앙",
-        profileImgUrl: "https://example.com/profile.jpg",
-        tags: ["힙한", "조용한"],
-        reviewCount: 15
-      },
-    }, { status: 200 });
-  }),
+    http.get(`${API_BASE_URL}/api/users`, async () => {
+      return HttpResponse.json({
+        code: 200,
+        message: '요청에 성공하였습니다.',
+        data: {
+          id: 1,
+          email: "user@example.com",
+          name: "김다희",
+          nickname: "와아앙",
+          profileImgUrl: "https://example.com/profile.jpg",
+          tags: ["힙한", "조용한"],
+          reviewCount: 15
+        },
+      }, { status: 200 });
+    }),
+
 
   // 3. 사용자 정보 수정
   http.patch(`${API_BASE_URL}/api/users`, async () => {

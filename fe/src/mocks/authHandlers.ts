@@ -40,6 +40,11 @@ export const authHandlers = [
       data: {
         accessToken: 'mocked-jwt-access-token',
         refreshToken: 'mocked-jwt-refresh-token',
+        user: {
+          id: 1,
+          email: 'user@example.com',
+          nickname: '와아앙',
+        },
       },
     }, { status: 200 });
   }),
@@ -58,7 +63,9 @@ export const authHandlers = [
     return HttpResponse.json({
       code: 200,
       message: '요청에 성공하였습니다.',
-      data: null,
+      data: {
+        accessToken: 'new-mocked-jwt-access-token',
+      },
     }, { status: 200 });
   }),
 
