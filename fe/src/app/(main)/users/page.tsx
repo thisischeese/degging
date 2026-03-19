@@ -51,9 +51,40 @@ function ProfileEditModal({
   onUpdate: (newNickname: string, newImageUrl: string | null) => void;
 }) {
   const [nickname, setNickname] = useState(profile.nickname);
+  const [nicknameError, setNicknameError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(profile.profileImageUrl || "/images/auth/welcome.png");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 닉네임 유효성 검사 (StepNickname.tsx와 동일 로직)
+  const validateNickname = (value: string) => {
+    if (value.length === 0) {
+      setNicknameError("");
+      return false;
+    }
+
+    // 1. 문자 규칙 검사: 영어, 숫자, 완성된 한글만 허용 (자음, 모음, 공백, 특수문자 금지)
+    const nicknameRegex = /^[a-zA-Z0-9가-힣]+$/;
+    if (!nicknameRegex.test(value)) {
+      setNicknameError("공백, 특수문자, 자음/모음은 사용할 수 없습니다.");
+      return false;
+    }
+
+    // 2. 글자 수 검사
+    if (value.length < 2 || value.length > 10) {
+      setNicknameError("닉네임은 2~10자 사이여야 합니다.");
+      return false;
+    }
+
+    setNicknameError("");
+    return true;
+  };
+
+  const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNickname(value);
+    validateNickname(value);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,6 +109,7 @@ function ProfileEditModal({
   };
 
   const handleSave = () => {
+    if (!validateNickname(nickname)) return;
     // TODO: PATCH /api/users 연동 (multipart/form-data 사용)
     // 실제 서버 연동 전까지는 previewUrl을 그대로 상태에 반영하여 UI 연결
     onUpdate(nickname, previewUrl);
@@ -142,8 +174,9 @@ function ProfileEditModal({
         <Input
           label="닉네임"
           value={nickname}
-          onChange={(e) => setNickname((e.target as HTMLInputElement).value)}
-          placeholder="닉네임을 입력하세요"
+          onChange={handleNicknameChange}
+          placeholder="한글/영어/숫자 2~10자"
+          error={nicknameError}
         />
 
         {/* 생년월일 + 성별 (읽기 전용 - 수정 불가)
@@ -175,6 +208,7 @@ function ProfileEditModal({
           variant="primary"
           size="full"
           onClick={handleSave}
+          disabled={nicknameError !== "" || nickname.length < 2}
           className="mt-1 h-[52px] rounded-xl!"
         >
           저장

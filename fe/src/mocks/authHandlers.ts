@@ -8,8 +8,9 @@ export const authHandlers = [
   // 1. 회원가입 (Signup)
   http.post(`${API_BASE_URL}/api/auth/signup`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
-      message: '요청에 성공하였습니다.',
+      message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
   }),
@@ -17,8 +18,9 @@ export const authHandlers = [
   // 2. 이메일 인증 코드 발송
   http.post(`${API_BASE_URL}/api/auth/email/verification/request`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
-      message: '요청에 성공하였습니다.',
+      message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
   }),
@@ -26,8 +28,9 @@ export const authHandlers = [
   // 3. 이메일 인증 코드 확인
   http.post(`${API_BASE_URL}/api/auth/email/verification/confirm`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
-      message: '요청에 성공하였습니다.',
+      message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
   }),
@@ -35,8 +38,9 @@ export const authHandlers = [
   // 4. 로그인 (Login)
   http.post(`${API_BASE_URL}/api/auth/login`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
-      message: '요청에 성공하였습니다.',
+      message: '요청이 성공적으로 처리되었습니다.',
       data: {
         accessToken: 'mocked-jwt-access-token',
         refreshToken: 'mocked-jwt-refresh-token',
@@ -52,8 +56,9 @@ export const authHandlers = [
   // 5. 로그아웃
   http.post(`${API_BASE_URL}/api/auth/logout`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
-      message: '요청에 성공하였습니다.',
+      message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
   }),
@@ -61,6 +66,7 @@ export const authHandlers = [
   // 6. 사용자 액세스 토큰 재발급 (Reissue)
   http.post(`${API_BASE_URL}/api/auth/reissue`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
       message: '요청에 성공하였습니다.',
       data: {
@@ -72,8 +78,9 @@ export const authHandlers = [
   // 7. 비밀번호 찾기 (이메일로 임시비번)
   http.post(`${API_BASE_URL}/api/auth/password/find`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
-      message: '요청에 성공하였습니다.',
+      message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
   }),
@@ -81,8 +88,9 @@ export const authHandlers = [
   // 8. 비밀번호 변경 (Auth 단)
   http.patch(`${API_BASE_URL}/api/auth/password/reset`, async () => {
     return HttpResponse.json({
+      status: 'success',
       code: 200,
-      message: '요청에 성공하였습니다.',
+      message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
   }),

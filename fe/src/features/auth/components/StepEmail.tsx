@@ -236,21 +236,18 @@ export default function StepEmail({ next, updateData }: SignupStepProps) {
       </div>
 
       {/* 하단 다음 버튼 */}
-      <div className="pb-4 mt-44">
+      <div className="pb-4 mt-2">
+        <div className="min-h-[24px] mb-2 text-center">
+          {/* 에러메시지용 공간 (필요시 추가) */}
+        </div>
         <Button
           variant="gray"
           size="full"
-          // [나중에 복구] 3. disabled={!isEmailSent || !authCode}로 변경
-          disabled={false} 
-          onClick={() => {
-            // [나중에 복구] 4. handleVerifyAndNext()로 교체
-            updateData({ email });
-            next();
-          }}
-          // [나중에 복구] 5. className={isEmailSent && authCode ? "!bg-[#C3304F] !text-white" : ""} 로 변경
-          className="!bg-[#C3304F] !text-white"
+          disabled={!isEmailSent || !authCode} 
+          onClick={handleVerifyAndNext}
+          className={isEmailSent && authCode ? "bg-[#C3304F]! text-white!" : ""}
         >
-          다음
+          다음 단계로
         </Button>
       </div>
     </div>

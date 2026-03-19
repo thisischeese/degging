@@ -17,17 +17,19 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     try {
-      // 1. API 호출 (postLogin은 response.data를 반환합니다)
-      const result = await postLogin({ email, password }) as unknown as { code: number; message: string; data: LoginResponse };
+      // 1. API 호출 (axios_instance가 response.data를 언래핑하여 반환합니다)
+      // LoginResponse는 전체 응답 규격이므로, result는 곧 LoginResponse 타입입니다. (code만 숫자로 오버라이드)
+      const result = await postLogin({ email, password }) as unknown as (Omit<LoginResponse, 'code'> & { code: number });
 
       // 2. 성공 시 (테스트용 응답의 code가 200일 때)
       if (result.code === 200) {
-        console.log("로그인 성공!", result.data);
+        const loginData = result.data; // 실제 데이터(accessToken, refreshToken 등)
+        console.log("로그인 성공!", loginData);
         
-        // 토큰 저장 (axios_instance에서 이 키들을 사용합니다)
-        localStorage.setItem("access_token", result.data.accessToken);
-        localStorage.setItem("refresh_token", result.data.refreshToken);
-        
+        // 토큰 저장 로직
+        localStorage.setItem("accessToken", loginData.accessToken);
+        localStorage.setItem("refreshToken", loginData.refreshToken);
+
         router.push("/"); // 메인으로 이동
       }
     } catch (error) {
@@ -55,9 +57,9 @@ export default function LoginPage() {
 
       {/* 구분선 */}
       <div className="flex items-center gap-4 mb-8">
-        <div className="flex-1 h-px bg-gray-100" />
+        <div className="flex-1 h-[1px] bg-gray-100" />
         <span className="text-[11px] text-gray-400">또는</span>
-        <div className="flex-1 h-px bg-gray-100" />
+        <div className="flex-1 h-[1px] bg-gray-100" />
       </div>
 
       {/* 입력 폼 섹션 (공통 Input 활용) */}
@@ -83,6 +85,7 @@ export default function LoginPage() {
         size="full"
         disabled={!email || !password}
         onClick={handleLogin}
+        className="shrink-0"
       >
         로그인
       </Button>

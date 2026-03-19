@@ -30,10 +30,10 @@ export const rankingHandlers = [
   http.get(`${API_BASE_URL}/api/ranks/desserts`, () => {
     return HttpResponse.json({
       status: "success",
-      code: "200",
+      code: 200,
       message: "요청이 성공적으로 처리되었습니다.",
       data: {
-        rankings: MOCK_RANKINGS.slice(0, 10), // 실시간 랭킹은 10개만 예시로 반환
+        rankings: MOCK_RANKINGS.slice(0, 5), // 실시간 랭킹은 5개만 반환
       }
     });
   }),
@@ -42,7 +42,7 @@ export const rankingHandlers = [
   http.get(`${API_BASE_URL}/api/ranks/desserts/onboarding`, () => {
     return HttpResponse.json({
       status: "success",
-      code: "200",
+      code: 200,
       message: "요청이 성공적으로 처리되었습니다.",
       data: {
         rankings: MOCK_RANKINGS, // 온보딩용은 상위 20개 반환
