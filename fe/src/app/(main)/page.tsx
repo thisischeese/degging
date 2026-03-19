@@ -204,7 +204,7 @@ export default function MainPage() {
         {/* 리스트 컨테이너 라운드 및 가로 길이에 비례하는 세로 비율(aspect-ratio) 고정. 
             flex-1 버그를 피하기 위해 inline style과 명시적 % 높이 사용 */}
         <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden px-1 h-auto">
-          {rankings.map((item, index) => (
+          {rankings.slice(0, 5).map((item, index) => (
             <div 
               key={index}
               onClick={() => {

@@ -33,7 +33,7 @@ export const rankingHandlers = [
       code: "200",
       message: "요청이 성공적으로 처리되었습니다.",
       data: {
-        rankings: MOCK_RANKINGS.slice(0, 10), // 실시간 랭킹은 10개만 예시로 반환
+        rankings: MOCK_RANKINGS.slice(0, 5), // 실시간 랭킹은 5개만 반환
       }
     });
   }),
