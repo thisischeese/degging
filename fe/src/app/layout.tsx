@@ -2,7 +2,6 @@ import './globals.css';
 import localFont from 'next/font/local';
 import Script from 'next/script';
 import QueryProvider from '@/common/components/providers/QueryProvider';
-import { MSWProvider } from '@/common/components/providers/MSWProvider';
 
 export const metadata = {
   title: 'Degging',

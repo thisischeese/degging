@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { StaticImageData } from 'next/image';
-import { MapPin, Star } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 export interface CafeCardProps {
   id: string;
@@ -17,7 +17,7 @@ export interface CafeCardProps {
 }
 
 export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
-  id,
+  //  id, // 사용되지 않는 값 주석
   name,
   description,
   address,
@@ -36,9 +36,8 @@ export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
     <div
       ref={ref}
       onClick={onClick}
-      className={`box-border w-full font-pretendard flex p-4 bg-white border border-transparent rounded-2xl cursor-pointer hover:bg-gray-50 transition-all gap-4 ${
-        isActive ? 'ring-2 ring-inset ring-[#865B28] shadow-md' : '!border-gray-200'
-      }`}
+      className={`box-border w-full font-pretendard flex p-4 bg-white border border-transparent rounded-2xl cursor-pointer hover:bg-gray-50 transition-all gap-4 ${isActive ? 'ring-2 ring-inset ring-[#865B28] shadow-md' : '!border-gray-200'
+        }`}
     >
       {/* 1. 좌측 이미지 영역: 80x80 크기, rounded-xl */}
       <div className="relative w-20 h-20 shrink-0">
