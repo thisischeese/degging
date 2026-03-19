@@ -29,6 +29,6 @@ public class UserOnboardingRequest {
     // 선택한 디저트 ID 리스트 (정확히 3개)
     @NotNull
     @Size(min = 3, max = 3)
-    private List<UUID> dessertIds;
+    private List<Long> menuIds;
 
 }

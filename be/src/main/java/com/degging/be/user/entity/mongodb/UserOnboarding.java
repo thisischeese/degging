@@ -18,7 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Document(collection = "user_onboardings")
-public class UserOnborading {
+public class UserOnboarding {
 
     @Id
     private String id;
@@ -56,8 +56,8 @@ public class UserOnborading {
      * @param menuIds 선택한 메뉴 목록
      * @return 생성된 유저 취향 도큐먼트 객체
      */
-    public static UserOnborading of(UUID userId, Map<UUID, Integer> tags, List<UUID> cafeIds, List<Long> menuIds) {
-        return UserOnborading.builder()
+    public static UserOnboarding of(UUID userId, Map<UUID, Integer> tags, List<UUID> cafeIds, List<Long> menuIds) {
+        return UserOnboarding.builder()
                 .userId(userId)
                 .preferredTags(tags)
                 .selectedData(SelectedData.builder()

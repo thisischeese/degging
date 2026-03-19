@@ -82,5 +82,16 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * @return 필터링된 카페 엔티티 리스트
      */
     List<CafeEntity> findTop100ByThumbnailUrlIsNotNullAndStatus(CafeStatus status);
-    
+
+    /**
+     * 온보딩 분석을 위해 필요한 분위기 태그 정보만 선별적으로 조회합니다.
+     *
+     * @param cafeIds 카페 식별자 목록
+     * @return 분위기 태그가 포함된 카페 엔티티 목록
+     */
+    @Query("SELECT DISTINCT c FROM CafeEntity c " +
+            "JOIN FETCH c.vibeTags vt " +
+            "JOIN FETCH vt.vibe " +
+            "WHERE c.cafeId IN :cafeIds")
+    List<CafeEntity> findAllWithVibesById(@Param("cafeIds") List<UUID> cafeIds);
 }
