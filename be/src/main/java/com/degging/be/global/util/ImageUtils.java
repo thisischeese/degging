@@ -1,5 +1,6 @@
 package com.degging.be.global.util;
 
+import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -10,11 +11,18 @@ import org.springframework.mock.web.MockMultipartFile;
 /**
  * 요청 속 이미지 크기 조정을 위한 Util 클래스
  */
+@Slf4j
 public class ImageUtils {
     /**
      * 원본 이미지 크기를 줄이는 메서드 (CafeImageEntity 의 필드 저장용)
      */
     public static MultipartFile resizeImage(MultipartFile file, int targetWidth) throws IOException {
+        // 원본이 이미 작다면 (예: 100KB 미만) 리사이징 건너뛰기
+        if (file.getSize() < 100 * 1024) {
+            log.info("[리사이징 스킵] 이미 충분히 작은 파일입니다. 크기: {}KB", file.getSize() / 1024);
+            return file;
+        }
+
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         // 비율 맞춰서 너비(width) 기준으로 리사이징
