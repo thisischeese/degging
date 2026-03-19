@@ -8,7 +8,7 @@ import { SignupStepProps } from "../types";
 
 export default function StepNickname({ next, updateData }: SignupStepProps) {
   const [nickname, setNickname] = useState("");
-  const [birth, setBirth] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<"MALE" | "FEMALE" | null>(null);
   const [isCheck, setIsCheck] = useState(false);
   const [nicknameError, setNicknameError] = useState("");
@@ -39,13 +39,16 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
     else if (value.length <= 6) formattedValue = `${value.slice(0, 4)}.${value.slice(4)}`;
     else formattedValue = `${value.slice(0, 4)}.${value.slice(4, 6)}.${value.slice(6, 8)}`;
 
-    if (value.length <= 8) setBirth(formattedValue);
+    if (value.length <= 8) setBirthDate(formattedValue);
   };
 
   const handleNext = () => {
     // 모든 조건 충족 시 다음 단계
-    if (isCheck && birth.length === 10 && gender) {
-      updateData({ nickname, birth, gender });
+    if (isCheck && birthDate.length === 10 && gender) {
+      // API 명세서에 맞춰 birthDate로 전달 (YYYY-MM-DD 형식으로 변환이 필요할 수 있음)
+      // 현재는 UI용 포맷(YYYY.MM.DD)이므로 서버 전송 시에는 .을 -로 바꿉니다.
+      const formattedBirthDate = birthDate.replace(/\./g, "-");
+      updateData({ nickname, birthDate: formattedBirthDate, gender });
       next();
     }
   };
@@ -99,7 +102,7 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
             <Input
               label="생년월일"
               placeholder="YYYY.MM.DD"
-              value={birth}
+              value={birthDate}
               onChange={handleBirthChange}
               inputMode="numeric"
             />
@@ -116,7 +119,7 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
               >
                 남
               </button>
-              <div className="w-[1px] bg-gray-300 my-2" />
+              <div className="w-px bg-gray-300 my-2" />
               <button
                 type="button"
                 onClick={() => setGender("FEMALE")}
@@ -129,16 +132,19 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
         </div>
       </div>
 
-      {/* 하단 다음 버튼 (mt-44 유지) */}
-      <div className="pb-4 mt-44">
+      {/* 하단 다음 버튼 (StepTrend와 동일한 mt-2 적용) */}
+      <div className="pb-4 mt-2">
+        <div className="min-h-[24px] mb-2 text-center">
+          {/* 에러메시지용 공간 */}
+        </div>
         <Button
           variant="gray"
           size="full"
-          disabled={!isCheck || birth.length !== 10 || !gender}
+          disabled={!isCheck || birthDate.length !== 10 || !gender}
           onClick={handleNext}
-          className={isCheck && birth.length === 10 && gender ? "!bg-[#C3304F] !text-white" : ""}
+          className={isCheck && birthDate.length === 10 && gender ? "bg-[#C3304F]! text-white!" : ""}
         >
-          완료
+          다음 단계로
         </Button>
       </div>
     </div>

@@ -1,11 +1,12 @@
 export interface SignupFormData {
   email: string;
   password?: string;
+  name?: string;
   nickname?: string;
-  birth?: string;
+  birthDate?: string;
+  gender?: "MALE" | "FEMALE";
   trends?: string[];
   moods?: string[];
-  gender?: "MALE" | "FEMALE";
 }
 
 export interface SignupStepProps {
@@ -27,12 +28,17 @@ export interface LoginFormData {
 
 /** 로그인 성공 시 서버에서 내려주는 응답 데이터 구조 (예시) */
 export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: {
-    id: number;
-    email: string;
-    nickname: string;
+  status: string;
+  code: string;
+  message: string;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: number;
+      email: string;
+      nickname: string;
+    };
   };
 }
 

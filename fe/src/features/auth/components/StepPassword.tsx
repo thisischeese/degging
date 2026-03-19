@@ -80,28 +80,20 @@ export default function StepPassword({ next, updateData }: SignupStepProps) {
         </div>
       </div>
 
-      {/* 하단 다음 버튼 (mt-44 적용하여 이메일 화면과 높이 통일)*/} 
-      <div className="pb-4 mt-44">
-        {/* <Button
+      {/* 하단 다음 버튼 (StepTrend와 동일한 mt-2 적용) */} 
+      <div className="pb-4 mt-2">
+        <div className="min-h-[24px] mb-2 text-center">
+          {/* 에러메시지용 공간 */}
+        </div>
+        <Button
           variant="gray"
           size="full"
-          // 규칙과 일치가 모두 확인되어야 버튼 활성화
-          disabled={!isPasswordValid || !isPasswordMatch}
-          onClick={handleNext}
-          className={isPasswordValid && isPasswordMatch ? "!bg-[#C3304F] !text-white" : ""}
+          disabled={!isPasswordValid || !isPasswordMatch} 
+          onClick={handleNext} 
+          className={isPasswordValid && isPasswordMatch ? "bg-[#C3304F]! text-white!" : ""}
         >
-          다음
-        </Button> */}
-          {/* 임시 버튼 */}
-          <Button
-            variant="gray"
-            size="full"
-            disabled={false} // [임시] 무조건 활성화
-            onClick={() => next()} // [임시] 검사 없이 바로 다음 스텝
-            className="!bg-[#C3304F] !text-white"
-          >
-            다음
-          </Button>
+          다음 단계로
+        </Button>
       </div>
     </div>
   );

@@ -83,11 +83,11 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
       </div>
 
       {/* 3. 에러 메시지 및 하단 버튼 영역 */}
-      <div className="shrink-0 pb-10">
-        <div className="min-h-[24px] mb-4 text-center">
+      <div className="pb-4 mt-2">
+        <div className="min-h-[24px] mb-2 text-center">
           {(errorMessage || selectedMenus.length === 0) && (
             <p className="text-[13px] text-[#C3304F] font-medium leading-tight">
-              {errorMessage || "사용자의 취향을 정확히 파악하기 위해 하나 이상 선택해주세요!"}
+              {errorMessage || "취향을 정확히 파악하기 위해 하나 이상 선택해주세요!"}
             </p>
           )}
         </div>
@@ -100,10 +100,7 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
             updateData({ trends: selectedMenus });
             next();
           }}
-          // 버튼 위치가 고정되도록 상단 여백이나 크기 변화 요소를 최소화함
-          className={`h-[54px] rounded-xl! transition-all ${
-            selectedMenus.length > 0 ? "bg-[#C3304F]! text-white! shadow-md" : ""
-          }`}
+          className={selectedMenus.length > 0 ? "bg-[#C3304F]! text-white!" : ""}
         >
           다음 단계로
         </Button>

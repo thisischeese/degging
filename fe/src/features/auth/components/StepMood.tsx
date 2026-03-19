@@ -47,9 +47,9 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
         </p>
       </div>
 
-      {/* 2. 이미지 그리드: 스크롤 없이 한 화면에 꽉 차도록 */}
-      <div className="flex-1 min-h-0 mt-4 px-4 overflow-y-auto no-scrollbar">
-        <div className="grid grid-cols-2 gap-2.5 pb-2">
+      {/* 2. 이미지 그리드: 고정 영역을 제외하고 스크롤 가능 */}
+      <div className="flex-1 min-h-0 mt-4 px-6 overflow-y-auto no-scrollbar">
+        <div className="grid grid-cols-2 gap-3 pb-6">
           {MOOD_LIST.map((mood) => {
             const isActive = selectedMoods.includes(mood.id);
             return (
@@ -58,9 +58,9 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
                 onClick={() => toggleMood(mood.id)}
                 className="relative cursor-pointer"
               >
-                {/* aspect-[5/3]으로 세로를 줄여서 8개가 한 화면에 들어오게 */}
-                <div className={`relative aspect-[5/3] rounded-[16px] overflow-hidden border-[3px] transition-all duration-200 ${
-                  isActive ? "border-[#C3304F]" : "border-transparent"
+                {/* aspect-square로 변경하여 피그마 실사 느낌 재현 */}
+                <div className={`relative aspect-square rounded-[16px] overflow-hidden border-[3px] transition-all duration-200 ${
+                  isActive ? "border-[#C3304F] shadow-[0_0_15px_rgba(195,48,79,0.3)]" : "border-transparent"
                 }`}>
                   <Image
                     src={mood.image}
@@ -69,8 +69,8 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
                     className={`object-cover transition-transform duration-300 ${isActive ? "scale-105" : "scale-100"}`}
                   />
                   {/* 텍스트 가독성을 위한 그라데이션 오버레이 */}
-                  <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent flex items-end p-3">
-                    <span className="text-white font-bold text-[13px] leading-tight">
+                  <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent flex items-end p-3">
+                    <span className="text-white font-bold text-[14px] leading-tight">
                       #{mood.label}
                     </span>
                   </div>
@@ -81,12 +81,12 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
         </div>
       </div>
 
-      {/* 3. 하단 버튼 영역 */}
-      <div className="shrink-0 px-6 pb-8">
-        <div className="min-h-[20px] mb-3 text-center">
+      {/* 3. 하단 버튼 영역: 상단에 얇은 선(경계) 추가하여 스크롤 영역과 분리 */}
+      <div className="shrink-0 pb-4 mt-2 px-6 border-t border-gray-100 pt-4">
+        <div className="min-h-[24px] mb-2 text-center">
           {(errorMessage || selectedMoods.length === 0) && (
             <p className="text-[12px] text-[#C3304F] font-medium leading-tight">
-              {errorMessage || "사용자의 취향을 정확히 파악하기 위해 하나 이상 선택해주세요!"}
+              {errorMessage || "취향을 정확히 파악하기 위해 하나 이상 선택해주세요!"}
             </p>
           )}
         </div>
@@ -99,11 +99,9 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
             updateData({ moods: selectedMoods });
             next();
           }}
-          className={`h-[54px] rounded-xl! transition-all ${
-            selectedMoods.length > 0 ? "bg-[#C3304F]! text-white! shadow-md" : ""
-          }`}
+          className={selectedMoods.length > 0 ? "bg-[#C3304F]! text-white!" : ""}
         >
-          선택 완료
+          다음 단계로
         </Button>
       </div>
     </div>

@@ -50,12 +50,12 @@ export default function StepWelcome({ formData }: StepWelcomeProps) {
       </div>
 
       {/* 3. 하단 버튼 영역 */}
-      <div className="w-full pb-4">
+      <div className="w-full pb-4 px-6 mt-2">
         <Button
           variant="primary"
           size="full"
           onClick={handleGoLogin}
-          className="!bg-[#C3304F] !text-white !h-[52px] !rounded-xl font-bold text-base"
+          className="bg-[#C3304F]! text-white!"
         >
           로그인하기
         </Button>
