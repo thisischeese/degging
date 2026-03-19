@@ -8,10 +8,12 @@ deploy-backend:
     - be/default
   tags:
     - degging
+  image: alpine:latest
   before_script:
+    - apk add --no-cache openssh-client
     - chmod 400 $SSH_PRIVATE_KEY
-    - apt-get update -qq && apt-get install -y -qq openssh-client
   script:
+    - scp -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $ENV_FILE $EC2_USER@$EC2_HOST:/home/ubuntu/app/.env
     - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
         cd /home/ubuntu/app &&
         rm -rf temp_repo &&
@@ -19,7 +21,7 @@ deploy-backend:
         cd temp_repo && git checkout be/default &&
         cp -r be /home/ubuntu/app/ &&
         cd /home/ubuntu/app && rm -rf temp_repo &&
-        docker compose up -d --build springboot-container
+        docker compose up -d --build --no-deps springboot-container
       "
 
 # ── AI 배포 (ai/default 브랜치 push 시) ──────────────────────
@@ -29,10 +31,12 @@ deploy-ai:
     - ai/default
   tags:
     - degging
+  image: alpine:latest
   before_script:
+    - apk add --no-cache openssh-client
     - chmod 400 $SSH_PRIVATE_KEY
-    - apt-get update -qq && apt-get install -y -qq openssh-client
   script:
+    - scp -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $ENV_FILE $EC2_USER@$EC2_HOST:/home/ubuntu/app/.env
     - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
         cd /home/ubuntu/app &&
         rm -rf temp_repo &&
@@ -40,7 +44,7 @@ deploy-ai:
         cd temp_repo && git checkout ai/default &&
         cp -r ai /home/ubuntu/app/ &&
         cd /home/ubuntu/app && rm -rf temp_repo &&
-        docker compose up -d --build ai-container
+        docker compose up -d --build --no-deps ai-container
       "
 
 # ── FE 배포 (fe/default 브랜치 push 시) ──────────────────────
@@ -50,7 +54,7 @@ deploy-frontend:
     - fe/default
   tags:
     - degging
-  image: node:18-alpine
+  image: node:20-alpine
   before_script:
     - npm install -g vercel
   script:

@@ -55,7 +55,7 @@ export default function SurveyModal({
             {/* 첫 번째 질문 */}
             <div className="flex flex-col gap-2">
               <p className="text-[14px] font-medium text-gray-800 text-center leading-relaxed">
-                &quot;탐색 탭&quot;은<br />본인의 취향을 얼마나 잘 반영했나요?
+                &quot;탐색 피드&quot;는<br />본인의 취향을 얼마나 잘 반영했나요?
               </p>
               <div className="flex justify-between px-2 pt-2 text-[12px] text-gray-500 font-medium">
                 {ratingOptions.map((val) => (
@@ -79,7 +79,7 @@ export default function SurveyModal({
                 &quot;가장 마음에 드는 기능&quot;을<br />선택해주세요.
               </p>
               <div className="flex flex-col gap-1.5 px-2">
-                {["오늘의 큐레이션", "실시간 검색어 랭킹", "지도 필터링 기능", "나만의 디저트 스크랩"].map((feature) => (
+                {["탐색 피드", "실시간 검색어 랭킹", "지도 필터링 기능", "오늘의 큐레이션"].map((feature) => (
                   <label key={feature} className="flex items-center gap-3 cursor-pointer py-1">
                     <input
                       type="radio"

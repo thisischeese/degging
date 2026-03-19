@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
     // [추가] 외부 이미지 호스트 허용 설정
     remotePatterns: [
       {
+        protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
         protocol: "https",
         hostname: "s3.cloud",
         port: "",
