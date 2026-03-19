@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field, MongoDsn, PostgresDsn, computed_field
@@ -7,9 +8,20 @@ PortInt = Annotated[int, Field(gt=0, le=65535)]
 RequiredStr = Annotated[str, Field(min_length=1)]
 
 
+def find_env_file() -> str | None:
+    current_dir = Path(__file__).resolve().parent
+
+    for directory in (current_dir, *current_dir.parents):
+        candidate = directory / ".env"
+        if candidate.is_file():
+            return str(candidate)
+
+    return None
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=find_env_file(),
         env_file_encoding="utf-8",
         str_strip_whitespace=True,
     )
