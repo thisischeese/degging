@@ -13,12 +13,29 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
   const [isCheck, setIsCheck] = useState(false);
   const [nicknameError, setNicknameError] = useState("");
 
+  // 닉네임 유효성 검사 (실시간 에러 메시지용)
+  const validateNickname = (value: string) => {
+    if (value.length === 0) {
+      setNicknameError("");
+      return false;
+    }
+    if (value.length < 2 || value.length > 10) {
+      setNicknameError("닉네임은 2~10자 사이여야 합니다.");
+      return false;
+    }
+    const nicknameRegex = /^[a-zA-Z0-9가-힣]+$/;
+    if (!nicknameRegex.test(value)) {
+      setNicknameError("공백이나 특수문자는 사용할 수 없습니다.");
+      return false;
+    }
+    setNicknameError("");
+    return true;
+  };
+
   // 닉네임 중복 검사 로직
   const handleCheckNickname = () => {
-    if (nickname.length < 2) {
-      setNicknameError("닉네임은 2자 이상이어야 합니다.");
-      return;
-    }
+    if (!validateNickname(nickname)) return;
+
     // [임시] admin일 때만 중복 에러 테스트
     if (nickname === "admin") {
       setNicknameError("이미 사용 중인 닉네임입니다.");
@@ -28,6 +45,14 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
       setIsCheck(true);
       alert("사용 가능한 닉네임입니다.");
     }
+  };
+
+  // 닉네임 입력 핸들러 (IME 이슈 해결을 위해 실시간 필터링 대신 유효성 검사만 수행)
+  const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNickname(value);
+    setIsCheck(false);
+    validateNickname(value);
   };
 
   // 생년월일 포맷팅 (YYYY.MM.DD)
@@ -73,13 +98,9 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
         <div className="h-[94px]">
           <Input
             label="닉네임"
-            placeholder="2~10자 이내의 한글, 영문"
+            placeholder="특수문자 제외 2~10자"
             value={nickname}
-            onChange={(e) => { 
-              setNickname(e.target.value); 
-              setIsCheck(false); // 수정 시 중복검사 다시 하도록 초기화
-              setNicknameError("");
-            }}
+            onChange={handleNicknameChange}
             error={nicknameError}
             rightElement={
               <Button 

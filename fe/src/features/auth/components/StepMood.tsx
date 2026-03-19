@@ -6,14 +6,14 @@ import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 
 const MOOD_LIST = [
-  { id: "mood1", label: "조용한", image: "/images/cafe/cafe1.png" },
-  { id: "mood2", label: "힙한", image: "/images/cafe/cafe1.png" },
-  { id: "mood3", label: "대화하기 좋은", image: "/images/cafe/cafe1.png" },
-  { id: "mood4", label: "작업하기 좋은", image: "/images/cafe/cafe1.png" },
-  { id: "mood5", label: "사진이 잘 나오는", image: "/images/cafe/cafe1.png" },
-  { id: "mood6", label: "디저트가 맛있는", image: "/images/cafe/cafe1.png" },
-  { id: "mood7", label: "반려동물 동반", image: "/images/cafe/cafe1.png" },
-  { id: "mood8", label: "뷰가 좋은", image: "/images/cafe/cafe1.png" },
+  { id: "mood1", label: "조용한/차분한", image: "/images/cafe/cafe1.png" },
+  { id: "mood2", label: "우드톤/따뜻함", image: "/images/cafe/cafe1.png" },
+  { id: "mood3", label: "탁 트인/뷰 좋은", image: "/images/cafe/cafe1.png" },
+  { id: "mood4", label: "식물원/플랜테리어", image: "/images/cafe/cafe1.png" },
+  { id: "mood5", label: "힙한", image: "/images/cafe/cafe1.png" },
+  { id: "mood6", label: "공간이 넓은", image: "/images/cafe/cafe1.png" },
+  { id: "mood7", label: "깨끗한", image: "/images/cafe/cafe1.png" },
+  { id: "mood8", label: "딱히 없음", image: "/images/cafe/cafe1.png" },
 ];
 
 export default function StepMood({ next, updateData, formData }: SignupStepProps) {
