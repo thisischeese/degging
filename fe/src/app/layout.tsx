@@ -1,7 +1,8 @@
 import './globals.css'; 
 import localFont from 'next/font/local';
 import Script from 'next/script';
-import QueryProvider from '@/common/components/providers/QueryProvider'; 
+
+import QueryProvider from '@/common/components/providers/QueryProvider';
 import { MSWProvider } from '@/common/components/providers/MSWProvider'; // 1. 추가
 
 export const metadata = {
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Script>
       </head>
 
-      
+
       {/* 1. 배경색 지정 및 중앙 정렬 */}
       <body className="bg-gray-100 m-0 flex justify-center h-dvh font-pretendard overflow-hidden">
         {/* Google Tag Manager (noscript) */}

@@ -221,11 +221,11 @@ function ScrapCategoryOverlay({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // 모달이 열릴 때마다 이전에 저장된 상태로 초기화 (저장 안 하고 닫았을 때 대비)
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedIds(initialSelectedIds);
-    }
-  }, [isOpen, initialSelectedIds]);
+  // useEffect(() => {
+  //   if (isOpen) {
+  //     setSelectedIds(initialSelectedIds);
+  //   }
+  // }, [isOpen, initialSelectedIds]);
 
   const toggleCategory = (id: number) => {
     setSelectedIds((prev) =>
@@ -353,7 +353,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
     console.log('Saved to categories:', selectedIds);
   };
 
-  const handleCreateCategory = (name: string, color: StarColor) => {
+  const handleCreateCategory = (name: string) => {
     const newCat: ScrapCategoryOption = {
       categoryId: Date.now(),
       name,
@@ -536,6 +536,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
 
       {/* 스크랩 카테고리 선택 오버레이 */}
       <ScrapCategoryOverlay
+        key={`${isScrapOpen}-${savedCategoryIds.join(',')}`}
         isOpen={isScrapOpen}
         onClose={() => setIsScrapOpen(false)}
         categories={scrapCategories}

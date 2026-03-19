@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "@/common/components/Header";
@@ -188,15 +188,8 @@ function EditCategoryModal({
     onEdit: (categoryId: number, name: string, color: StarColor) => void;
     category: ScrapCategory | null;
 }) {
-    const [name, setName] = useState("");
-    const [selectedColor, setSelectedColor] = useState<StarColor>("red");
-
-    useEffect(() => {
-        if (category) {
-            setName(category.name);
-            setSelectedColor(category.starColor);
-        }
-    }, [category]);
+    const [name, setName] = useState(category?.name ?? "");
+    const [selectedColor, setSelectedColor] = useState<StarColor>(category?.starColor ?? "red");
 
     const handleEdit = () => {
         if (!name.trim() || !category) return;
@@ -483,6 +476,7 @@ export default function ScrapsPage() {
             />
 
             <EditCategoryModal
+                key={editingCategory?.categoryId ?? 'empty'}
                 isOpen={!!editingCategory}
                 onClose={() => setEditingCategory(null)}
                 onEdit={handleEditCategory}

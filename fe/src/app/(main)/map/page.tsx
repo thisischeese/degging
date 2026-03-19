@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { StaticImageData } from 'next/image';
-import { Search, LocateFixed, Plus, ChevronDown } from 'lucide-react';
+import { Search, LocateFixed } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
@@ -110,6 +110,7 @@ function MapContent() {
   const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
+  const initialUserLocationRef = useRef(userLocation);
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -145,8 +146,9 @@ function MapContent() {
     window.kakao.maps.load(() => {
       if (!mapContainerRef.current) return;
 
-      const center = userLocation
-        ? new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng)
+      const initialUserLocation = initialUserLocationRef.current;
+      const center = initialUserLocation
+        ? new window.kakao.maps.LatLng(initialUserLocation.lat, initialUserLocation.lng)
         : new window.kakao.maps.LatLng(37.5665, 126.978);
 
       const options = {
@@ -165,7 +167,7 @@ function MapContent() {
       });
 
     });
-  }, []);
+  }, [controls]);
 
   // 3. 카페 데이터가 변경될 때마다 마커 업데이트 (지도가 로드된 상태 보장)
   useEffect(() => {

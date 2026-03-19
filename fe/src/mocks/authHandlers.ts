@@ -68,7 +68,7 @@ export const authHandlers = [
     return HttpResponse.json({
       status: 'success',
       code: 200,
-      message: '요청이 성공적으로 처리되었습니다.',
+      message: '요청에 성공하였습니다.',
       data: {
         accessToken: 'new-mocked-jwt-access-token',
       },

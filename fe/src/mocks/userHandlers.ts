@@ -32,6 +32,7 @@ export const userHandlers = [
     }, { status: 200 });
   }),
 
+
   // 3. 사용자 정보 수정
   http.patch(`${API_BASE_URL}/api/users`, async () => {
     return HttpResponse.json({

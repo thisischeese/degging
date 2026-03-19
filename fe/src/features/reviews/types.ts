@@ -8,6 +8,14 @@ export interface ReviewImage {
   imageUrl: string;
 }
 
+export interface StoredCafeReview {
+  id: string;
+  rating: number;
+  content: string;
+  imageUrl: string;
+  timestamp: number;
+}
+
 // 2. 개별 리뷰 아이템 인터페이스 (API 응답 기준)
 export interface Review {
   reviewId: string;
@@ -37,6 +45,37 @@ export interface Pageable {
 // 4. 내 리뷰 전체 조회 응답 인터페이스
 export interface MyReviewsResponse {
   content: Review[];
+  pageable: Pageable;
+  size: number;
+  number: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  first: boolean;
+  last: boolean;
+  numberOfElements: number;
+  empty: boolean;
+}
+
+export interface CafeReviewImageDto {
+  imageId: string;
+  imageUrl: string;
+}
+
+export interface CafeReviewResponse {
+  reviewId: string;
+  rating: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  images: CafeReviewImageDto[];
+  nickname: string;
+}
+
+export interface CafeReviewsSliceResponse {
+  content: CafeReviewResponse[];
   pageable: Pageable;
   size: number;
   number: number;
