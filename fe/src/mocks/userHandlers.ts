@@ -23,7 +23,7 @@ export const userHandlers = [
         email: "user@example.com",
         name: "김다희",
         nickname: "와아앙",
-        profileImgUrl: "https://example.com/profile.jpg",
+        profileImgUrl: "/images/auth/welcome.png", // 로컬 이미지 경로로 변경하여 Next.js 도메인 에러 방지
         tags: ["힙한", "조용한"],
         reviewCount: 15
       },
