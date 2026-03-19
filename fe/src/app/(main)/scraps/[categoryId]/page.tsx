@@ -152,11 +152,7 @@ function ScrapCafeCard({
 // ─────────────────────────────────────────────────────────
 // 메인 스크랩 상세 페이지
 // ─────────────────────────────────────────────────────────
-export default function ScrapDetailPage({
-    params,
-}: {
-    params: { categoryId: string };
-}) {
+export default function ScrapDetailPage() {
     const router = useRouter();
     const categoryName = "역삼역 근처"; // TODO: params.categoryId로 API 조회
 

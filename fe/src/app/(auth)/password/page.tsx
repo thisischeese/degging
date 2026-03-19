@@ -7,8 +7,6 @@ import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import Modal from "@/common/components/Modal";
 
-import { postFindPassword } from "@/features/auth/api/passwordApi";
-
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("");
   const [isSent, setIsSent] = useState(false);
@@ -24,12 +22,12 @@ export default function FindPasswordPage() {
     <div className="flex flex-col h-full px-6 bg-bg_white relative font-pretendard">
       {/* 1. 상단 로고: 로그인 페이지와 완벽하게 동일한 위치와 크기 */}
       <div className="mt-[56px] flex flex-col items-center mb-20 shrink-0">
-        <Image 
-          src="/images/common/logo.png" 
-          alt="Degging Logo" 
+        <Image
+          src="/images/common/logo.png"
+          alt="Degging Logo"
           width={120}   // 로그인 페이지에서 키운 사이즈와 동일하게 설정
-          height={120} 
-          className="object-contain" 
+          height={120}
+          className="object-contain"
         />
       </div>
 
@@ -68,9 +66,9 @@ export default function FindPasswordPage() {
       </div>
 
       {/* 5. 임시 비밀번호 전송 완료 팝업 (모달) */}
-      <Modal 
-        isOpen={isSent} 
-        onClose={() => setIsSent(false)} 
+      <Modal
+        isOpen={isSent}
+        onClose={() => setIsSent(false)}
         size="sm"
       >
         <div className="flex flex-col items-center">

@@ -2,7 +2,7 @@ import './globals.css';
 import localFont from 'next/font/local';
 import Script from 'next/script';
 import QueryProvider from '@/common/components/providers/QueryProvider';
-import { MSWProvider } from '@/common/components/providers/MSWProvider';
+import { MSWProvider } from '@/common/components/providers/MSWProvider'; // 1. 추가
 
 export const metadata = {
   title: 'Degging',
@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Script>
       </head>
 
-      
+
       {/* 1. 배경색 지정 및 중앙 정렬 */}
       <body className="bg-gray-100 m-0 flex justify-center h-dvh font-pretendard overflow-hidden">
         {/* Google Tag Manager (noscript) */}
@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
-        {/* <MSWProvider> */}
+        <MSWProvider>
           <QueryProvider>
             {/* 2. 앱 컨테이너 설정 */}
             <div className="w-full max-w-[375px] h-full bg-bg_white shadow-2xl relative flex flex-col overflow-hidden">
@@ -65,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </main>
             </div>
           </QueryProvider>
-        {/* </MSWProvider> */}
+        </MSWProvider>
       </body>
     </html>
   );

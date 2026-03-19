@@ -125,7 +125,7 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
                 localStorage.setItem(key, JSON.stringify(filtered));
                 break;
               }
-            } catch (e) { }
+            } catch { }
           }
         }
         // 수정된 사항 반영을 위해 목록으로 이동 후 새로고침 (문제 구체적인 로직 반영)
