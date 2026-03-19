@@ -1,6 +1,8 @@
 package com.degging.be.cafe.dto.response.external;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Getter;
 
 /**
@@ -10,6 +12,7 @@ import lombok.Getter;
  */
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class KakaoPlaceItem {
 
     private String id;  // 카카오 플레이스 id
