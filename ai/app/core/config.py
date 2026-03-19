@@ -4,36 +4,38 @@ from pydantic import Field, MongoDsn, PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PortInt = Annotated[int, Field(gt=0, le=65535)]
+RequiredStr = Annotated[str, Field(min_length=1)]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        str_strip_whitespace=True,
     )
 
     # PostgreSQL
     # docker-compose: POSTGRES_HOST=postgres-container, POSTGRES_PORT=5432
     # 로컬 개발:      POSTGRES_HOST=localhost, POSTGRES_PORT=(매핑 포트)
-    postgres_host: str
-    postgres_port: PortInt
-    postgres_db: str
-    postgres_user: str
-    postgres_password: str
+    postgres_host: str = "postgres-container"
+    postgres_port: PortInt = 5432
+    postgres_db: RequiredStr
+    postgres_user: RequiredStr
+    postgres_password: RequiredStr
 
     # MongoDB — docker-compose 변수명과 동일 (MONGO_USERNAME, MONGO_PASSWORD, MONGO_DATABASE)
     # docker-compose: MONGO_HOST=mongo-container, MONGO_PORT=27017
     # 로컬 개발:      MONGO_HOST=localhost, MONGO_PORT=27017
-    mongo_host: str
-    mongo_port: PortInt
-    mongo_username: str
-    mongo_password: str
-    mongo_database: str
+    mongo_host: str = "mongo-container"
+    mongo_port: PortInt = 27017
+    mongo_username: RequiredStr
+    mongo_password: RequiredStr
+    mongo_database: RequiredStr
 
     # App
     app_env: str = "development"
     app_host: str = "0.0.0.0"
-    app_port: PortInt
+    app_port: PortInt = 8000
 
     # Discovery
     discovery_top_k: int = 100
