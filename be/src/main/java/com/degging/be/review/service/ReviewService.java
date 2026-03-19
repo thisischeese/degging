@@ -6,9 +6,11 @@ import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.global.exception.errorcode.ReviewErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.global.util.ImageUtils;
 import com.degging.be.infra.storage.s3.ImageService;
+import com.degging.be.infra.storage.s3.ImageUploadResult;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import com.degging.be.review.dto.response.ReviewDetailResponse;
@@ -62,7 +64,7 @@ public class ReviewService {
         );
 
         if (isDuplicate) {
-            throw new BaseException(CafeErrorCode.REVIEW_ALREADY_EXISTS);
+            throw new BaseException(ReviewErrorCode.REVIEW_ALREADY_EXISTS);
         }
 
         // Dto -> Entity 후 Review 테이블에 저장
@@ -144,9 +146,8 @@ public class ReviewService {
         if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()){
             // S3 에서 해당 파일 삭제
             List<ReviewImageEntity> targetImages = reviewImageRepository.findAllById(request.getDeleteImageIds());
-            targetImages.forEach(img -> imageService.deleteImage(img.getImageUrl()));
-            // TODO : 썸네일 삭제도 고려
-            
+            targetImages.forEach(img -> imageService.deleteImage(img.getStoredName()));
+
             // DB 에서도 삭제 
             reviewImageRepository.deleteAllById(request.getDeleteImageIds());
             reviewImageRepository.flush(); // 즉시 DB와 동기화
@@ -186,7 +187,7 @@ public class ReviewService {
         // 이미지 개수 3개로 제한
         int currentImgCount = reviewImageRepository.countByReview(review);
         if (currentImgCount + images.size() > 3){
-            throw new BaseException(CafeErrorCode.IMAGE_COUNT_EXCEEDED);
+            throw new BaseException(ReviewErrorCode.IMAGE_COUNT_EXCEEDED);
         }
         // 리뷰 Entity 를 담을 리스트
         List<ReviewImageEntity> entities = new ArrayList<>();
@@ -198,17 +199,16 @@ public class ReviewService {
             // 이미지 사이즈를 줄여줌
             MultipartFile resized = ImageUtils.resizeImage(file, 800);
 
-            // 썸네일용도 생성
-            // TODO 
-
-            // S3 에 이미지 업로드 후 url 반환
-            String imageUrl = imageService.uploadImage(resized, "review");
+            // S3 에 이미지 업로드 후 원본 파일명, 저장 파일명, url 반환
+            ImageUploadResult result = imageService.uploadImage(resized, "review");
 
             // 이미지 Entity 생성 후 저장
             ReviewImageEntity imageEntity = ReviewImageEntity.builder()
                     .review(review)
-                    .imageUrl(imageUrl)
+                    .imageUrl(result.imageUrl())
                     .sortOrder(startOrder + i)
+                    .storedName(result.storedName())
+                    .originName(result.originName())
                     .build();
             entities.add(imageEntity);
         }
@@ -223,14 +223,13 @@ public class ReviewService {
     public void deleteReview(UUID reviewId, UUID loginUser){
         // 유효성
         validateUser(loginUser);
-        ReviewEntity review = reviewRepository.findById(reviewId)
-                .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
+        ReviewEntity review = getValidReview(reviewId);
         validateAuthor(review, loginUser);
 
         // GCS 에서 이미지 파일 삭제
         if (review.getReviewImages() != null) {
             review.getReviewImages().forEach(imgEntity -> {
-                imageService.deleteImage(imgEntity.getImageUrl());
+                imageService.deleteImage(imgEntity.getStoredName());
             });
         }
 
@@ -259,7 +258,7 @@ public class ReviewService {
     // 2. 존재 여부 체크 및 User 반환
     private User getValidUser(UUID loginUser){
         return userRepository.findById(loginUser)
-                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(()-> new BaseException(ReviewErrorCode.NOT_REVIEW_AUTHOR));
     }
 
     // 3. 작성자 본인 체크
@@ -278,6 +277,6 @@ public class ReviewService {
     // 리뷰 존재 체크
     public ReviewEntity getValidReview(UUID reviewId){
         return reviewRepository.findById(reviewId)
-                .orElseThrow(()-> new BaseException(CafeErrorCode.REVIEW_NOT_FOUND));
+                .orElseThrow(()-> new BaseException(ReviewErrorCode.REVIEW_NOT_FOUND));
     }
 }
