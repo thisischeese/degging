@@ -23,7 +23,11 @@ export default function LoginPage() {
       // 2. 성공 시 (테스트용 응답의 code가 200일 때)
       if (result.code === 200) {
         console.log("로그인 성공!", result.data);
-        // TODO: 토큰 저장 로직 (LocalStorage 등)
+        
+        // 토큰 저장 (axios_instance에서 이 키들을 사용합니다)
+        localStorage.setItem("access_token", result.data.accessToken);
+        localStorage.setItem("refresh_token", result.data.refreshToken);
+        
         router.push("/"); // 메인으로 이동
       }
     } catch (error) {
@@ -51,9 +55,9 @@ export default function LoginPage() {
 
       {/* 구분선 */}
       <div className="flex items-center gap-4 mb-8">
-        <div className="flex-1 h-[1px] bg-gray-100" />
+        <div className="flex-1 h-px bg-gray-100" />
         <span className="text-[11px] text-gray-400">또는</span>
-        <div className="flex-1 h-[1px] bg-gray-100" />
+        <div className="flex-1 h-px bg-gray-100" />
       </div>
 
       {/* 입력 폼 섹션 (공통 Input 활용) */}

@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 's3.cloud', // 에러가 났던 목업 이미지 도메인
         port: '',
         pathname: '/**', // 해당 도메인의 모든 경로 허용
