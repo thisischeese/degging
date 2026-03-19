@@ -42,7 +42,7 @@ public class MemberService {
      * @throws BaseException 이메일 미인증, 이메일 중복, 닉네임 중복 시 발생
      */
     @Transactional
-    public void signup(SignupRequest request) {
+    public UUID register(SignupRequest request) {
 
         // 회원가입 데이터 유효성 검증
         validateSignupRequest(request);
@@ -60,6 +60,8 @@ public class MemberService {
 
         // 가입 완료 후 Redis의 인증 성공 플래그 제거
         verificationService.removeVerifiedFlag(request.getEmail());
+
+        return user.getUserId();
     }
 
     /**
