@@ -107,7 +107,7 @@ export default function MainPage() {
   };
 
   // 랭킹 데이터 조회 (React Query 연동)
-  const { data: rankingData } = useQuery({
+  const { data: rankingData, isPending, isError } = useQuery({
     queryKey: ["rankings", "realtime"],
     queryFn: getRealTimeRankings,
     ...QUERY_OPTIONS.GENERAL,
@@ -203,28 +203,50 @@ export default function MainPage() {
 
         {/* 리스트 컨테이너 라운드 및 가로 길이에 비례하는 세로 비율(aspect-ratio) 고정. 
             flex-1 버그를 피하기 위해 inline style과 명시적 % 높이 사용 */}
-        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden px-1 h-auto">
-          {rankings.map((item, index) => (
-            <div 
-              key={index}
-              onClick={() => {
-                pushGtmEvent('ranking_click', { keyword: item.keyword, rank: item.rank });
-                handleSearch(item.keyword);
-              }}
-              className={`flex items-center justify-between px-5 w-full h-[42px] cursor-pointer active:bg-gray-50 transition-colors ${
-                index !== rankings.length - 1 ? 'border-b border-gray-50' : ''
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-gray-400 w-3 text-center">{item.rank}</span>
-                <span className="text-[13px] text-gray-700 font-medium tracking-tight">{item.keyword}</span>
+        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden px-1 h-auto min-h-[200px] flex flex-col justify-center">
+          {isPending ? (
+            // 1. 로딩 중: 스켈레톤 UI (반짝이는 애니메이션 효과)
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3.5 border-b border-gray-100 last:border-none animate-pulse">
+                <div className="w-5 h-5 bg-gray-100 rounded-full" />
+                <div className="flex-1 h-5 bg-gray-100 rounded-lg" />
+                <div className="w-4 h-4 bg-gray-100 rounded" />
               </div>
-              {/* 우측 화살표 아이콘 */}
-              <svg width="5" height="8" viewBox="0 0 6 10" fill="none" className="mr-1">
-                <path d="M1 9L5 5L1 1" stroke="#D1D1D1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            ))
+          ) : isError ? (
+            // 2. 에러 발생 시
+            <div className="py-10 text-center">
+              <p className="text-[13px] text-gray-400 font-medium">현재 랭킹 정보를 불러올 수 없습니다.</p>
+              <p className="text-[11px] text-gray-300 mt-1">네트워크 상태를 확인해주세요.</p>
             </div>
-          ))}
+          ) : rankings.length > 0 ? (
+            // 3. 데이터가 있을 때만 렌더링
+            rankings.slice(0, 5).map((item, index) => (
+              <div 
+                key={index}
+                onClick={() => {
+                  pushGtmEvent('ranking_click', { keyword: item.keyword, rank: item.rank });
+                  handleSearch(item.keyword);
+                }}
+                className="flex items-center gap-4 px-4 py-3.5 border-b border-gray-50 last:border-none active:bg-gray-50 transition-colors cursor-pointer group"
+              >
+                <span className="w-5 text-center font-bold text-[#C3304F] text-[15px] shrink-0">
+                  {index + 1}
+                </span>
+                <span className="flex-1 text-[15px] font-medium text-gray-800 truncate group-hover:text-[#C3304F] transition-colors">
+                  {item.keyword}
+                </span>
+                <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            ))
+          ) : (
+            // 4. 데이터가 비어있을 때
+            <div className="py-10 text-center text-[13px] text-gray-400">
+              현재 검색 랭킹이 없습니다.
+            </div>
+          )}
         </div>
       </section>
 
