@@ -9,7 +9,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/auth/signup`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
@@ -19,7 +19,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/auth/email/verification/request`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
@@ -29,7 +29,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/auth/email/verification/confirm`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
@@ -39,7 +39,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/auth/login`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: {
         accessToken: 'mocked-jwt-access-token',
@@ -57,7 +57,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/auth/logout`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
@@ -67,7 +67,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/auth/reissue`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: {
         accessToken: 'new-mocked-jwt-access-token',
@@ -79,7 +79,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/auth/password/find`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
@@ -89,7 +89,7 @@ export const authHandlers = [
   http.patch(`${API_BASE_URL}/api/auth/password/reset`, async () => {
     return HttpResponse.json({
       status: 'success',
-      code: '200',
+      code: 200,
       message: '요청이 성공적으로 처리되었습니다.',
       data: null,
     }, { status: 200 });
