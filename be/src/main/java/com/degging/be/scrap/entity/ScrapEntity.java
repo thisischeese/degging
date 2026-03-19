@@ -46,6 +46,7 @@ public class ScrapEntity extends BaseEntity {
     private String color;
     
     // 스크랩에 포함된 항목(카페) 리스트
+    @Builder.Default
     @OneToMany(mappedBy = "scrap", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ScrapItemEntity> scrapItems = new ArrayList<>();
 

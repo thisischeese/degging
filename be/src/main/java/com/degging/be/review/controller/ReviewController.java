@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -51,7 +52,7 @@ public class ReviewController {
     public BaseResponse<ReviewResponse> createReview(
                     @PathVariable("cafeId") UUID cafeId,
                     @ModelAttribute @Valid ReviewRequest request,
-                    @AuthenticationPrincipal UserDetails user){
+                    @AuthenticationPrincipal UserDetails user) throws IOException {
         UUID userId = getUserId(user);
         // 관심사 분리를 위해 알맞게 나눠담아 호출
         List<MultipartFile> images = request.getImages(); 
@@ -117,7 +118,7 @@ public class ReviewController {
     public BaseResponse<ReviewResponse> updateReview(
                     @PathVariable("reviewId") UUID reviewId,
                     @Valid @ModelAttribute("data") ReviewUpdateRequest request,
-                    @AuthenticationPrincipal UserDetails user){
+                    @AuthenticationPrincipal UserDetails user) throws IOException {
         UUID userId = getUserId(user);
         List<MultipartFile> newImages = request.getImages();
         reviewService.updateReview(request, userId, newImages, reviewId);
