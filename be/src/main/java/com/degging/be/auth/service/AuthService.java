@@ -1,5 +1,7 @@
 package com.degging.be.auth.service;
 
+import com.degging.be.auth.dto.request.SignupRequest;
+import com.degging.be.auth.dto.response.SignupResponse;
 import com.degging.be.auth.entity.RefreshToken;
 import com.degging.be.auth.dto.request.LoginRequest;
 import com.degging.be.auth.dto.response.LoginResponse;
@@ -13,13 +15,16 @@ import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
 
+import com.degging.be.user.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 인증 관련 비즈니스 로직을 처리하는 서비스 클래스
@@ -34,6 +39,8 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final MemberService memberService;
+    private final RedisTemplate<Object, Object> redisTemplate;
 
     /**
      * 사용자의 이메일과 비밀번호를 검증 후 액세스 토큰 발급
@@ -95,6 +102,41 @@ public class AuthService {
     public void logout(UUID userId) {
         // 해당 유저의 리프레시 토큰이 존재하면 삭제
         refreshTokenRepository.deleteById(userId);
+    }
+
+    /**
+     * 회원가입 절차를 수행 및 온보딩 임시 토큰 발행
+     *
+     * @param request 회원가입 요청 정보
+     * @return 온보딩 전용 토큰 응답 DTO
+     */
+    @Transactional
+    public SignupResponse signUp(SignupRequest request) {
+
+        // 유저 서비스에 데이터 등록 위임
+        UUID userId = memberService.register(request);
+
+        // 임시 토큰 생성
+        String onboardingToken = jwtProvider.createTemporaryToken(userId);
+
+        // 레디스에 온보딩 토큰 저장 (10분 유효)
+        saveOnboardingToken(onboardingToken, userId.toString());
+
+        return SignupResponse.from(onboardingToken);
+    }
+
+    /**
+     * 생성된 온보딩 토큰 Redis에 적재
+     *
+     * @param token 생성된 임시 토큰
+     * @param userId 유저 식별자
+     */
+    private void saveOnboardingToken(String token, String userId) {
+        redisTemplate.opsForValue().set(
+                "onboarding:" + token,
+                userId,
+                10,
+                TimeUnit.MINUTES);
     }
 
 }

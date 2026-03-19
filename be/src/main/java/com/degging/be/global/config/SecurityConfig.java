@@ -64,6 +64,12 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        // 온보딩 관련 API는 임시 권한 소유자만 접근 허용
+                        .requestMatchers(
+                                "/api/users/onboarding",
+                                "/api/ranks/desserts/onboarding",
+                                "api/cafes/onboarding"
+                        ).hasRole("TEMPORARY_USER")
                         .anyRequest().authenticated()
                 )
 

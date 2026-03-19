@@ -3,6 +3,7 @@ package com.degging.be.auth.controller;
 import com.degging.be.auth.dto.request.*;
 import com.degging.be.auth.dto.response.LoginResponse;
 import com.degging.be.auth.dto.response.RefreshResponse;
+import com.degging.be.auth.dto.response.SignupResponse;
 import com.degging.be.auth.service.AuthService;
 import com.degging.be.auth.service.VerificationService;
 import com.degging.be.global.dto.BaseResponse;
@@ -69,9 +70,9 @@ public class AuthController {
      * @return 회원가입 성공 시 성공 응답 객체
      */
     @PostMapping("/signup")
-    public BaseResponse<Void> signup(@Valid @RequestBody SignupRequest request) {
-        memberService.signup(request);
-        return BaseResponse.success();
+    public BaseResponse<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
+        SignupResponse response = authService.signUp(request);
+        return BaseResponse.success(response);
     }
 
     /**
