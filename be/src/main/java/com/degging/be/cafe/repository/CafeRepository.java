@@ -54,10 +54,8 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * 카페 상세 조회를 위한 페치 조인 쿼리
      */
-    @Query("SELECT c FROM CafeEntity c " +
+    @Query("SELECT DISTINCT c FROM CafeEntity c " +
             "LEFT JOIN FETCH c.ratingStats " +
-            "LEFT JOIN FETCH c.images " +
-            "LEFT JOIN FETCH c.menus " +
             "LEFT JOIN FETCH c.vibeTags vt " +
             "LEFT JOIN FETCH vt.vibe " +
             "WHERE c.cafeId = :cafeId")
