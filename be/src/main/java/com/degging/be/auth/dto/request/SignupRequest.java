@@ -17,7 +17,10 @@ public class SignupRequest {
 
     @NotBlank(message = "닉네임은 필수 입력값입니다.")
     @Size(min = 2, max = 10, message = "닉네임은 2자 이상 10자 이하여야 합니다.")
-    @Pattern(regexp = "^\\S+$", message = "닉네임에 공백을 포함할 수 없습니다.")
+    @Pattern(
+            regexp = "^[a-zA-Z0-9가-힣]+$",
+            message = "닉네임은 한글, 영문, 숫자만 가능하며 특수문자나 자음/모음 단독 입력은 불가합니다."
+    )
     private String nickname;
 
     @NotBlank(message = "이메일은 필수 입력값입니다.")
