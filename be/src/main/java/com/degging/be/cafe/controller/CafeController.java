@@ -24,6 +24,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CafeController {
 
+    private final int DEFAULT_ONBOARDING_COUNT = 8;
+
     private final CafeService cafeService;
 
     private UUID getUserId(UserDetails user) {
@@ -79,8 +81,8 @@ public class CafeController {
     @GetMapping("/onboarding")
     public BaseResponse<List<CafeOnboardingResponse>> getOnboardingItems() {
 
-        // 8개의 카페 추출 요청
-        List<CafeOnboardingResponse> responses = cafeService.getRandomOnboardingItems(8);
+        // DEFAULT_ONBOARDING_COUNT(8)개의 카페 추출 요청
+        List<CafeOnboardingResponse> responses = cafeService.getRandomOnboardingItems(DEFAULT_ONBOARDING_COUNT);
 
         return BaseResponse.success(responses);
     }
