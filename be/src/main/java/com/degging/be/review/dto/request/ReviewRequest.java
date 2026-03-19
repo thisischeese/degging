@@ -2,6 +2,7 @@ package com.degging.be.review.dto.request;
 
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.review.entity.ReviewEntity;
+import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.user.entity.User;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -32,7 +33,6 @@ public class ReviewRequest {
     @Size(max = 3, message = "이미지는 최대 3장까지 업로드 가능합니다.")
     private List<MultipartFile> images; // 이미지
 
-    // 이미지는 서비스에서 추가
     public ReviewEntity toEntity(User loginUser, CafeEntity cafe){
         return ReviewEntity.builder()
                 .cafe(cafe)

@@ -16,6 +16,8 @@ public interface ReviewImageRepository extends JpaRepository<ReviewImageEntity, 
     // sort order 에 따라 오름차로 리뷰를 가져옴
     List<ReviewImageEntity> findByReviewOrderBySortOrderAsc(ReviewEntity review);
 
+    List<ReviewImageEntity> findByReviewReviewId(UUID reviewId);
+    // 특정 이미지
     // Review 의 이미지 개수 조회
     int countByReview(ReviewEntity review);
 }
