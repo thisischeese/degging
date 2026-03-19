@@ -6,6 +6,7 @@ import com.degging.be.auth.service.VerificationService;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.AuthErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
+import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +67,18 @@ public class MemberService {
         verificationService.removeVerifiedFlag(request.getEmail());
 
         return user.getUserId();
+    }
+
+    /**
+     * 특정 회원 정보를 조회하는 메서드
+     */
+    public UserDetailResponse getUserDetail(UUID userId){
+        // 유효성 검사
+        User entity = userRepository.findById(userId)
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        // password 를 제외하고 dto 로 변환하여 응답
+        return UserDetailResponse.from(entity);
     }
 
     /**

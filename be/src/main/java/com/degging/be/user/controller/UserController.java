@@ -2,6 +2,7 @@ package com.degging.be.user.controller;
 
 import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.user.dto.request.UserOnboardingRequest;
+import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.service.MemberService;
 import com.degging.be.user.service.UserOnboardingService;
 import jakarta.validation.Valid;
@@ -42,4 +43,16 @@ public class UserController {
         return BaseResponse.success();
     }
 
+    /**
+     * 특정 회원 정보(내정보)를 조회하는 메서드
+     * 
+     * @param userId 인증 객체로 부터 추출된 유저
+     * @return 200, UserDetailResponse (해당 회원 정보)
+     */
+    @GetMapping
+    public BaseResponse<UserDetailResponse> getUserDetail(
+            @AuthenticationPrincipal UUID userId){
+        UserDetailResponse user = memberService.getUserDetail(userId);
+        return BaseResponse.success(user);
+    }
 }
