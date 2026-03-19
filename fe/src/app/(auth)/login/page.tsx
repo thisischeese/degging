@@ -79,6 +79,7 @@ export default function LoginPage() {
         size="full"
         disabled={!email || !password}
         onClick={handleLogin}
+        className="shrink-0"
       >
         로그인
       </Button>
