@@ -7,7 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface ImageService {
     // 이미지 업로드
-    String uploadImage(MultipartFile file, String folderName);
+    ImageUploadResult uploadImage(MultipartFile file, String folderName);
 
     // 이미지 삭제
     void deleteImage(String imageUrl);

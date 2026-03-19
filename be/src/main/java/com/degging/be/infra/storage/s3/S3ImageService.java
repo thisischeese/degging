@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -40,13 +41,18 @@ public class S3ImageService implements ImageService{
      * @return CloudFront가 적용된 퍼블릭 URL
      */
     @Override
-    public String uploadImage(MultipartFile file, String folderName) {
-        String fileName = folderName + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
+    public ImageUploadResult uploadImage(MultipartFile file, String folderName) {
+        // 확장자 조회
+        String extension = StringUtils.getFilenameExtension(file.getOriginalFilename());
+        // 원본명 저장
+        String originalName = file.getOriginalFilename();
+        // S3 에 저장될 고유키 생성
+        String storedName = folderName + "/" + UUID.randomUUID() + "." + extension;
 
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
-                    .key(fileName)
+                    .key(storedName)
                     .contentType(file.getContentType())
                     .build();
 
@@ -54,8 +60,9 @@ public class S3ImageService implements ImageService{
             s3Client.putObject(putObjectRequest,
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            // CloudFront 결합
-            return imageDomain + (imageDomain.endsWith("/") ? "" : "/") + fileName;
+            String url = imageDomain + (imageDomain.endsWith("/") ? "" : "/") + storedName;
+            // CloudFront 결합 후 DTO 에 정보 담아 반환
+            return new ImageUploadResult(url, storedName, originalName);
 
         } catch (IOException e) {
             log.error("S3 업로드 중 IOException 발생: ", e);

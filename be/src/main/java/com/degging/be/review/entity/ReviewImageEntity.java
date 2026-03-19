@@ -26,6 +26,14 @@ public class ReviewImageEntity extends BaseEntity {
 
     private String imageUrl;
 
+    // S3에 실제로 저장된 파일명 (예: 7a97b0b7...jpg)
+    @Column(nullable = false)
+    private String storedName;
+
+    // 원본 파일명 (예: 다운로드 (5).jpg)
+    @Column(nullable = false)
+    private String originName;
+
     @Column(name = "sort_order", nullable = false) // 순서
     private int sortOrder;
 
