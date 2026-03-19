@@ -38,6 +38,9 @@ public class JwtProvider {
     // Refresh Token 만료 시간 (초 단위)
     private final Long refreshTokenExpTime;
 
+    // 온보딩용 Temporary Token 만료 시간 (초 단위)
+    private final Long tempTokenExpTime;
+
     // 사용자 정보를 조회하기 위한 서비스
     private final UserDetailsService userDetailsService;
 
@@ -49,17 +52,20 @@ public class JwtProvider {
      * @param issuer 토큰 발급자
      * @param accessTokenExpTime Access Token 만료 시간
      * @param refreshTokenExpTime Refresh Token 만료 시간
+     *
      * @param userDetailsService 사용자 정보 서비스
      */
     public JwtProvider(@Value("${spring.jwt.secret-key}") String key,
                        @Value("${spring.jwt.issuer}") String issuer,
                        @Value("${spring.jwt.access-expiration}") Long accessTokenExpTime,
                        @Value("${spring.jwt.refresh-expiration}") Long refreshTokenExpTime,
+                       @Value("${spring.jwt.temp-expiration}") Long tempTokenExpTime,
                        UserDetailsService userDetailsService) {
         this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(key));
         this.issuer = issuer;
         this.accessTokenExpTime = accessTokenExpTime;
         this.refreshTokenExpTime = refreshTokenExpTime;
+        this.tempTokenExpTime = tempTokenExpTime;
         this.userDetailsService = userDetailsService;
     }
 
@@ -88,6 +94,23 @@ public class JwtProvider {
                 .subject(userId.toString())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshTokenExpTime))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
+     * 온보딩 진행을 위한 10분 만료 임시 토큰 생성
+     *
+     * @param userId 사용자 식별자
+     * @return 생성된 임시 JWT 토큰
+     */
+    public String createTemporaryToken(UUID userId) {
+        return Jwts.builder()
+                .subject(userId.toString())
+                .issuer(issuer)
+                .claim("type", "ONBOARDING") // 온보딩 전용 클레임
+                .issuedAt(Date.from(Instant.now()))
+                .expiration(Date.from(Instant.now().plusMillis(tempTokenExpTime))) // 밀리초 단위 가산
                 .signWith(secretKey)
                 .compact();
     }

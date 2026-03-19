@@ -13,6 +13,7 @@ deploy-backend:
     - apk add --no-cache openssh-client
     - chmod 400 $SSH_PRIVATE_KEY
   script:
+    - scp -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $ENV_FILE $EC2_USER@$EC2_HOST:/home/ubuntu/app/.env
     - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
         cd /home/ubuntu/app &&
         rm -rf temp_repo &&
@@ -35,6 +36,7 @@ deploy-ai:
     - apk add --no-cache openssh-client
     - chmod 400 $SSH_PRIVATE_KEY
   script:
+    - scp -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $ENV_FILE $EC2_USER@$EC2_HOST:/home/ubuntu/app/.env
     - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
         cd /home/ubuntu/app &&
         rm -rf temp_repo &&
@@ -52,7 +54,7 @@ deploy-frontend:
     - fe/default
   tags:
     - degging
-  image: node:18-alpine
+  image: node:20-alpine
   before_script:
     - npm install -g vercel
   script:
