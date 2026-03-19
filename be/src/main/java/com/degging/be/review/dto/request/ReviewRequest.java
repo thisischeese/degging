@@ -33,14 +33,12 @@ public class ReviewRequest {
     @Size(max = 3, message = "이미지는 최대 3장까지 업로드 가능합니다.")
     private List<MultipartFile> images; // 이미지
 
-    // 이미지는 서비스에서 추가
-    public ReviewEntity toEntity(User loginUser, CafeEntity cafe, List<ReviewImageEntity> imageEntities){
+    public ReviewEntity toEntity(User loginUser, CafeEntity cafe){
         return ReviewEntity.builder()
                 .cafe(cafe)
                 .rating(this.getRating())
                 .content(this.getContent())
                 .user(loginUser)
-                .reviewImages(imageEntities)
                 .build();
     }
 }

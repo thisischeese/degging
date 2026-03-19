@@ -51,7 +51,7 @@ public class ReviewService {
      * 리뷰 생성 메서드
      */
     @Transactional
-    public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId){
+    public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId) throws IOException {
         // 유효성 검증 및 객체 조회
         User user = getValidUser(loginUser);
         CafeEntity cafe = checkCafeValidation(cafeId);
@@ -65,31 +65,12 @@ public class ReviewService {
             throw new BaseException(CafeErrorCode.REVIEW_ALREADY_EXISTS);
         }
 
-        // 이미지 리사이징
-        List<MultipartFile> resized = images.stream()
-                .map(image -> {
-                    try {
-                        return ImageUtils.resizeImage(image, 800);
-                    } catch (IOException e) {
-                        // TODO : 에러처리 변경
-                        throw new RuntimeException(e);
-                    }
-                })
-                .toList();
-
-        // 리뷰 엔티티 생성
-        ReviewEntity entity = request.toEntity(user, cafe, resized);
-
-
-        // TODO : 리뷰는 괜찮은데 스크랩은 썸네일용 더 작은 이미지도 필요함
-        // S3 에 이미지 업로드
-        uploadReviewImages(entity, resized, 0);
-
-
         // Dto -> Entity 후 Review 테이블에 저장
-        ReviewEntity entity = request.toEntity(user, cafe, resized);
+        ReviewEntity entity = request.toEntity(user, cafe);
         reviewRepository.save(entity);
 
+        // S3 와 리뷰 이미지 테이블에 추가
+        uploadReviewImages(entity, images, 0);
 
         // cafe 테이블에 리뷰 평점 반영
         CafeRatingStatsEntity stats = cafeRatingStatsRepository.findById(cafeId)
@@ -151,7 +132,7 @@ public class ReviewService {
      * 리뷰 수정 메서드
      */
     @Transactional
-    public void updateReview(ReviewUpdateRequest request, UUID loginUser, List<MultipartFile> images, UUID reviewId){
+    public void updateReview(ReviewUpdateRequest request, UUID loginUser, List<MultipartFile> images, UUID reviewId) throws IOException {
         log.info("삭제할 이미지 IDs: {}", request.getDeleteImageIds());
         // 유효성 검증
         validateUser(loginUser);
@@ -164,6 +145,7 @@ public class ReviewService {
             // S3 에서 해당 파일 삭제
             List<ReviewImageEntity> targetImages = reviewImageRepository.findAllById(request.getDeleteImageIds());
             targetImages.forEach(img -> imageService.deleteImage(img.getImageUrl()));
+            // TODO : 썸네일 삭제도 고려
             
             // DB 에서도 삭제 
             reviewImageRepository.deleteAllById(request.getDeleteImageIds());
@@ -196,9 +178,9 @@ public class ReviewService {
     }
 
     /**
-     * 리뷰 생성/수정의 이미지 업로드 메서드
+     * 리뷰 생성/수정의 이미지 업로드 메서드, 이미지 크기 조정 후 S3 와 ReviewImage 테이블에 데이터 저장
      */
-    public void uploadReviewImages(ReviewEntity review, List<MultipartFile> images, int startOrder){
+    public void uploadReviewImages(ReviewEntity review, List<MultipartFile> images, int startOrder) throws IOException {
         if (images == null || images.isEmpty() || images.getFirst().isEmpty()) return;
 
         // 이미지 개수 3개로 제한
@@ -209,12 +191,18 @@ public class ReviewService {
         // 리뷰 Entity 를 담을 리스트
         List<ReviewImageEntity> entities = new ArrayList<>();
 
-        // 이미지를 꺼내 S3 업로드 후 URL 반환 받아 DB에 저장
+        // 리사이징한 이미지를 S3 업로드 후 URL 반환 받아 DB에 저장
         for (int i = 0; i < images.size(); i++){
             MultipartFile file = images.get(i);
 
+            // 이미지 사이즈를 줄여줌
+            MultipartFile resized = ImageUtils.resizeImage(file, 800);
+
+            // 썸네일용도 생성
+            // TODO 
+
             // S3 에 이미지 업로드 후 url 반환
-            String imageUrl = imageService.uploadImage(file, "review");
+            String imageUrl = imageService.uploadImage(resized, "review");
 
             // 이미지 Entity 생성 후 저장
             ReviewImageEntity imageEntity = ReviewImageEntity.builder()

@@ -20,6 +20,7 @@ public class ImageUtils {
                 .size(targetWidth, targetWidth) // 가로 세로 중 큰 쪽을 targetWidth에 맞춤
                 .keepAspectRatio(true)          // 비율 유지 (이미지 안 찌그러짐)
                 .outputFormat("jpg")            // 용량 최적화를 위해 jpg 권장
+                .outputQuality(0.9f)            // 용량 대비 화질 좋게
                 .toOutputStream(outputStream);
 
         return new MockMultipartFile(
