@@ -41,6 +41,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private LocalDate birthDate;
 
+    @Column(name = "ab_group", length = 1)
+    private Character abGroup;
+
     /**
      * 유저 생성을 위한 정적 팩토리 메서드
      *
@@ -51,13 +54,14 @@ public class User extends BaseEntity {
      * @param birthDate 생년월일
      * @return 생성된 유저 엔티티
      */
-    public static User of(String email, String password, String nickname, Gender gender, LocalDate birthDate) {
+    public static User of(String email, String password, String nickname, Gender gender, LocalDate birthDate, Character abGroup) {
         return User.builder()
                 .email(email)
                 .password(password)
                 .nickname(nickname)
                 .gender(gender)
                 .birthDate(birthDate)
+                .abGroup(abGroup)
                 .build();
     }
 

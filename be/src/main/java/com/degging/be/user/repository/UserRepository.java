@@ -19,4 +19,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     // 닉네임 중복 여부 확인
     boolean existsByNickname(String nickname);
+
+    // 특정 그룹(A, B)의 사용자 수를 카운트
+    long countByAbGroup(Character abGroup);
 }
