@@ -115,7 +115,7 @@ export const getMyReviews = async (
 
     const response = (await axios_instance.get<ApiResponse<MyReviewsResponse>>("/api/reviews/mine", {
       params,
-    })) as ApiResponse<MyReviewsResponse>;
+    })) as unknown as ApiResponse<MyReviewsResponse>;
 
     return response.data;
   } catch (error) {
@@ -134,7 +134,7 @@ export const getCafeReviews = async (
     {
       params: { page, size },
     }
-  )) as BaseResponse<CafeReviewsSliceResponse>;
+  )) as unknown as BaseResponse<CafeReviewsSliceResponse>;
 
   return response.data;
 };
