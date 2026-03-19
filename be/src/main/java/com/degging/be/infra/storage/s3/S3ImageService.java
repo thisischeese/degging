@@ -18,7 +18,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Google Cloud Service 로 이미지를 관리하는 클래스
+ * S3 로 이미지를 관리하는 클래스
  */ 
 //@Service
 @Slf4j

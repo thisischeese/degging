@@ -47,6 +47,9 @@ public class MemberService {
         // 회원가입 데이터 유효성 검증
         validateSignupRequest(request);
 
+        // A/B 테스트 그룹 배정
+        Character group = getLesserGroup();
+
         // 비밀번호 암호화 후 엔티티 생성
         User user = User.builder()
                 .email(request.getEmail())
@@ -54,6 +57,7 @@ public class MemberService {
                 .nickname(request.getNickname())
                 .gender(request.getGender())
                 .birthDate(request.getBirthDate())
+                .abGroup(group)
                 .build();
 
         userRepository.save(user);
@@ -62,6 +66,18 @@ public class MemberService {
         verificationService.removeVerifiedFlag(request.getEmail());
 
         return user.getUserId();
+    }
+
+    /**
+     * A/B 중 더 적은 그룹을 반환하는 메서드
+     */
+    public Character getLesserGroup(){
+        // 현재 회원의 비율을 조회하여 1:1 에 가깝도록 A/B 테스트 그룹 배정
+        long countA = userRepository.countByAbGroup('A');
+        long countB = userRepository.countByAbGroup('B');
+        
+        // 같은 수면 A를 우선으로 배정, 기본은 더 적은 그룹으로 배정
+        return countA > countB ? 'B' : 'A'; 
     }
 
     /**
