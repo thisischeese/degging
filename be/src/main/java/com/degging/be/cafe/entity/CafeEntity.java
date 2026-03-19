@@ -90,10 +90,11 @@ public class CafeEntity extends BaseEntity {
      * 상가정보 API 응답 데이터를 기반으로 기본 카페 엔티티 생성
      *
      * @param item 상가정보 API에서 조회한 업소 데이터
+     * @param kakaoItem 가져온 상가정보와 매칭된 카카오 API 데이터
      * @param location 카페 위치 정보 (PostGIS Point)
      * @return 생성된 CafeEntity 객체
      */
-    public static CafeEntity from(StoreListInUpjongItem item, Point location) {
+    public static CafeEntity of(StoreListInUpjongItem item, KakaoPlaceItem kakaoItem, Point location) {
         String originalName = item.getBizesNm();
         String branchName = toNullIfBlank(item.getBrchNm());
 
@@ -105,16 +106,16 @@ public class CafeEntity extends BaseEntity {
 
         return CafeEntity.builder()
                 .bizesId(item.getBizesId())
-                .kakaoPlaceId(null) // 나중에 업데이트 되기 때문에 null 저장
+                .kakaoPlaceId(kakaoItem.getId())
                 .name(originalName)
                 .brandName(brandName)
                 .branchName(branchName)
                 .address(toNullIfBlank(item.getLnoAdr()))
                 .roadAddress(toNullIfBlank(item.getRdnmAdr()))
-                .phone(null)
-                .kakaoMapUrl(null)
+                .phone(kakaoItem.getPhone())
+                .kakaoMapUrl(kakaoItem.getPlaceUrl())
                 .thumbnailUrl(null)
-                .status(CafeStatus.UNKNOWN)
+                .status(CafeStatus.OPEN)
                 .location(location)
                 .cafeIntro(null)
                 .businessHours(null)
@@ -132,17 +133,6 @@ public class CafeEntity extends BaseEntity {
             return null;
         }
         return value;
-    }
-
-    /**
-     * 카카오 API 매칭 결과로 카페 정보를 업데이트
-     *
-     * @param item 상가 정보와 매칭된 카카오 api의 업체 정보
-     */
-    public void updateKakaoPlaceInfo(KakaoPlaceItem item) {
-        this.kakaoPlaceId = item.getId();
-        this.phone = toNullIfBlank(item.getPhone());
-        this.kakaoMapUrl = item.getPlaceUrl();
     }
 
     /**

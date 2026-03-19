@@ -2,6 +2,7 @@ package com.degging.be.cafe.repository;
 
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.entity.CafeStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -72,4 +73,25 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     @Query("SELECT c FROM CafeEntity c " +
             "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius")
     List<CafeEntity> findMarkersByRadius(@Param("point") String point, @Param("radius") Double radius);
+
+//----------------------------------------------------------------------------------------------
+
+    /**
+     * 썸네일 이미지가 존재하고 특정 영업 상태인 카페를 상위 100개 조회
+     * @param status 조회할 카페의 영업 상태 (ex. OPEN)
+     * @return 필터링된 카페 엔티티 리스트
+     */
+    List<CafeEntity> findTop100ByThumbnailUrlIsNotNullAndStatus(CafeStatus status);
+
+    /**
+     * 온보딩 분석을 위해 필요한 분위기 태그 정보만 선별적으로 조회합니다.
+     *
+     * @param cafeIds 카페 식별자 목록
+     * @return 분위기 태그가 포함된 카페 엔티티 목록
+     */
+    @Query("SELECT DISTINCT c FROM CafeEntity c " +
+            "JOIN FETCH c.vibeTags vt " +
+            "JOIN FETCH vt.vibe " +
+            "WHERE c.cafeId IN :cafeIds")
+    List<CafeEntity> findAllWithVibesById(@Param("cafeIds") List<UUID> cafeIds);
 }

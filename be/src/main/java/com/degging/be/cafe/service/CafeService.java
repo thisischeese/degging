@@ -3,7 +3,9 @@ package com.degging.be.cafe.service;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
+import com.degging.be.cafe.dto.response.internal.CafeOnboardingResponse;
 import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.entity.CafeStatus;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -72,7 +75,6 @@ public class CafeService {
      * @param request 사용자의 현재 위도(latitude)와 경도(longitude)를 담은 요청 객체
      * @return 조회된 카페들의 마커 정보(ID, 위도, 경도) 리스트
      */
-    @Transactional(readOnly = true)
     public List<CafeMapResponse> getCafeMarkers(CafeMapRequest request) {
 
         // 위/경도 좌표를 PostGIS POINT(경도 위도) 포맷 문자열로 변환
@@ -89,4 +91,27 @@ public class CafeService {
                 .map(CafeMapResponse::from)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * 온보딩 화면에 표시할 랜덤 카페 리스트 조회
+     *
+     * @param count 추출할 카페 개수
+     * @return 무작위로 추출된 카페 온보딩 응답 DTO 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<CafeOnboardingResponse> getRandomOnboardingItems(int count) {
+
+        // 썸네일이 있고 영업 중인 카페 100개 조회
+        List<CafeEntity> cafes = cafeRepository.findTop100ByThumbnailUrlIsNotNullAndStatus(CafeStatus.OPEN);
+
+        // 리스트 랜덤 섞기
+        Collections.shuffle(cafes);
+
+        // 요청된 개수만큼 추출하여 DTO로 변환 후 반환
+        return cafes.stream()
+                .limit(count)
+                .map(CafeOnboardingResponse::from)
+                .toList();
+    }
+
 }

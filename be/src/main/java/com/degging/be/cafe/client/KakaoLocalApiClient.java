@@ -17,7 +17,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 @RequiredArgsConstructor
 public class KakaoLocalApiClient {
 
-    private final WebClient.Builder webClientBuilder;
+    // Builder가 아니라 이미 build된 WebClient를 직접 주입
+    private final WebClient webClient;
 
     @Value("${kakao.rest-api-key}")
     private String kakaoRestApiKey;
@@ -32,8 +33,7 @@ public class KakaoLocalApiClient {
      */
     public KakaoPlaceResponse searchPlaces(String keyword, int page, int size) {
 
-        return webClientBuilder.build()
-                .get()
+        return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .scheme("https")
                         .host("dapi.kakao.com")
