@@ -37,6 +37,7 @@ public class CafeCollectService {
     private final CafeFilterService cafeFilterService;
     private final CafeRepository cafeRepository;
     private final CafeDuplicateService cafeDuplicateService;
+    private final CafeFranchiseService cafeFranchiseService;
 
     /**
      * 서울 내의 카페 전체 데이터 수집
@@ -110,6 +111,10 @@ public class CafeCollectService {
         } while ((pageNo - 1) * numOfRows < totalCount);
 
         log.info("서울 카페 데이터 수집 완료. 총 저장된 카페 수: {}", savedCount);
+
+        // 수집 완료 후 프랜차이즈 여부 일괄 업데이트
+        log.info("프랜차이즈 식별(업데이트) 로직 실행");
+        cafeFranchiseService.updateFranchiseStatus();
     }
 
     // 서울특별시 데이터인지 확인
