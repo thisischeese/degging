@@ -62,15 +62,20 @@ function ProfileEditModal({
       setNicknameError("");
       return false;
     }
+
+    // 1. 문자 규칙 검사: 영어, 숫자, 완성된 한글만 허용 (자음, 모음, 공백, 특수문자 금지)
+    const nicknameRegex = /^[a-zA-Z0-9가-힣]+$/;
+    if (!nicknameRegex.test(value)) {
+      setNicknameError("공백, 특수문자, 자음/모음은 사용할 수 없습니다.");
+      return false;
+    }
+
+    // 2. 글자 수 검사
     if (value.length < 2 || value.length > 10) {
       setNicknameError("닉네임은 2~10자 사이여야 합니다.");
       return false;
     }
-    const nicknameRegex = /^[a-zA-Z0-9가-힣]+$/;
-    if (!nicknameRegex.test(value)) {
-      setNicknameError("공백이나 특수문자는 사용할 수 없습니다.");
-      return false;
-    }
+
     setNicknameError("");
     return true;
   };
@@ -170,7 +175,7 @@ function ProfileEditModal({
           label="닉네임"
           value={nickname}
           onChange={handleNicknameChange}
-          placeholder="특수문자 제외 2~10자"
+          placeholder="한글/영어/숫자 2~10자"
           error={nicknameError}
         />
 
