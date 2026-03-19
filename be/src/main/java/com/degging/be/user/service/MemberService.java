@@ -43,20 +43,9 @@ public class MemberService {
      */
     @Transactional
     public void signup(SignupRequest request) {
-        // 이메일 인증 완료 여부 검증
-        if (!verificationService.isVerified(request.getEmail())) {
-            throw new BaseException(AuthErrorCode.EMAIL_NOT_VERIFIED);
-        }
 
-        // 이메일 중복 여부 재확인
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BaseException(AuthErrorCode.EMAIL_DUPLICATE);
-        }
-
-        // 닉네임 중복 여부 확인
-        if (userRepository.existsByNickname(request.getNickname())) {
-            throw new BaseException(UserErrorCode.NICKNAME_DUPLICATE);
-        }
+        // 회원가입 데이터 유효성 검증
+        validateSignupRequest(request);
 
         // 비밀번호 암호화 후 엔티티 생성
         User user = User.builder()
@@ -71,6 +60,41 @@ public class MemberService {
 
         // 가입 완료 후 Redis의 인증 성공 플래그 제거
         verificationService.removeVerifiedFlag(request.getEmail());
+    }
+
+    /**
+     * 회원가입 데이터 통합 검증
+     *
+     * @param request 가입 요청 정보
+     */
+    private void validateSignupRequest(SignupRequest request) {
+        checkEmailVerification(request.getEmail());
+        checkEmailDuplication(request.getEmail());
+        checkNicknameDuplication(request.getNickname());
+    }
+
+    /**
+     * 이메일 인증 완료 상태 확인
+     *
+     * @param email 검증할 이메일
+     * @throws BaseException 이메일 인증이 완료되지 않았을 경우 발생
+     */
+    public void checkEmailVerification(String email) {
+        if (!verificationService.isVerified(email)) {
+            throw new BaseException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        }
+    }
+
+    /**
+     * 이메일 중복 여부 확인
+     *
+     * @param email 검사할 이메일
+     * @throws BaseException 이미 존재하는 이메일일 경우 발생
+     */
+    public void checkEmailDuplication(String email) {
+        if (userRepository.existsByEmail(email)) {
+            throw new BaseException(AuthErrorCode.EMAIL_DUPLICATE);
+        }
     }
 
     /**

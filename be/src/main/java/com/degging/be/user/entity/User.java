@@ -42,6 +42,26 @@ public class User extends BaseEntity {
     private LocalDate birthDate;
 
     /**
+     * 유저 생성을 위한 정적 팩토리 메서드
+     *
+     * @param email 유저 이메일
+     * @param password 암호화된 비밀번호
+     * @param nickname 닉네임
+     * @param gender 성별
+     * @param birthDate 생년월일
+     * @return 생성된 유저 엔티티
+     */
+    public static User of(String email, String password, String nickname, Gender gender, LocalDate birthDate) {
+        return User.builder()
+                .email(email)
+                .password(password)
+                .nickname(nickname)
+                .gender(gender)
+                .birthDate(birthDate)
+                .build();
+    }
+
+    /**
      * 비밀번호 변경을 위한 메서드
      *
      * @param encodedPassword 변경하려는 인코딩된 비밀번호
