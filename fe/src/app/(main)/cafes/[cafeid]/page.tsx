@@ -25,25 +25,25 @@ interface CafeDetail {
 
 // 스크랩 카테고리 (오버레이용)
 interface ScrapCategoryOption {
-  categoryId: number;
+  scrapId: string;
   name: string;
 }
 
 const MOCK_SCRAP_CATEGORIES: ScrapCategoryOption[] = [
-  { categoryId: 0, name: "기본 스크랩" },
-  { categoryId: 1, name: "연남 분좋카 투어" },
-  { categoryId: 2, name: "내 사랑 소금빵" },
-  { categoryId: 3, name: "세계 챔피언 바리스타" },
-  { categoryId: 4, name: "2026년도 신상 서울 카페" },
+  { scrapId: "0", name: "기본 스크랩" },
+  { scrapId: "1", name: "연남 분좋카 투어" },
+  { scrapId: "2", name: "내 사랑 소금빵" },
+  { scrapId: "3", name: "세계 챔피언 바리스타" },
+  { scrapId: "4", name: "2026년도 신상 서울 카페" },
 ];
 
 const STAR_COLORS: { value: StarColor; hex: string }[] = [
-  { value: 'red', hex: '#E54B4B' },
-  { value: 'pink', hex: '#FF8B8B' },
-  { value: 'ivory', hex: '#F9F7E8' },
-  { value: 'mint', hex: '#61BFAD' },
-  { value: 'green', hex: '#167C80' },
-  { value: 'sky', hex: '#B7E3E4' },
+  { value: 'RED', hex: '#E54B4B' },
+  { value: 'PINK', hex: '#FF8B8B' },
+  { value: 'IVORY', hex: '#F9F7E8' },
+  { value: 'MINT', hex: '#61BFAD' },
+  { value: 'GREEN', hex: '#167C80' },
+  { value: 'SKY', hex: '#B7E3E4' },
 ];
 
 const mockFetchDetail = async (cafeid: string): Promise<CafeDetail> => {
@@ -86,7 +86,7 @@ function CreateScrapModal({
   onAdd: (name: string, color: StarColor) => void;
 }) {
   const [name, setName] = useState("");
-  const [selectedColor, setSelectedColor] = useState<StarColor>("red");
+  const [selectedColor, setSelectedColor] = useState<StarColor>("RED");
   const [error, setError] = useState("");
 
   const handleNameChange = (val: string) => {
@@ -103,14 +103,14 @@ function CreateScrapModal({
     if (name.length > 20) return;
     onAdd(name.trim(), selectedColor);
     setName("");
-    setSelectedColor("red");
+    setSelectedColor("RED");
     setError("");
     onClose();
   };
 
   const handleClose = () => {
     setName("");
-    setSelectedColor("red");
+    setSelectedColor("RED");
     setError("");
     onClose();
   };
@@ -213,11 +213,11 @@ function ScrapCategoryOverlay({
   isOpen: boolean;
   onClose: () => void;
   categories: ScrapCategoryOption[];
-  initialSelectedIds: number[];
-  onSave: (selectedIds: number[]) => void;
+  initialSelectedIds: string[];
+  onSave: (selectedIds: string[]) => void;
   onCreateCategory: (name: string, color: StarColor) => void;
 }) {
-  const [selectedIds, setSelectedIds] = useState<number[]>(initialSelectedIds);
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // 모달이 열릴 때마다 이전에 저장된 상태로 초기화 (저장 안 하고 닫았을 때 대비)
@@ -227,7 +227,7 @@ function ScrapCategoryOverlay({
   //   }
   // }, [isOpen, initialSelectedIds]);
 
-  const toggleCategory = (id: number) => {
+  const toggleCategory = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
     );
@@ -268,12 +268,12 @@ function ScrapCategoryOverlay({
           <div className="flex-1 overflow-y-auto px-6">
             <div className="flex flex-col">
               {categories.map((cat) => {
-                const isSelected = selectedIds.includes(cat.categoryId);
+                const isSelected = selectedIds.includes(cat.scrapId);
                 return (
                   <button
-                    key={cat.categoryId}
+                    key={cat.scrapId}
                     type="button"
-                    onClick={() => toggleCategory(cat.categoryId)}
+                    onClick={() => toggleCategory(cat.scrapId)}
                     className="flex items-center justify-center py-4 border-t border-white/30 active:bg-white/5 transition-colors relative"
                   >
                     <span className="text-[16px] font-medium text-white">{cat.name}</span>
@@ -324,7 +324,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   const [cafe, setCafe] = useState<CafeDetail | null>(null);
   const [isScrapOpen, setIsScrapOpen] = useState(false);
   const [isScrapped, setIsScrapped] = useState(false);
-  const [savedCategoryIds, setSavedCategoryIds] = useState<number[]>([]);
+  const [savedCategoryIds, setSavedCategoryIds] = useState<string[]>([]);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [scrapCategories, setScrapCategories] = useState<ScrapCategoryOption[]>(MOCK_SCRAP_CATEGORIES);
 
@@ -341,7 +341,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
     }
   }, [cafeid]);
 
-  const handleScrapSave = (selectedIds: number[]) => {
+  const handleScrapSave = (selectedIds: string[]) => {
     setSavedCategoryIds(selectedIds);
     if (selectedIds.length > 0) {
       setIsScrapped(true);
@@ -355,7 +355,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
 
   const handleCreateCategory = (name: string) => {
     const newCat: ScrapCategoryOption = {
-      categoryId: Date.now(),
+      scrapId: String(Date.now()),
       name,
     };
     setScrapCategories((prev) => [...prev, newCat]);
