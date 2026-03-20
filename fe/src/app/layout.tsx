@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
-        <MSWProvider>
+        {/* <MSWProvider> */}
           <QueryProvider>
             {/* 2. 앱 컨테이너 설정 */}
             <div className="w-full max-w-[375px] h-full bg-bg_white shadow-2xl relative flex flex-col overflow-hidden">
@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </main>
             </div>
           </QueryProvider>
-        </MSWProvider>
+        {/* </MSWProvider> */}
       </body>
     </html>
   );
