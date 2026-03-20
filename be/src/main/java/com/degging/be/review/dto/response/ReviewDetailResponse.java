@@ -49,7 +49,7 @@ public class ReviewDetailResponse {
                 .imageUrls(images.stream()
                         .map(ReviewImageEntity::getImageUrl)
                         .toList())
-                .nickname(entity.getUser().getNickname())
+                .nickname(entity.getUser().getProfile().getNickname())
                  .name(entity.getCafe().getName())
                  .cafeIntro(entity.getCafe().getCafeIntro())
                  .address(entity.getCafe().getAddress())

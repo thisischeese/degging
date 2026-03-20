@@ -11,6 +11,7 @@ import com.degging.be.user.dto.request.UserUpdateRequest;
 import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.entity.mongodb.UserOnboarding;
+import com.degging.be.user.repository.UserProfileRepository;
 import com.degging.be.user.repository.UserRepository;
 import com.degging.be.user.repository.mongodb.UserOnboardingRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final UserOnboardingRepository userOnboardingRepository;
     private final VibeRepository vibeRepository;
+    private final UserProfileRepository userProfileRepository;
 
     // 랜덤 생성기
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -192,7 +194,7 @@ public class MemberService {
      * @throws BaseException 이미 존재하는 닉네임일 경우 발생
      */
     public void checkNicknameDuplication(String nickname) {
-        if (userRepository.existsByNickname(nickname)) {
+        if (userProfileRepository.existsByNickname(nickname)) {
             throw new BaseException(UserErrorCode.NICKNAME_DUPLICATE);
         }
     }

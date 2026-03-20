@@ -63,7 +63,7 @@ public class ReviewResponse {
                                 .imageUrl(img.getImageUrl())    // URL 추출
                                 .build())
                         .toList())
-                .nickname(entity.getUser().getNickname())
+                .nickname(entity.getUser().getProfile().getNickname())
                 .build();
     }
 
