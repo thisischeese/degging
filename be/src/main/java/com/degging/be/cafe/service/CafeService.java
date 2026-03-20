@@ -17,6 +17,9 @@ import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+import java.util.HashMap;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -70,8 +74,27 @@ public class CafeService {
         // 스크랩 폴더 색상
         String scrapColor = scrapRepository.findScrapColorByUserIdAndCafeId(userId, cafeId);
 
+        // 오늘 요일에 해당하는 영업시간 추출
+        String businessHours = "영업 정보 없음";
+        java.time.DayOfWeek today = java.time.LocalDate.now().getDayOfWeek();
+        if (cafe.getBusinessHoursEntity() != null) {
+            com.degging.be.cafe.entity.CafeBusinessHoursEntity hoursEntity = cafe.getBusinessHoursEntity();
+            businessHours = switch (today) {
+                case MONDAY -> hoursEntity.getMonHours();
+                case TUESDAY -> hoursEntity.getTuesHours();
+                case WEDNESDAY -> hoursEntity.getWedHours();
+                case THURSDAY -> hoursEntity.getThurHours();
+                case FRIDAY -> hoursEntity.getFriHours();
+                case SATURDAY -> hoursEntity.getSatHours();
+                case SUNDAY -> hoursEntity.getSunHours();
+            };
+            if (businessHours == null) {
+                businessHours = "영업 정보 없음";
+            }
+        }
+
         // 가공된 데이터와 엔티티를 DTO 정적 팩토리 메서드에 전달
-        return CafeDetailResponse.of(cafe, averageRating, totalReviews, isScrapped, scrapColor);
+        return CafeDetailResponse.of(cafe, averageRating, totalReviews, isScrapped, scrapColor, businessHours);
     }
 
     /**
@@ -130,7 +153,7 @@ public class CafeService {
      * @param size     페이지 당 카페 수
      * @return 바텀시트 카페 요약 정보
      */
-    public Slice<CafeBottomSheetResponse> getBottomSheetCafes(CafeBottomSheetRequest request, int page, int size) {
+    public Slice<CafeBottomSheetResponse> getBottomSheetCafes(UUID userId, CafeBottomSheetRequest request, int page, int size) {
 
         // PostGIS 쿼리에서 사용할 수 있도록 위경도를 "POINT(경도 위도)" 포맷의 문자열로 변환
         String point = String.format("POINT(%f %f)", request.getLongitude(), request.getLatitude());
@@ -156,7 +179,29 @@ public class CafeService {
             default -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
         };
 
-        return cafes.map(CafeBottomSheetResponse::from);
+        return cafes.map(cafe -> {
+            boolean isScrapped = false;
+            if (userId != null) {
+                isScrapped = scrapRepository.existsByUserIdAndCafeId(userId, cafe.getCafeId());
+            }
+            return CafeBottomSheetResponse.from(cafe, isScrapped);
+        });
+    }
+
+    /**
+     * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
+     * @param request 프론트엔드가 보낸 원본 검색어 및 좌표
+     * @return 임시 분석 결과
+     */
+    public Map<String, String> processSearch(com.degging.be.cafe.dto.request.CafeSearchRequest request) {
+        log.info("검색 요청 수신됨! 키워드: {}, 좌표: ({}, {})",
+                request.getKeyword(), request.getLatitude(), request.getLongitude());
+
+        Map<String, String> dummyData = new HashMap<>();
+        dummyData.put("originalKeyword", request.getKeyword());
+        dummyData.put("status", "[더미] 정상 수신 완료 (AI 연동 대기)");
+        
+        return dummyData;
     }
 
 }

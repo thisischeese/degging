@@ -48,8 +48,6 @@ public class CafeEntity extends BaseEntity {
 
     private String phone;   // 전화번호
 
-    private String kakaoMapUrl; // 카카오 맵 url
-
     private String thumbnailUrl; // 썸네일 이미지 url
 
     @Enumerated(EnumType.STRING)
@@ -61,7 +59,8 @@ public class CafeEntity extends BaseEntity {
 
     private String cafeIntro;   // 카페 한줄 소개
 
-    private String businessHours;   // 영업 시간
+    @OneToOne(mappedBy = "cafe", cascade = CascadeType.ALL)
+    private CafeBusinessHoursEntity businessHoursEntity; // 요일별 영업시간 1:1 매핑
 
     @Column(nullable = false)
     @Builder.Default
@@ -113,12 +112,10 @@ public class CafeEntity extends BaseEntity {
                 .address(toNullIfBlank(item.getLnoAdr()))
                 .roadAddress(toNullIfBlank(item.getRdnmAdr()))
                 .phone(kakaoItem.getPhone())
-                .kakaoMapUrl(kakaoItem.getPlaceUrl())
                 .thumbnailUrl(null)
                 .status(CafeStatus.OPEN)
                 .location(location)
                 .cafeIntro(null)
-                .businessHours(null)
                 .build();
     }
 
