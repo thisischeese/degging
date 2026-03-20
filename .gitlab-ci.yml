@@ -21,7 +21,7 @@ deploy-backend:
         cd temp_repo && git checkout be/default &&
         cp -r be /home/ubuntu/app/ &&
         cd /home/ubuntu/app && rm -rf temp_repo &&
-        docker compose up -d --build --no-deps springboot-container
+        docker compose build --no-cache springboot-container && docker compose up -d --no-deps springboot-container
       "
 
 # ── AI 배포 (ai/default 브랜치 push 시) ──────────────────────
@@ -44,7 +44,7 @@ deploy-ai:
         cd temp_repo && git checkout ai/default &&
         cp -r ai /home/ubuntu/app/ &&
         cd /home/ubuntu/app && rm -rf temp_repo &&
-        docker compose up -d --build --no-deps ai-container
+        docker compose up -d --build --no-deps ai-container && docker compose build --no-cache ai-container
       "
 
 # ── FE 배포 (fe/default 브랜치 push 시) ──────────────────────
@@ -61,4 +61,4 @@ deploy-frontend:
     - cd fe
     - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
     - vercel build --prod --token=$VERCEL_TOKEN
-    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN --cwd .
