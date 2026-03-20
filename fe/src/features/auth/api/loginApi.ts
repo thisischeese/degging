@@ -3,5 +3,5 @@ import { LoginFormData } from "../types"; // types 파일에 이메일, 비번 �
 
 export const postLogin = async (formData: LoginFormData) => {
   const response = await axios_instance.post('/api/auth/login', formData);
-  return response; 
+  return response.data; 
 };

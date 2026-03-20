@@ -41,8 +41,3 @@ export interface LoginResponse {
     };
   };
 }
-
-/** 비밀번호 찾기 요청 데이터 */
-export interface FindPasswordData {
-  email: string;
-}

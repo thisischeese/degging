@@ -6,16 +6,25 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import Modal from "@/common/components/Modal";
+import { postFindPassword } from "@/features/users/api/passwordApi";
 
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("");
   const [isSent, setIsSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSend = () => {
-    // API 연결 지점: 입력한 이메일로 임시 비밀번호 발송 요청
-    console.log("임시 비밀번호 전송 요청:", email);
-    setIsSent(true);
+  const handleSend = async () => {
+    try {
+      setIsLoading(true);
+      await postFindPassword({ email });
+      setIsSent(true);
+    } catch (error) {
+      console.error("비밀번호 찾기 요청 실패:", error);
+      alert("비밀번호 찾기 요청 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -57,11 +66,11 @@ export default function FindPasswordPage() {
         <Button
           variant={email.includes("@") ? "primary" : "gray"}
           size="full"
-          disabled={!email.includes("@")}
+          disabled={!email.includes("@") || isLoading}
           onClick={handleSend}
-          className={email.includes("@") ? "!bg-primary_btn_red !text-white" : ""}
+          className={email.includes("@") ? "bg-primary_btn_red! text-white!" : ""}
         >
-          전송
+          {isLoading ? "전송 중..." : "전송"}
         </Button>
       </div>
 
@@ -79,7 +88,7 @@ export default function FindPasswordPage() {
           <Button
             variant="primary"
             size="full"
-            className="!rounded-xl"
+            className="rounded-xl!"
             onClick={() => {
               setIsSent(false);
               router.push("/login");

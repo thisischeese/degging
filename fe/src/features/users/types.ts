@@ -41,3 +41,15 @@ export interface UserProfile {
   /** 성별 (예: "여") */
   gender?: string;
 }
+
+
+/** 비밀번호 찾기 요청 데이터 */
+export interface FindPasswordData {
+  email: string;
+}
+
+/** 비밀번호 변경 요청 데이터 */
+export interface ResetPasswordData {
+  currentPassword?: string;
+  newPassword?: string;
+}
