@@ -1,7 +1,7 @@
 package com.degging.be.auth.service;
 
 import com.degging.be.global.exception.BaseException;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -43,7 +43,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         // 사용자 조회
-        User user = userRepository.findById(userId)
+        UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
 
         // Spring Security에서 사용할 UserDetails 객체 생성

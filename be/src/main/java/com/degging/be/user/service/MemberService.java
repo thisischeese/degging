@@ -7,9 +7,11 @@ import com.degging.be.cafe.repository.VibeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.AuthErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
+import com.degging.be.user.dto.request.UserUpdateRequest;
 import com.degging.be.user.dto.response.UserDetailResponse;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.entity.mongodb.UserOnboarding;
+import com.degging.be.user.repository.UserProfileRepository;
 import com.degging.be.user.repository.UserRepository;
 import com.degging.be.user.repository.mongodb.UserOnboardingRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final UserOnboardingRepository userOnboardingRepository;
     private final VibeRepository vibeRepository;
+    private final UserProfileRepository userProfileRepository;
 
     // 랜덤 생성기
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -60,12 +63,9 @@ public class MemberService {
         Character group = getLesserGroup();
 
         // 비밀번호 암호화 후 엔티티 생성
-        User user = User.builder()
+        UserEntity user = UserEntity.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .nickname(request.getNickname())
-                .gender(request.getGender())
-                .birthDate(request.getBirthDate())
                 .abGroup(group)
                 .build();
 
@@ -78,13 +78,31 @@ public class MemberService {
     }
 
     /**
+     * A/B 중 더 적은 그룹을 반환하는 메서드
+     */
+    public Character getLesserGroup(){
+        // 현재 회원의 비율을 조회하여 1:1 에 가깝도록 A/B 테스트 그룹 랜덤 배정
+        long countA = userRepository.countByAbGroup('A');
+        long countB = userRepository.countByAbGroup('B');
+        long total = countA + countB;
+
+        if (total == 0) return Math.random() < 0.5 ? 'A' : 'B';
+
+        // A의 비율이 높을수록 B가 선택될 확률이 커짐
+        // 예: A가 60명, B가 40명이면 B가 선택될 확률은 60%
+        double probabilityA = 1.0 - ((double) countA / total);
+
+        return Math.random() < probabilityA ? 'A' : 'B';
+    }
+
+    /**
      * 특정 회원 정보를 조회하는 메서드
      */
     // 이 메서드에서는 기존 트랜잭션을 잠시 중단하고 실행함 (MongoDB 에러 방지)
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public UserDetailResponse getUserDetail(UUID userId){
         // 유효성 검사
-        User entity = userRepository.findById(userId)
+        UserEntity entity = userRepository.findById(userId)
                 .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
         // 회원 취향 태그 조회 (MongoDB + PostgreSQL 조회)
@@ -119,22 +137,20 @@ public class MemberService {
     }
 
     /**
-     * A/B 중 더 적은 그룹을 반환하는 메서드
+     * 회원 정보를 수정하는 메서드
      */
-    public Character getLesserGroup(){
-        // 현재 회원의 비율을 조회하여 1:1 에 가깝도록 A/B 테스트 그룹 랜덤 배정
-        long countA = userRepository.countByAbGroup('A');
-        long countB = userRepository.countByAbGroup('B');
-        long total = countA + countB;
+    @Transactional
+    public void updateUser(UUID userId, UserUpdateRequest request) {
+        // 닉네임 유효성 검증
+        checkNicknameDuplication(request.getNickname());
+        // dto -> entity
+        UserEntity entity = userRepository.findById(userId)
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
-        if (total == 0) return Math.random() < 0.5 ? 'A' : 'B';
-
-        // A의 비율이 높을수록 B가 선택될 확률이 커짐
-        // 예: A가 60명, B가 40명이면 B가 선택될 확률은 60%
-        double probabilityA = 1.0 - ((double) countA / total);
-
-        return Math.random() < probabilityA ? 'A' : 'B';
+        // 회원 정보 업데이트, 더티체킹
+        entity.getProfile().updateUser(request.getNickname(), request.getProfileImageUrl());
     }
+
 
     /**
      * 회원가입 데이터 통합 검증
@@ -178,7 +194,7 @@ public class MemberService {
      * @throws BaseException 이미 존재하는 닉네임일 경우 발생
      */
     public void checkNicknameDuplication(String nickname) {
-        if (userRepository.existsByNickname(nickname)) {
+        if (userProfileRepository.existsByNickname(nickname)) {
             throw new BaseException(UserErrorCode.NICKNAME_DUPLICATE);
         }
     }
@@ -192,7 +208,7 @@ public class MemberService {
     @Transactional
     public void findPassword(String email) {
         // 사용자 정보 조회
-        User user = userRepository.findByEmail(email)
+        UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
         // 임시 비밀번호 생성 및 암호화 반영
@@ -213,7 +229,7 @@ public class MemberService {
     @Transactional
     public void resetPassword(UUID userId, ResetPasswordRequest request) {
         // 사용자 정보 조회
-        User user = userRepository.findById(userId)
+        UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
         // 현재 비밀번호 일치 확인

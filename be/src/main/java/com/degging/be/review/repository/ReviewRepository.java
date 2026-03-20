@@ -30,7 +30,7 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
 
     // 카페 ID로 전체 리뷰 조회 (리뷰, 리뷰 이미지, 회원 정보) 필요한 정보만 DTO 에 담아, 최신순으로 가져옴
     @Query("SELECT new com.degging.be.review.dto.response.ReviewResponse(" +
-            "r.reviewId, r.rating, r.content, r.createdAt, r.updatedAt, u.nickname) " +
+            "r.reviewId, r.rating, r.content, r.createdAt, r.updatedAt, u.profile.nickname) " +
             "FROM ReviewEntity r " +
             "JOIN r.user u " + // 닉네임은 필요하니까 유저만 조인
             "WHERE r.cafe.cafeId = :cafeId " + // 카페 객체가 아닌 ID값만 조건으로 사용

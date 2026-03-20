@@ -1,7 +1,7 @@
 package com.degging.be.scrap.entity;
 
 import com.degging.be.global.entity.BaseEntity;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
@@ -32,7 +32,7 @@ public class ScrapEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY) // 지연 로딩 권장
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
     @Column(nullable = false, length = 50)
     private String name;

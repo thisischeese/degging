@@ -4,6 +4,7 @@ import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.user.dto.request.UserOnboardingRequest;
+import com.degging.be.user.dto.request.UserUpdateRequest;
 import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.service.MemberService;
 import com.degging.be.user.service.UserOnboardingService;
@@ -65,5 +66,21 @@ public class UserController {
         UUID userId = getUserId(user);
         UserDetailResponse result = memberService.getUserDetail(userId);
         return BaseResponse.success(result);
+    }
+
+    /**
+     * 특정 회원 정보를 수정하는 메서드
+     *
+     * @param request 프로필 이미지, 닉네임
+     * @param user 인증 객체로 부터 추출된 유저
+     * @return 200
+     */
+    @PatchMapping
+    public BaseResponse<?> updateUser(
+            @RequestBody @Valid UserUpdateRequest request,
+            @AuthenticationPrincipal UserDetails user){
+        UUID userId = getUserId(user);
+        memberService.updateUser(userId, request);
+        return BaseResponse.success();
     }
 }
