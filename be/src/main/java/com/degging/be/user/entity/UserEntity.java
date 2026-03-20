@@ -1,9 +1,13 @@
 package com.degging.be.user.entity;
 
 import com.degging.be.global.entity.BaseEntity;
+import com.degging.be.review.entity.ReviewEntity;
+import com.degging.be.scrap.entity.ScrapEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -35,6 +39,14 @@ public class UserEntity extends BaseEntity {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private UserProfileEntity profile;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReviewEntity> reviews = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ScrapEntity> scraps = new ArrayList<>();
 
     /**
      * 프로필과 유저를 연결하기 위한 메서드

@@ -151,6 +151,18 @@ public class MemberService {
         entity.getProfile().updateUser(request.getNickname(), request.getProfileImageUrl());
     }
 
+    /**
+     * 특정 회원을 삭제하는 메서드
+     */
+    @Transactional
+    public void removeUser(UUID userId){
+        // 유효성 검사
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        // 유저 삭제
+        userRepository.delete(user);
+    }
 
     /**
      * 회원가입 데이터 통합 검증
