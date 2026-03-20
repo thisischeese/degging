@@ -1,6 +1,8 @@
 package com.degging.be.cafe.controller;
 
+import com.degging.be.cafe.dto.request.CafeBottomSheetRequest;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
+import com.degging.be.cafe.dto.response.internal.CafeBottomSheetResponse;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.dto.response.internal.CafeOnboardingResponse;
@@ -9,6 +11,7 @@ import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Slice;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -70,6 +73,30 @@ public class CafeController {
         List<CafeMapResponse> response = cafeService.getCafeMarkers(request);
 
         return BaseResponse.success(response);
+    }
+
+    /**
+     * 지도 바텀시트 카페 리스트 조회 API
+     * 반경 2km 내 카페를 프랜차이즈 포함여부와 정렬 기준에 따라 페이징 처리하여 반환합니다.
+     * 
+     * @param user 유효한 사용자
+     * @param request 위치, 프랜차이즈 필터, 정렬 기준 정보
+     * @param page 조회할 페이지 번호 (0번부터 시작, 무한 스크롤 용)
+     * @param size 페이지 당 항목 수 (기본 10)
+     * @return 무한 스크롤 가능한 바텀시트 정보 Slice
+     */
+    @GetMapping("/map/bottom-sheet")
+    public BaseResponse<Slice<CafeBottomSheetResponse>> getBottomSheetCafes(
+            @AuthenticationPrincipal UserDetails user,
+            @ModelAttribute CafeBottomSheetRequest request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        getUserId(user); // 인증 체크 용도
+
+        Slice<CafeBottomSheetResponse> responses = cafeService.getBottomSheetCafes(request, page, size);
+
+        return BaseResponse.success(responses);
     }
 
     /**
