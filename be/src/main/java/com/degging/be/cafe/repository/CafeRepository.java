@@ -26,13 +26,6 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     boolean existsByKakaoPlaceId(String kakaoPlaceId);
 
     /**
-     * 카카오 상세 정보가 비어있는 카페 목록 조회
-     *
-     * 전화번호, 카카오 맵 URL 설정되지 않은 엔티티를 찾아 반환
-     */
-    List<CafeEntity> findAllByPhoneIsNullAndKakaoMapUrlIsNull();
-
-    /**
      * 이름을 기반으로 카페 목록 조회
      */
     List<CafeEntity> findAllByName(String name);
