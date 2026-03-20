@@ -21,7 +21,10 @@ public enum UserErrorCode implements ErrorCode {
     SAME_AS_OLD_PASSWORD(HttpStatus.BAD_REQUEST, "U005", "새 비밀번호가 기존 비밀번호와 동일합니다."),
 
     // 닉네임 중복
-    NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "U006", "이미 사용 중인 닉네임입니다.");
+    NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "U006", "이미 사용 중인 닉네임입니다."),
+
+    // 온보딩 취향 정보 조회
+    ONBOARDING_NOT_FOUND(HttpStatus.NOT_FOUND, "U007", "해당 회원의 온보딩(취향) 정보가 존재하지 않습니다.");
 
     // 응답으로 반환할 HTTP 상태 코드
     private final HttpStatus status;

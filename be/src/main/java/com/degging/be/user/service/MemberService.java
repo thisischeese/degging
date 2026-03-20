@@ -3,17 +3,24 @@ package com.degging.be.user.service;
 import com.degging.be.auth.dto.request.ResetPasswordRequest;
 import com.degging.be.auth.dto.request.SignupRequest;
 import com.degging.be.auth.service.VerificationService;
+import com.degging.be.cafe.repository.VibeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.AuthErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
+import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.mongodb.UserOnboarding;
 import com.degging.be.user.repository.UserRepository;
+import com.degging.be.user.repository.mongodb.UserOnboardingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -27,6 +34,8 @@ public class MemberService {
     private final UserRepository userRepository;
     private final VerificationService verificationService;
     private final PasswordEncoder passwordEncoder;
+    private final UserOnboardingRepository userOnboardingRepository;
+    private final VibeRepository vibeRepository;
 
     // 랜덤 생성기
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -66,6 +75,47 @@ public class MemberService {
         verificationService.removeVerifiedFlag(request.getEmail());
 
         return user.getUserId();
+    }
+
+    /**
+     * 특정 회원 정보를 조회하는 메서드
+     */
+    // 이 메서드에서는 기존 트랜잭션을 잠시 중단하고 실행함 (MongoDB 에러 방지)
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public UserDetailResponse getUserDetail(UUID userId){
+        // 유효성 검사
+        User entity = userRepository.findById(userId)
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
+        // 회원 취향 태그 조회 (MongoDB + PostgreSQL 조회)
+        List<String> tags = getUserPreferred(userId);
+
+        // password 를 제외하고 dto 로 변환하여 응답
+        return UserDetailResponse.of(entity, tags);
+    }
+
+    /**
+     * 취향 태그 매핑 후 반환하는 메서드
+
+     * MongoDB 에서 회원 취향 태그 UUID 를 조회하여 Top3 를 뽑아
+     * 해당 UUID 에 맞는 tagName 을 조회해 반환함
+     */
+    public List<String> getUserPreferred(UUID userId){
+        System.out.println(userId);
+        // 회원 취향 태그 조회
+        UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId)
+                .orElseThrow(()-> new BaseException(UserErrorCode.ONBOARDING_NOT_FOUND));
+        Map<UUID, Integer> tags = onboardingData.getPreferredTags();
+
+        // 상위 3개의 태그 조회
+        List<UUID> top3 = tags.entrySet().stream()
+                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed()) // 내림차
+                .limit(3) // 3개만
+                .map(Map.Entry::getKey) // 상위 3개의 UUID 를 가져옴
+                .toList();
+
+        // 해당 태그 UUID 를 이용해 태그명을 조회
+        return vibeRepository.findTagNameByTagIds(top3);
     }
 
     /**
