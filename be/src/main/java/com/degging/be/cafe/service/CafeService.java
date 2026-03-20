@@ -17,6 +17,9 @@ import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+import java.util.HashMap;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -182,6 +186,22 @@ public class CafeService {
             }
             return CafeBottomSheetResponse.from(cafe, isScrapped);
         });
+    }
+
+    /**
+     * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
+     * @param request 프론트엔드가 보낸 원본 검색어 및 좌표
+     * @return 임시 분석 결과
+     */
+    public Map<String, String> processSearch(com.degging.be.cafe.dto.request.CafeSearchRequest request) {
+        log.info("검색 요청 수신됨! 키워드: {}, 좌표: ({}, {})",
+                request.getKeyword(), request.getLatitude(), request.getLongitude());
+
+        Map<String, String> dummyData = new HashMap<>();
+        dummyData.put("originalKeyword", request.getKeyword());
+        dummyData.put("status", "[더미] 정상 수신 완료 (AI 연동 대기)");
+        
+        return dummyData;
     }
 
 }

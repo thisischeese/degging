@@ -2,6 +2,9 @@ package com.degging.be.cafe.controller;
 
 import com.degging.be.cafe.dto.request.CafeBottomSheetRequest;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
+import com.degging.be.cafe.dto.request.CafeSearchRequest;
+import jakarta.validation.Valid;
+import java.util.Map;
 import com.degging.be.cafe.dto.response.internal.CafeBottomSheetResponse;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
@@ -114,4 +117,21 @@ public class CafeController {
         return BaseResponse.success(responses);
     }
 
+    /**
+     * 검색
+     *
+     * @param request 사용자 검색어 입력 텍스트
+     * @return 검색 수신 더미 응답
+     */
+    @PostMapping("/search")
+    public BaseResponse<Map<String, String>> searchCafes(
+        @AuthenticationPrincipal UserDetails user,
+            @Valid @RequestBody CafeSearchRequest request) {
+
+        UUID userId = getUserId(user);
+
+        Map<String, String> response = cafeService.processSearch(request);
+        
+        return BaseResponse.success(response);
+    }
 }
