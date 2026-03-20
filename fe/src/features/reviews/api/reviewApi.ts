@@ -5,54 +5,56 @@ import {
   CafeReviewsSliceResponse,
   MyReviewsResponse,
   Review,
+  ReviewDetailResponse,
   StoredCafeReview,
 } from "../types";
 
-export const getMyReviews = async (
-  page: number = 0,
-  size: number = 10,
-  startDate?: string,
-  endDate?: string
-): Promise<MyReviewsResponse> => {
-  const getLocalReviews = (): Review[] => {
-    if (typeof window === "undefined") return [];
+// 로컬 저장 리뷰를 내 리뷰 목록 형식으로 변환합니다.
+const getLocalReviews = (): Review[] => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
 
-    const allLocalReviews: Review[] = [];
+  const allLocalReviews: Review[] = [];
 
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
 
-      if (key && (key.startsWith("cafeReviews-") || key === "cafeReviews-mock")) {
-        try {
-          const rawData = localStorage.getItem(key);
-          if (!rawData) continue;
-
-          const items: StoredCafeReview[] = JSON.parse(rawData);
-
-          items.forEach((item) => {
-            allLocalReviews.push({
-              reviewId: item.id,
-              rating: item.rating,
-              content: item.content,
-              createdAt: item.timestamp
-                ? new Date(item.timestamp).toISOString()
-                : new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              nickname: "킴싸피",
-              images: [{ imageId: `local-${item.id}`, imageUrl: item.imageUrl }],
-              cafeName: "카페",
-            });
-          });
-        } catch (error) {
-          console.error("Failed to parse local reviews:", error);
-        }
-      }
+    if (!key || (!key.startsWith('cafeReviews-') && key !== 'cafeReviews-mock')) {
+      continue;
     }
 
-    return allLocalReviews;
-  };
+    try {
+      const rawData = localStorage.getItem(key);
 
-  // 2. 기본 하드코딩 Mock 데이터 (ID 중복 테스트용)
+      if (!rawData) {
+        continue;
+      }
+
+      const items: StoredCafeReview[] = JSON.parse(rawData);
+
+      items.forEach((item) => {
+        allLocalReviews.push({
+          reviewId: item.id,
+          rating: item.rating,
+          content: item.content,
+          createdAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          nickname: "킴싸피",
+          images: item.imageUrl ? [{ imageId: `local-${item.id}`, imageUrl: item.imageUrl }] : [],
+          cafeName: "카페",
+        });
+      });
+    } catch (error) {
+      console.error("Failed to parse local reviews:", error);
+
+    }
+  }
+
+  return allLocalReviews;
+};
+
+// 기본 내 리뷰 목업 데이터를 정의합니다.
   const baseMockContent: Review[] = [
     {
       reviewId: "eed475e0-424d-4ae4-ac49-cc2e1119d167",
@@ -69,11 +71,20 @@ export const getMyReviews = async (
     },
   ];
 
-  // 3. [데이터 병합 및 중복 제거] ID 기준
+// 내 리뷰 목록을 조회하는 함수입니다.
+export const getMyReviews = async (
+  page: number = 0,
+  size: number = 10,
+  startDate?: string,
+  endDate?: string
+): Promise<MyReviewsResponse> => {
   const localData = getLocalReviews();
+
   let combinedContent = [
     ...localData,
-    ...baseMockContent.filter((mockItem) => !localData.some((localItem) => localItem.reviewId === mockItem.reviewId)),
+    ...baseMockContent.filter(
+      (mockItem) => !localData.some((localItem) => localItem.reviewId === mockItem.reviewId)
+    ),
   ];
 
   // 4. [날짜 필터링]
@@ -86,8 +97,9 @@ export const getMyReviews = async (
     });
   }
 
-  // 최신순 정렬
-  combinedContent.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  combinedContent.sort((first, second) => {
+    return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
+  });
 
   const mockResponse: MyReviewsResponse = {
     content: combinedContent.slice(page * size, (page + 1) * size),
@@ -124,6 +136,7 @@ export const getMyReviews = async (
   }
 };
 
+// 카페 리뷰 목록을 조회하는 함수입니다.
 export const getCafeReviews = async (
   cafeId: string,
   page: number = 0,
@@ -135,6 +148,15 @@ export const getCafeReviews = async (
       params: { page, size },
     }
   )) as unknown as BaseResponse<CafeReviewsSliceResponse>;
+
+  return response.data;
+};
+
+// 리뷰 상세 데이터를 조회하는 함수입니다.
+export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailResponse> => {
+  const response = (await axios_instance.get<BaseResponse<ReviewDetailResponse>>(
+    `/api/reviews/${reviewId}`
+  )) as unknown as BaseResponse<ReviewDetailResponse>;
 
   return response.data;
 };
