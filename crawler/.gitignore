@@ -1,0 +1,8 @@
+.env
+.venv
+__pycache__/
+output/
+data/cafe_enriched.json
+data/blocked_cafes.json
+data/batch_crawl_log.jsonl
+data/output/
