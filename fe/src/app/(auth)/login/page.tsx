@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
-import { LoginResponse } from "@/features/auth/types";
 import { useRouter } from "next/navigation";
 import { postLogin } from "@/features/auth/api/loginApi";
 
@@ -17,21 +16,16 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     try {
-      // 1. API 호출 (axios_instance가 response.data를 언래핑하여 반환합니다)
-      // LoginResponse는 전체 응답 규격이므로, result는 곧 LoginResponse 타입입니다. (code만 숫자로 오버라이드)
-      const result = await postLogin({ email, password }) as unknown as (Omit<LoginResponse, 'code'> & { code: number });
+      // 1. API 호출 (이제 .data까지 언래핑된 데이터를 바로 받습니다)
+      const loginData = await postLogin({ email, password });
 
-      // 2. 성공 시 (테스트용 응답의 code가 200일 때)
-      if (result.code === 200) {
-        const loginData = result.data; // 실제 데이터(accessToken, refreshToken 등)
-        console.log("로그인 성공!", loginData);
-        
-        // 토큰 저장 로직
-        localStorage.setItem("accessToken", loginData.accessToken);
-        localStorage.setItem("refreshToken", loginData.refreshToken);
+      // 2. 성공 시
+      console.log("로그인 성공!", loginData);
+      
+      localStorage.setItem("accessToken", loginData.accessToken);
+      localStorage.setItem("refreshToken", loginData.refreshToken);
 
-        router.push("/"); // 메인으로 이동
-      }
+      router.push("/"); // 메인으로 이동
     } catch (error) {
       console.error("로그인 실패:", error);
       alert("이메일 또는 비밀번호가 올바르지 않습니다.");

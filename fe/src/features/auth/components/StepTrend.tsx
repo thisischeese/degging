@@ -5,7 +5,7 @@ import { Chip } from "@/common/components/Chip";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 import { useQuery } from "@tanstack/react-query";
-import { getOnboardingRankings } from "@/features/ranks/api/rankingApi";
+import { getOnboardingMenus } from "@/features/onboarding/api/onboardingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 
 // 기존 DUMMY_MENUS를 제거하고 API 데이터를 사용합니다.
@@ -14,12 +14,12 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
   // 온보딩 랭킹 데이터 조회 (정적 데이터 성격이 강하므로 STATIC 옵션 적용)
   const { data: rankingData } = useQuery({
     queryKey: ["rankings", "onboarding"],
-    queryFn: getOnboardingRankings,
+    queryFn: getOnboardingMenus,
     ...QUERY_OPTIONS.STATIC,
   });
   
-  // 랭킹 키워드만 추출하여 메뉴 리스트 생성
-  const menus = rankingData?.data.rankings.map(item => item.keyword) || [];
+  // 랭킹 키워드만 추출하여 메뉴 리스트 생성 (언래핑된 데이터를 바로 사용)
+  const menus = rankingData?.map(item => item.keyword) || [];
 
   const [selectedMenus, setSelectedMenus] = useState<string[]>(formData.trends || []);
   const [errorMessage, setErrorMessage] = useState("");
