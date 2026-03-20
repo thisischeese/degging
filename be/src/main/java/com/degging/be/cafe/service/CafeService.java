@@ -70,8 +70,27 @@ public class CafeService {
         // 스크랩 폴더 색상
         String scrapColor = scrapRepository.findScrapColorByUserIdAndCafeId(userId, cafeId);
 
+        // 오늘 요일에 해당하는 영업시간 추출
+        String businessHours = "영업 정보 없음";
+        java.time.DayOfWeek today = java.time.LocalDate.now().getDayOfWeek();
+        if (cafe.getBusinessHoursEntity() != null) {
+            com.degging.be.cafe.entity.CafeBusinessHoursEntity hoursEntity = cafe.getBusinessHoursEntity();
+            businessHours = switch (today) {
+                case MONDAY -> hoursEntity.getMonHours();
+                case TUESDAY -> hoursEntity.getTuesHours();
+                case WEDNESDAY -> hoursEntity.getWedHours();
+                case THURSDAY -> hoursEntity.getThurHours();
+                case FRIDAY -> hoursEntity.getFriHours();
+                case SATURDAY -> hoursEntity.getSatHours();
+                case SUNDAY -> hoursEntity.getSunHours();
+            };
+            if (businessHours == null) {
+                businessHours = "영업 정보 없음";
+            }
+        }
+
         // 가공된 데이터와 엔티티를 DTO 정적 팩토리 메서드에 전달
-        return CafeDetailResponse.of(cafe, averageRating, totalReviews, isScrapped, scrapColor);
+        return CafeDetailResponse.of(cafe, averageRating, totalReviews, isScrapped, scrapColor, businessHours);
     }
 
     /**
@@ -130,7 +149,7 @@ public class CafeService {
      * @param size     페이지 당 카페 수
      * @return 바텀시트 카페 요약 정보
      */
-    public Slice<CafeBottomSheetResponse> getBottomSheetCafes(CafeBottomSheetRequest request, int page, int size) {
+    public Slice<CafeBottomSheetResponse> getBottomSheetCafes(UUID userId, CafeBottomSheetRequest request, int page, int size) {
 
         // PostGIS 쿼리에서 사용할 수 있도록 위경도를 "POINT(경도 위도)" 포맷의 문자열로 변환
         String point = String.format("POINT(%f %f)", request.getLongitude(), request.getLatitude());
@@ -156,7 +175,13 @@ public class CafeService {
             default -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
         };
 
-        return cafes.map(CafeBottomSheetResponse::from);
+        return cafes.map(cafe -> {
+            boolean isScrapped = false;
+            if (userId != null) {
+                isScrapped = scrapRepository.existsByUserIdAndCafeId(userId, cafe.getCafeId());
+            }
+            return CafeBottomSheetResponse.from(cafe, isScrapped);
+        });
     }
 
 }
