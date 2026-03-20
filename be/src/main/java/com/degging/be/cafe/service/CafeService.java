@@ -1,6 +1,9 @@
 package com.degging.be.cafe.service;
 
+import com.degging.be.cafe.dto.request.CafeBottomSheetRequest;
+import com.degging.be.cafe.dto.request.CafeBottomSheetSort;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
+import com.degging.be.cafe.dto.response.internal.CafeBottomSheetResponse;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.dto.response.internal.CafeOnboardingResponse;
@@ -14,6 +17,8 @@ import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.User;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -112,6 +117,46 @@ public class CafeService {
                 .limit(count)
                 .map(CafeOnboardingResponse::from)
                 .toList();
+    }
+
+    /**
+     * 지도 바텀시트용 카페 리스트 조회
+     *
+     * 반경 2km 내 카페를 프랜차이즈 필터 및 정렬 기준에 따라 반환
+     * 무한 스크롤 지원을 위해 Slice 기반 처리
+     *
+     * @param request  위치 좌표, 프랜차이즈 포함 여부, 정렬 기준을 담은 요청 객체
+     * @param page     페이지 번호 (0부터 시작)
+     * @param size     페이지 당 카페 수
+     * @return 바텀시트 카페 요약 정보
+     */
+    public Slice<CafeBottomSheetResponse> getBottomSheetCafes(CafeBottomSheetRequest request, int page, int size) {
+
+        // PostGIS 쿼리에서 사용할 수 있도록 위경도를 "POINT(경도 위도)" 포맷의 문자열로 변환
+        String point = String.format("POINT(%f %f)", request.getLongitude(), request.getLatitude());
+        
+        // 검색 반경 2000 미터(2km)
+        double radiusInMeters = 2000.0;
+        
+        // 프랜차이즈 포함 여부
+        boolean includeFranchise = request.isIncludeFranchise();
+        
+        // 페이징 데이터(page, size) 설정. 정렬은 쿼리 단에서 처리.
+        PageRequest pageRequest = PageRequest.of(page, size);
+
+        // 정렬 기준이 오지 않았을 경우, 기본 정렬 기준 '추천순(RECOMMEND)'으로 설정
+        CafeBottomSheetSort sort = request.getSort() != null ? request.getSort() : CafeBottomSheetSort.RECOMMEND;
+
+        // 정렬 기준별 Repository 메서드 분기 호출
+        Slice<CafeEntity> cafes = switch (sort) {
+            case RATING -> cafeRepository.findBottomSheetByRating(point, radiusInMeters, includeFranchise, pageRequest);
+            case REVIEW_COUNT -> cafeRepository.findBottomSheetByReviewCount(point, radiusInMeters, includeFranchise, pageRequest);
+            case DISTANCE -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
+            /* TODO: RECOMMEND(추천순)은 AI 연동 후 별도 로직으로 교체 예정. 현재는 기본 반환(거리순)으로 처리 */
+            default -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
+        };
+
+        return cafes.map(CafeBottomSheetResponse::from);
     }
 
 }
