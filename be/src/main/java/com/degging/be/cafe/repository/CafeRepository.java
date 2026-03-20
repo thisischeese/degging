@@ -3,6 +3,8 @@ package com.degging.be.cafe.repository;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.entity.CafeStatus;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -97,4 +99,63 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             "JOIN FETCH vt.vibe " +
             "WHERE c.cafeId IN :cafeIds")
     List<CafeEntity> findAllWithVibesById(@Param("cafeIds") List<UUID> cafeIds);
+
+//----------------------------------------------------------------------------------------------
+
+    /**
+     * [바텀시트] 반경 내 카페 조회 - 거리순
+     *
+     * @param point            사용자 현재 위치
+     * @param radius           조회 반경
+     * @param includeFranchise 프랜차이즈 포함 여부
+     * @param pageable         페이징 정보
+     * @return 거리순 정렬된 카페 Slice
+     */
+    @Query("SELECT c FROM CafeEntity c " +
+            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false) " +
+            "ORDER BY ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) ASC")
+    Slice<CafeEntity> findBottomSheetByDistance(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise,
+            Pageable pageable);
+
+    /**
+     * [바텀시트] 반경 내 카페 조회 - 별점 높은 순
+     *
+     * ratingSum / reviewCount 기준으로 내림차순 정렬
+     */
+    @Query("SELECT c FROM CafeEntity c " +
+            "LEFT JOIN c.ratingStats rs " +
+            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false) " +
+            "ORDER BY CASE WHEN rs.reviewCount > 0 THEN CAST(rs.ratingSum AS double) / rs.reviewCount ELSE 0 END DESC")
+    Slice<CafeEntity> findBottomSheetByRating(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise,
+            Pageable pageable);
+
+    /**
+     * [바텀시트] 반경 내 카페 조회 - 리뷰 많은 순
+     *
+     * reviewCount 기준으로 내림차순 정렬
+     */
+    @Query("SELECT c FROM CafeEntity c " +
+            "LEFT JOIN c.ratingStats rs " +
+            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false) " +
+            "ORDER BY COALESCE(rs.reviewCount, 0) DESC")
+    Slice<CafeEntity> findBottomSheetByReviewCount(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise,
+            Pageable pageable);
+
+    /**
+     * [바텀시트] 반경 내 카페 조회 - 추천순
+     * TODO: AI 연동을 통한 추천 카페 리스트업 예정
+     */
+    
 }
