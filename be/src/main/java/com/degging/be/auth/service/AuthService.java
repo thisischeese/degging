@@ -12,7 +12,7 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.AuthErrorCode;
 
 import com.degging.be.global.exception.errorcode.UserErrorCode;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
 
 import com.degging.be.user.service.MemberService;
@@ -53,7 +53,7 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
 
         // 이메일 존재 확인
-        User user = userRepository.findByEmail(request.getEmail())
+        UserEntity user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
         // 비밀번호 일치 여부 확인

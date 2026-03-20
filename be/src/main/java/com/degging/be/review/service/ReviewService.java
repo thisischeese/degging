@@ -7,7 +7,6 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.global.exception.errorcode.ReviewErrorCode;
-import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.global.util.ImageUtils;
 import com.degging.be.infra.storage.s3.ImageService;
 import com.degging.be.infra.storage.s3.ImageUploadResult;
@@ -20,7 +19,7 @@ import com.degging.be.review.entity.ReviewImageEntity;
 import com.degging.be.review.repository.CafeRatingStatsRepository;
 import com.degging.be.review.repository.ReviewImageRepository;
 import com.degging.be.review.repository.ReviewRepository;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +54,7 @@ public class ReviewService {
     @Transactional
     public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId) throws IOException {
         // 유효성 검증 및 객체 조회
-        User user = getValidUser(loginUser);
+        UserEntity user = getValidUser(loginUser);
         CafeEntity cafe = checkCafeValidation(cafeId);
 
         // 중복 체크
@@ -256,7 +255,7 @@ public class ReviewService {
     }
 
     // 2. 존재 여부 체크 및 User 반환
-    private User getValidUser(UUID loginUser){
+    private UserEntity getValidUser(UUID loginUser){
         return userRepository.findById(loginUser)
                 .orElseThrow(()-> new BaseException(ReviewErrorCode.NOT_REVIEW_AUTHOR));
     }

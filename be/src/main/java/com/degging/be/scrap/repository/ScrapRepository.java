@@ -1,7 +1,7 @@
 package com.degging.be.scrap.repository;
 
 import com.degging.be.scrap.entity.ScrapEntity;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,7 +24,7 @@ public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
     }
 
     // 특정 사용자의 스크랩명 중복 확인
-    boolean existsByNameAndUser(String name, User user);
+    boolean existsByNameAndUser(String name, UserEntity user);
 
     // 특정 사용자의 스크랩 리스트 조회
     List<ScrapEntity> findAllByUserUserId(UUID user_userId);

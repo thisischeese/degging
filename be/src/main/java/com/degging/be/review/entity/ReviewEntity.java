@@ -5,7 +5,7 @@ import com.degging.be.global.entity.BaseEntity;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +38,7 @@ public class ReviewEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
     @Builder.Default
     @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)

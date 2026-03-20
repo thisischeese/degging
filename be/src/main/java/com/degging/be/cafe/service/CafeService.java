@@ -14,7 +14,7 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.scrap.repository.ScrapRepository;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -45,7 +45,7 @@ public class CafeService {
     public CafeDetailResponse getCafeDetail(UUID userId, UUID cafeId) {
 
         // 유저 정보 조회
-        User user = userRepository.findById(userId)
+        UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
         // 카페 존재 확인

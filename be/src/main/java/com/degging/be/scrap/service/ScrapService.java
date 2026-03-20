@@ -17,7 +17,7 @@ import com.degging.be.scrap.entity.ScrapShareLinkEntity;
 import com.degging.be.scrap.repository.ScrapItemRepository;
 import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.scrap.repository.ScrapShareLinkRepository;
-import com.degging.be.user.entity.User;
+import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +61,7 @@ public class ScrapService {
     @Transactional
     public void createScrap(ScrapRequest scrapRequest, UUID userId) {
         // user 검증
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
 
         // 스크랩 명 중복 확인
         checkScrapValidation(scrapRequest.getName(), user);
@@ -82,7 +82,7 @@ public class ScrapService {
      */
     public List<ScrapResponse> getScrapsByUserId(UUID userId) {
         // user 검증
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
         
         // 커스텀 스크랩 목록 조회
         List<ScrapEntity> entities = scrapRepository.findAllByUserUserId(userId);
@@ -116,7 +116,7 @@ public class ScrapService {
      */
     public ScrapDetailResponse getScrapDetail(UUID scrapId, UUID userId) {
         // user 검증
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
 
         // scrap 과 cafe, item 조회
         ScrapEntity scrap = scrapRepository.findByIdWithCafesAndImages(scrapId)
@@ -153,7 +153,7 @@ public class ScrapService {
      */
     @Transactional
     public void updateScrap(@Valid ScrapRequest scrapRequest, UUID userId, UUID scrapId) {
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
 
         // 본인 스크랩인지 유효성 검사
@@ -174,7 +174,7 @@ public class ScrapService {
     @Transactional
     public void deleteScrap(UUID userId, UUID scrapId) {
         // 회원, 작성자 본인 확인, 스크랩 유효성 검사
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
         validateUser(user, scrap);
 
@@ -189,7 +189,7 @@ public class ScrapService {
     @Transactional
     public void addCafeToScrap(UUID userId, UUID scrapId, UUID cafeId) {
         // 카페, 유저, 스크랩 유효성 검사
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
         validateUser(user,scrap);
         CafeEntity cafe = cafeRepository.findById(cafeId)
@@ -219,7 +219,7 @@ public class ScrapService {
     @Transactional
     public void removeCafeFromScrap(UUID userId, UUID scrapId, UUID cafeId) {
         // 유효성 검사
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
         validateUser(user, scrap);
 
@@ -239,7 +239,7 @@ public class ScrapService {
     @Transactional
     public ScrapShareResponse generateShareLink(UUID userId, UUID scrapId){
         // 유효성 검사
-        User user = getValidUser(userId);
+        UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
         validateUser(user, scrap);
 
@@ -275,20 +275,20 @@ public class ScrapService {
      */
 
     // 회원 유효성
-    public User getValidUser(UUID userId){
+    public UserEntity getValidUser(UUID userId){
         return userRepository.findById(userId)
                 .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
     }
 
     // 작성자 본인 여부 확인
-    public void validateUser(User user, ScrapEntity scrap){
+    public void validateUser(UserEntity user, ScrapEntity scrap){
         if (!user.getUserId().equals(scrap.getUser().getUserId())){
             throw new BaseException(ScrapErrorCode.SCRAP_ACCESS_DENIED);
         }
     }
 
     // 스크랩명 중복 조회
-    public void checkScrapValidation(String name, User user){
+    public void checkScrapValidation(String name, UserEntity user){
         boolean isExist = scrapRepository.existsByNameAndUser(name, user);
         if (isExist){
             throw new BaseException(ScrapErrorCode.SCRAP_NAME_DUPLICATED);
