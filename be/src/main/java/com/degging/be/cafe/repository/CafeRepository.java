@@ -64,13 +64,18 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * 사용자 현재 위치 기준 반경 내 카페 목록 조회
      *
-     * @param point 사용자의 현재 위치
-     * @param radius 조회 반경
+     * @param point            사용자의 현재 위치
+     * @param radius           조회 반경
+     * @param includeFranchise 프랜차이즈 포함 여부
      * @return 반경 내 카페 엔티티 리스트
      */
     @Query("SELECT c FROM CafeEntity c " +
-            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius")
-    List<CafeEntity> findMarkersByRadius(@Param("point") String point, @Param("radius") Double radius);
+            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false)")
+    List<CafeEntity> findMarkersByRadius(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise);
 
 //----------------------------------------------------------------------------------------------
 

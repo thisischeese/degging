@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class CafeMapRequest {
-    private Double latitude;  // 현재 사용자의 위도
-    private Double longitude; // 현재 사용자의 경도
+    private Double latitude;                    // 현재 사용자의 위도
+    private Double longitude;                   // 현재 사용자의 경도
+    private boolean includeFranchise = false;   // 프랜차이즈 포함 여부
 }

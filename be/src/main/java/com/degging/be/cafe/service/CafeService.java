@@ -84,7 +84,7 @@ public class CafeService {
         double radiusInMeters = 2000.0;
 
         // 레포지토리 호출해 리스트 가져오기
-        List<CafeEntity> cafes = cafeRepository.findMarkersByRadius(point, radiusInMeters);
+        List<CafeEntity> cafes = cafeRepository.findMarkersByRadius(point, radiusInMeters, request.isIncludeFranchise());
 
         // 정적 팩토리 메서드를 활용하여 DTO로 변환 후 반환
         return cafes.stream()
