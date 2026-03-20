@@ -4,7 +4,6 @@ import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -18,7 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class User extends BaseEntity {
+public class UserEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,36 +30,33 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, unique = true)
-    private String nickname;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Gender gender;
-
-    @Column(nullable = false)
-    private LocalDate birthDate;
-
     @Column(name = "ab_group", length = 1)
     private Character abGroup;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private UserProfileEntity profile;
+
+    /**
+     * 프로필과 유저를 연결하기 위한 메서드
+     */
+    public void setProfile(UserProfileEntity profile) {
+        this.profile = profile;
+        if (profile.getUser() != this) {
+            profile.setUser(this);
+        }
+    }
 
     /**
      * 유저 생성을 위한 정적 팩토리 메서드
      *
      * @param email 유저 이메일
      * @param password 암호화된 비밀번호
-     * @param nickname 닉네임
-     * @param gender 성별
-     * @param birthDate 생년월일
      * @return 생성된 유저 엔티티
      */
-    public static User of(String email, String password, String nickname, Gender gender, LocalDate birthDate, Character abGroup) {
-        return User.builder()
+    public static UserEntity of(String email, String password, Character abGroup) {
+        return UserEntity.builder()
                 .email(email)
                 .password(password)
-                .nickname(nickname)
-                .gender(gender)
-                .birthDate(birthDate)
                 .abGroup(abGroup)
                 .build();
     }
