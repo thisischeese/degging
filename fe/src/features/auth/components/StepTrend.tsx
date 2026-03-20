@@ -24,17 +24,16 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
   const [selectedMenus, setSelectedMenus] = useState<string[]>(formData.trends || []);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const toggleMenu = (menu: string, index: number) => {
-    const uniqueKey = `${menu}-${index}`;
+  const toggleMenu = (keyword: string) => {
     setErrorMessage("");
-    if (selectedMenus.includes(uniqueKey)) {
-      setSelectedMenus((prev) => prev.filter((item) => item !== uniqueKey));
+    if (selectedMenus.includes(keyword)) {
+      setSelectedMenus((prev) => prev.filter((item) => item !== keyword));
     } else {
       if (selectedMenus.length >= 5) {
         setErrorMessage("최대 5개까지 선택 가능합니다!");
         return;
       }
-      setSelectedMenus((prev) => [...prev, uniqueKey]);
+      setSelectedMenus((prev) => [...prev, keyword]);
     }
   };
 
@@ -55,15 +54,14 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
         <div className="max-h-full overflow-y-auto no-scrollbar">
           <div className="flex flex-wrap gap-x-2 gap-y-4 justify-center max-w-[360px] mx-auto pb-4">
             {menus.map((menu, index) => {
-              const uniqueKey = `${menu}-${index}`;
-              const isActive = selectedMenus.includes(uniqueKey);
+              const isActive = selectedMenus.includes(menu);
               return (
-                <div key={uniqueKey} className="relative">
+                <div key={`${menu}-${index}`} className="relative">
                   <Chip
                     label={menu}
                     variant="onboarding"
                     isActive={isActive}
-                    onClick={() => toggleMenu(menu, index)}
+                    onClick={() => toggleMenu(menu)}
                     /* [&_svg]:hidden: 칩 내부의 체크 아이콘(SVG)을 강제로 숨김
                       scale 제거: 레이아웃이 변하지 않도록 설정
                     */

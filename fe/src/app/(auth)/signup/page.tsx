@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SignupFormData } from "@/features/auth/types"; 
+import { SignupFormData, SignupRequest } from "@/features/auth/types"; 
 import StepEmail from "@/features/auth/components/StepEmail";
 import StepPassword from "@/features/auth/components/StepPassword";
 import StepNickname from "@/features/auth/components/StepNickname";
@@ -13,6 +13,7 @@ import StepWelcome from "@/features/auth/components/StepWelcome";
 
 // API 호출 함수 추가
 import { postSignup } from "@/features/auth/api/signupApi";
+import { postOnboardingResults } from "@/features/onboarding/api/onboardingApi";
 
 export default function SignupPage() {
   const [step, setStep] = useState(1);
@@ -21,7 +22,8 @@ export default function SignupPage() {
     password: "",
     nickname: "",
     birthDate: "",
-    trends: [], 
+    gender: "MALE",
+    trends: [],
     moods: [],
   });
   
@@ -32,10 +34,24 @@ export default function SignupPage() {
   // 1단계: 회원가입 진행 (Step 3 완료 후 호출)
   const handleSignupRequest = async () => {
     try {
-      const result = await postSignup(formData);
-      // 성공 시 토큰 저장 로직이 필요할 수 있습니다 (axios_instance interceptor에서 처리 권장)
-      console.log("회원가입 성공:", result);
-      return true;
+      // 명세서에 맞는 데이터 전송 (name 없이 진행)
+      const signupData: SignupRequest = {
+        email: formData.email,
+        password: formData.password,
+        nickname: formData.nickname,
+        gender: formData.gender as "MALE" | "FEMALE",
+        birthDate: formData.birthDate,
+      };
+
+      const result = await postSignup(signupData);
+      
+      if (result.code === 200) {
+        console.log("회원가입 성공:", result.message);
+        return true;
+      } else {
+        alert(result.message || "회원가입에 실패했습니다.");
+        return false;
+      }
     } catch (error) {
       console.error("회원가입 실패:", error);
       alert("회원가입 중 오류가 발생했습니다.");
@@ -43,16 +59,20 @@ export default function SignupPage() {
     }
   };
 
-  // 2단계: 온보딩 결과 제출 (Step 5 완료 후 호출)
+  // 2단계: 온보딩 결과 제출 (Step 6 직전 호출)
   const handleOnboardingRequest = async () => {
     try {
-      // [TODO] 온보딩 결과 제출 API 연결 (현재 명세서 작업 중)
-      console.log("온보딩 데이터 제출:", { trends: formData.trends, moods: formData.moods });
-      // 임시로 1.5초 대기 (로딩 체감)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const onboardingData = {
+        selectedCafeIds: formData.moods, // StepMood에서 모은 cafeId 배열
+        preferredTags: formData.trends, // StepTrend에서 모은 키워드 배열
+      };
+
+      await postOnboardingResults(onboardingData);
+      console.log("온보딩 데이터 제출 성공");
       return true;
     } catch (error) {
       console.error("온보딩 실패:", error);
+      // 온보딩 실패해도 가입은 되었으므로 넘어가게 할지는 정책에 따라 결정
       return false;
     }
   };
