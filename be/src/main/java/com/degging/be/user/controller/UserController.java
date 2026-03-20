@@ -83,4 +83,18 @@ public class UserController {
         memberService.updateUser(userId, request);
         return BaseResponse.success();
     }
+
+    /**
+     * 특정 회원을 삭제하는 메서드
+     *
+     * @param user 인증 객체로 부터 추출된 유저
+     * @return 200
+     */
+    @DeleteMapping
+    public BaseResponse<?> removeUser(
+            @AuthenticationPrincipal UserDetails user){
+        UUID userId = getUserId(user);
+        memberService.removeUser(userId);
+        return BaseResponse.success();
+    }
 }
