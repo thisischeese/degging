@@ -32,7 +32,7 @@ public class CafeDetailResponse {
 
     private String status;      // 카페 영업 상태
 
-    private String businessHours;   // 영업 시간
+    private String businessHours;   // 금일 영업 시간
 
     private String roadAddress;     // 도로명 주소
 
@@ -55,7 +55,7 @@ public class CafeDetailResponse {
      * @param reviewCount   총 리뷰 수
      * @return  조합된 카페 상세 정보 응답 DTO
      */
-    public static CafeDetailResponse of(CafeEntity entity, double rating, int reviewCount, boolean isScrapped,String scrapColor) {
+    public static CafeDetailResponse of(CafeEntity entity, double rating, int reviewCount, boolean isScrapped, String scrapColor, String businessHours) {
         return CafeDetailResponse.builder()
                 .cafeId(entity.getCafeId())
                 .name(entity.getName())
@@ -63,7 +63,7 @@ public class CafeDetailResponse {
                 .rating(rating)
                 .reviewCount(reviewCount)
                 .status(entity.getStatus().toString())
-                .businessHours(entity.getBusinessHours())
+                .businessHours(businessHours)
                 .roadAddress(entity.getRoadAddress())
                 .phone(entity.getPhone())
 
