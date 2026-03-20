@@ -14,37 +14,37 @@ import { ScrapCafeItem } from "@/features/scraps/types";
 // ─────────────────────────────────────────────────────────
 const MOCK_CAFES: ScrapCafeItem[] = [
     {
-        cafeId: 1,
+        cafeId: "1",
         name: "아우어베이커리 역삼점",
-        description: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
+        cafeIntro: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
         address: "서울 강남구 언주로85길 29 1층",
         imageUrl: "/images/curation/mangoBingsu.png",
     },
     {
-        cafeId: 2,
+        cafeId: "2",
         name: "리파인 망원 (REFINE)",
-        description: "망리단길에 위치한 캐주얼 다이닝",
+        cafeIntro: "망리단길에 위치한 캐주얼 다이닝",
         address: "서울특별시 마포구 망원동",
         imageUrl: "/images/curation/mangoBingsu.png",
     },
     {
-        cafeId: 3,
+        cafeId: "3",
         name: "아우어베이커리 역삼점",
-        description: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
+        cafeIntro: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
         address: "서울 강남구 언주로85길 29 1층",
         imageUrl: "/images/curation/mangoBingsu.png",
     },
     {
-        cafeId: 4,
+        cafeId: "4",
         name: "아우어베이커리 역삼점",
-        description: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
+        cafeIntro: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
         address: "서울 강남구 언주로85길 29 1층",
         imageUrl: "/images/curation/mangoBingsu.png",
     },
     {
-        cafeId: 5,
+        cafeId: "5",
         name: "서울 신라 호텔",
-        description: "호텔에 걸맞는 망고 빙수의 정수",
+        cafeIntro: "호텔에 걸맞는 망고 빙수의 정수",
         address: "서울 중구 동호로 249",
         imageUrl: "/images/curation/mangoBingsu.png",
     },
@@ -112,19 +112,21 @@ function ScrapCafeCard({
         >
             {/* 썸네일 */}
             <div className="relative w-[76px] h-[76px] shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                <Image
-                    src={cafe.imageUrl}
-                    alt={cafe.name}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                />
+                {cafe.imageUrl && (
+                    <Image
+                        src={cafe.imageUrl}
+                        alt={cafe.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                    />
+                )}
             </div>
 
             {/* 텍스트 영역 */}
             <div className="flex flex-col flex-1 min-w-0 justify-center gap-1">
                 <h3 className="font-bold text-[14px] text-gray-900 truncate">{cafe.name}</h3>
-                <p className="text-[12px] text-gray-500 truncate">{cafe.description}</p>
+                <p className="text-[12px] text-gray-500 truncate">{cafe.cafeIntro}</p>
                 <div className="flex items-center gap-1 text-gray-400 mt-0.5">
                     <MapPin size={12} className="shrink-0" />
                     <span className="text-[12px] truncate">{cafe.address}</span>
@@ -159,7 +161,7 @@ export default function ScrapDetailPage() {
     const [cafes, setCafes] = useState<ScrapCafeItem[]>(MOCK_CAFES);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDeleteMode, setIsDeleteMode] = useState(false);
-    const [deletingCafeId, setDeletingCafeId] = useState<number | null>(null);
+    const [deletingCafeId, setDeletingCafeId] = useState<string | null>(null);
 
     const handleDeleteCafe = () => {
         if (deletingCafeId === null) return;

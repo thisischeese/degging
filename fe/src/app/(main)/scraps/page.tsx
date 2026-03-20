@@ -14,21 +14,24 @@ import { Plus, MoreVertical, Star, Pencil, Trash2 } from "lucide-react";
 // 별 색상 매핑
 // ─────────────────────────────────────────────────────────
 const STAR_COLOR_MAP: Record<StarColor, string> = {
-    red: '#E54B4B',
-    pink: '#FF8B8B',
-    ivory: '#F9F7E8',
-    mint: '#61BFAD',
-    green: '#167C80',
-    sky: '#B7E3E4',
+    RED: '#E54B4B',
+    PINK: '#FF8B8B',
+    IVORY: '#F9F7E8',
+    MINT: '#61BFAD',
+    GREEN: '#167C80',
+    SKY: '#B7E3E4',
+    YELLOW: '#F2C94C',
+    PURPLE: '#9B51E0',
+    BROWN: '#8D6E63',
 };
 
 const STAR_COLORS: { value: StarColor; hex: string }[] = [
-    { value: 'red', hex: '#E54B4B' },
-    { value: 'pink', hex: '#FF8B8B' },
-    { value: 'ivory', hex: '#F9F7E8' },
-    { value: 'mint', hex: '#61BFAD' },
-    { value: 'green', hex: '#167C80' },
-    { value: 'sky', hex: '#B7E3E4' },
+    { value: 'RED', hex: '#E54B4B' },
+    { value: 'PINK', hex: '#FF8B8B' },
+    { value: 'IVORY', hex: '#F9F7E8' },
+    { value: 'MINT', hex: '#61BFAD' },
+    { value: 'GREEN', hex: '#167C80' },
+    { value: 'SKY', hex: '#B7E3E4' },
 ];
 
 // ─────────────────────────────────────────────────────────
@@ -36,55 +39,51 @@ const STAR_COLORS: { value: StarColor; hex: string }[] = [
 // ─────────────────────────────────────────────────────────
 const MOCK_CATEGORIES: ScrapCategory[] = [
     {
-        categoryId: 1,
+        scrapId: "1",
         name: "역삼역 근처",
-        starColor: "red",
-        thumbnails: [
-            { cafeId: 1, imageUrl: "/images/curation/mangoBingsu.png" },
-            { cafeId: 2, imageUrl: "/images/curation/mangoBingsu.png" },
-            { cafeId: 3, imageUrl: "/images/curation/mangoBingsu.png" },
-        ],
+        color: "RED",
+        thumbnailUrl: ["/images/curation/mangoBingsu.png", "/images/curation/mangoBingsu.png", "/images/curation/mangoBingsu.png"],
     },
     {
-        categoryId: 2,
+        scrapId: "2",
         name: "연남 분좋카 투어",
-        starColor: "pink",
-        thumbnails: [],
+        color: "PINK",
+        thumbnailUrl: [],
     },
     {
-        categoryId: 3,
+        scrapId: "3",
         name: "소금빵 맛집",
-        starColor: "ivory",
-        thumbnails: [],
+        color: "IVORY",
+        thumbnailUrl: [],
     },
     {
-        categoryId: 4,
+        scrapId: "4",
         name: "대전 빵지순례",
-        starColor: "green",
-        thumbnails: [],
+        color: "GREEN",
+        thumbnailUrl: [],
     },
 ];
 
 // ─────────────────────────────────────────────────────────
 // 썸네일 그리드 컴포넌트 (카테고리 카드 내부)
 // ─────────────────────────────────────────────────────────
-function ThumbnailGrid({ thumbnails }: { thumbnails: { cafeId: number; imageUrl: string }[] }) {
+function ThumbnailGrid({ thumbnails }: { thumbnails: string[] }) {
     const slots = thumbnails.slice(0, 4);
 
     return (
         <div className="w-full aspect-square rounded-[20px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-[5px]">
             <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[4px]">
                 <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[0] && <Image src={slots[0].imageUrl} alt="스크랩 1" fill className="object-cover" />}
+                    {slots[0] && <Image src={slots[0]} alt="스크랩 1" fill className="object-cover" />}
                 </div>
                 <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[1] && <Image src={slots[1].imageUrl} alt="스크랩 2" fill className="object-cover" />}
+                    {slots[1] && <Image src={slots[1]} alt="스크랩 2" fill className="object-cover" />}
                 </div>
                 <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[2] && <Image src={slots[2].imageUrl} alt="스크랩 3" fill className="object-cover" />}
+                    {slots[2] && <Image src={slots[2]} alt="스크랩 3" fill className="object-cover" />}
                 </div>
                 <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[3] && <Image src={slots[3].imageUrl} alt="스크랩 4" fill className="object-cover" />}
+                    {slots[3] && <Image src={slots[3]} alt="스크랩 4" fill className="object-cover" />}
                 </div>
             </div>
         </div>
@@ -104,13 +103,13 @@ function NewCategoryModal({
     onAdd: (name: string, color: StarColor) => void;
 }) {
     const [name, setName] = useState("");
-    const [selectedColor, setSelectedColor] = useState<StarColor>("red");
+    const [selectedColor, setSelectedColor] = useState<StarColor>("RED");
 
     const handleAdd = () => {
         if (!name.trim()) return;
         onAdd(name.trim(), selectedColor);
         setName("");
-        setSelectedColor("red");
+        setSelectedColor("RED");
         onClose();
     };
 
@@ -185,15 +184,15 @@ function EditCategoryModal({
 }: {
     isOpen: boolean;
     onClose: () => void;
-    onEdit: (categoryId: number, name: string, color: StarColor) => void;
+    onEdit: (scrapId: string, name: string, color: StarColor) => void;
     category: ScrapCategory | null;
 }) {
     const [name, setName] = useState(category?.name ?? "");
-    const [selectedColor, setSelectedColor] = useState<StarColor>(category?.starColor ?? "red");
+    const [selectedColor, setSelectedColor] = useState<StarColor>(category?.color ?? "RED");
 
     const handleEdit = () => {
-        if (!name.trim() || !category) return;
-        onEdit(category.categoryId, name.trim(), selectedColor);
+        if (!name.trim() || !category || !category.scrapId) return;
+        onEdit(category.scrapId, name.trim(), selectedColor);
         onClose();
     };
 
@@ -312,26 +311,26 @@ export default function ScrapsPage() {
     const [deletingCategory, setDeletingCategory] = useState<ScrapCategory | null>(null);
 
     // 모든 스크랩 썸네일 모아서 표시
-    const allThumbnails = categories.flatMap((cat) => cat.thumbnails);
+    const allThumbnails = categories.flatMap((cat) => cat.thumbnailUrl);
 
     const handleAddCategory = (name: string, color: StarColor) => {
         const newCategory: ScrapCategory = {
-            categoryId: Date.now(),
+            scrapId: String(Date.now()),
             name,
-            starColor: color,
-            thumbnails: [],
+            color: color,
+            thumbnailUrl: [],
         };
         setCategories((prev) => [...prev, newCategory]);
     };
 
-    const handleDeleteCategory = (categoryId: number) => {
-        setCategories((prev) => prev.filter((c) => c.categoryId !== categoryId));
+    const handleDeleteCategory = (scrapId: string) => {
+        setCategories((prev) => prev.filter((c) => c.scrapId !== scrapId));
         setDeletingCategory(null);
     };
 
-    const handleEditCategory = (categoryId: number, name: string, color: StarColor) => {
+    const handleEditCategory = (scrapId: string, name: string, color: StarColor) => {
         setCategories((prev) =>
-            prev.map((c) => (c.categoryId === categoryId ? { ...c, name, starColor: color } : c))
+            prev.map((c) => (c.scrapId === scrapId ? { ...c, name, color: color } : c))
         );
     };
 
@@ -427,28 +426,30 @@ export default function ScrapsPage() {
                     {/* 3. 개별 카테고리 카드들 */}
                     {categories.map((category) => (
                         <div
-                            key={category.categoryId}
+                            key={category.scrapId}
                             onClick={() => {
                                 if (mode === 'edit') {
                                     setEditingCategory(category);
                                 } else if (mode === 'delete') {
                                     setDeletingCategory(category);
-                                } else {
-                                    router.push(`/scraps/${category.categoryId}`);
+                                } else if (category.scrapId) {
+                                    router.push(`/scraps/${category.scrapId}`);
                                 }
                             }}
                             className={`flex flex-col items-center gap-2 cursor-pointer transition-opacity ${mode === 'default' ? 'active:opacity-80' : ''}`}
                         >
                             <div className="relative w-full">
-                                <ThumbnailGrid thumbnails={category.thumbnails} />
+                                <ThumbnailGrid thumbnails={category.thumbnailUrl} />
                                 {/* 별 아이콘 (우측 상단) */}
                                 <div className="absolute top-2 right-2">
-                                    <Star
-                                        size={20}
-                                        fill={STAR_COLOR_MAP[category.starColor]}
-                                        className="drop-shadow-sm"
-                                        style={{ color: STAR_COLOR_MAP[category.starColor] }}
-                                    />
+                                    {category.color && (
+                                        <Star
+                                            size={20}
+                                            fill={STAR_COLOR_MAP[category.color]}
+                                            className="drop-shadow-sm"
+                                            style={{ color: STAR_COLOR_MAP[category.color] }}
+                                        />
+                                    )}
                                 </div>
                                 {/* 모드에 따른 오버레이 효과 */}
                                 {mode !== 'default' && (
@@ -476,7 +477,7 @@ export default function ScrapsPage() {
             />
 
             <EditCategoryModal
-                key={editingCategory?.categoryId ?? 'empty'}
+                key={editingCategory?.scrapId ?? 'empty'}
                 isOpen={!!editingCategory}
                 onClose={() => setEditingCategory(null)}
                 onEdit={handleEditCategory}
@@ -487,8 +488,8 @@ export default function ScrapsPage() {
                 isOpen={!!deletingCategory}
                 onClose={() => setDeletingCategory(null)}
                 onDelete={() => {
-                    if (deletingCategory) {
-                        handleDeleteCategory(deletingCategory.categoryId);
+                    if (deletingCategory && deletingCategory.scrapId) {
+                        handleDeleteCategory(deletingCategory.scrapId);
                     }
                 }}
             />
