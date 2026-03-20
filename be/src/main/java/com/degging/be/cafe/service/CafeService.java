@@ -149,7 +149,7 @@ public class CafeService {
      * @param size     페이지 당 카페 수
      * @return 바텀시트 카페 요약 정보
      */
-    public Slice<CafeBottomSheetResponse> getBottomSheetCafes(CafeBottomSheetRequest request, int page, int size) {
+    public Slice<CafeBottomSheetResponse> getBottomSheetCafes(UUID userId, CafeBottomSheetRequest request, int page, int size) {
 
         // PostGIS 쿼리에서 사용할 수 있도록 위경도를 "POINT(경도 위도)" 포맷의 문자열로 변환
         String point = String.format("POINT(%f %f)", request.getLongitude(), request.getLatitude());
@@ -175,7 +175,13 @@ public class CafeService {
             default -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
         };
 
-        return cafes.map(CafeBottomSheetResponse::from);
+        return cafes.map(cafe -> {
+            boolean isScrapped = false;
+            if (userId != null) {
+                isScrapped = scrapRepository.existsByUserIdAndCafeId(userId, cafe.getCafeId());
+            }
+            return CafeBottomSheetResponse.from(cafe, isScrapped);
+        });
     }
 
 }

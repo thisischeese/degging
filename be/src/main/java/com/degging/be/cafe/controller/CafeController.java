@@ -92,9 +92,9 @@ public class CafeController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
-        getUserId(user); // 인증 체크 용도
+        UUID userId = getUserId(user);
 
-        Slice<CafeBottomSheetResponse> responses = cafeService.getBottomSheetCafes(request, page, size);
+        Slice<CafeBottomSheetResponse> responses = cafeService.getBottomSheetCafes(userId, request, page, size);
 
         return BaseResponse.success(responses);
     }
