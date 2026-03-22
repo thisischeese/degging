@@ -110,9 +110,27 @@ public class RankService {
     @EventListener // 이벤트 발행 시 자동 실행
     public void handleSearchEvent(SearchEvent event){
         try {
-            // Redis 점수 업데이트
-            log.info("[Redis] 트렌드 반영 시작 - 키워드: {}", event.keyword());
-            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, event.keyword(), 1.0);
+            String keyword = event.keyword();
+
+            log.info("[Redis] 트렌드 반영 시작 - 키워드: {}", keyword);
+
+            // 현재 시간 (초 단위)
+            long nowSeconds = System.currentTimeMillis() / 1000;
+
+            // 가중치 계산 (최근 검색을 더 높게 평가)
+            // 2026년 1월 1일(기준점)
+            long referenceTime = 1767225600L;
+
+            // 기준점 이후 경과한 시간(초)
+            double timeWeight = (nowSeconds - referenceTime) / 100000.0;
+
+            // 최종 점수 = 기본 점수(1.0) + 시간 가중치
+            double finalScore = 1.0 + timeWeight;
+
+            log.info("[Redis] 실시간 가중치 반영 - 키워드: {}, 점수: {}", keyword, finalScore);
+
+            // Redis ZSet 점수 업데이트
+            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, keyword, finalScore);
         } catch (Exception e) {
             // 비동기 작업, 다른 쓰레드라 글로벌 핸들러가 에러를 잡지 못해
             // 내부적으로 에러 로그를 남겨 추적
