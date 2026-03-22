@@ -2,6 +2,9 @@ package com.degging.be.cafe.service;
 
 import com.degging.be.cafe.dto.request.CafeSearchRequest;
 import com.degging.be.cafe.dto.response.external.AiSearchResponse;
+import com.degging.be.cafe.dto.response.internal.CafeSearchResponse;
+import com.degging.be.cafe.entity.CafeEntity;
+import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.event.SearchEvent;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +30,14 @@ public class CafeSearchService {
     private final WebClient aiWebClient; // AI 서버와 통신용
     private final RedisTemplate<String, Object> redisTemplate;
     private final ApplicationEventPublisher eventPublisher; // 이벤트 발행자
+    private final CafeRepository cafeRepository;
 
     /**
      * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
      * @param request 프론트엔드가 보낸 원본 검색어 및 좌표
      * @return AI 분석 결과
      */
-    public Map<String, List<UUID>> processSearch(UUID userId, CafeSearchRequest request) {
+    public CafeSearchResponse processSearch(UUID userId, CafeSearchRequest request) {
         // AI 서버 호출
         AiSearchResponse res = aiWebClient.post()
                 .uri("경로")
@@ -45,19 +49,28 @@ public class CafeSearchService {
         // AI 응답 검증
         if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
             log.warn("AI 응답이 비어있습니다. 빈 결과를 반환합니다. User: {}", userId);
-            return Map.of("cafes", Collections.emptyList());
+            return CafeSearchResponse.builder()
+                    .cafes(Collections.emptyList())
+                    .build();
         }
+
+        // DB 에서 추천 카페 상세정보 조회
+        List<CafeEntity> cafeList = cafeRepository.findAllById(res.getCafeIds());
+
+        // DTO 로 변환
+        List<CafeSearchResponse.CafeSearchItem> items = cafeList.stream()
+                .map(cafe -> CafeSearchResponse.CafeSearchItem.from(cafe, request.getLatitude(), request.getLongitude()))
+                .sorted(Comparator.comparing(CafeSearchResponse.CafeSearchItem::getDistance)) // 거리순 정렬
+                .toList();
 
         // 검색 이벤트 발행 -> 랭크 도메인에서 받아 실시간 트랜드 반영
         eventPublisher.publishEvent(new SearchEvent(request.getKeyword()));
-
         // 개인 검색 로그 저장 호출
         saveSearchLog(userId, request.getKeyword());
 
-        Map<String, List<UUID>> result = new HashMap<>();
-        result.put("cafes", res.getCafeIds());
-
-        return result;
+        return CafeSearchResponse.builder()
+                .cafes(items)
+                .build();
     }
 
     // Redis 에 검색 로그를 저장하는 메서드
