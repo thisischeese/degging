@@ -13,6 +13,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -137,6 +138,29 @@ public class RankService {
             log.error("[Rank Error] {} : {}",
                     RankErrorcode.RANKING_PROCESS_ERROR.getCode(),
                     RankErrorcode.RANKING_PROCESS_ERROR.getMessage());
+        }
+    }
+
+    /**
+     * 매일 새벽 3시에 실행하여 상위 1000개 이외의 저득점 데이터를 정리 (최적화 작업)
+     */
+    @Scheduled(cron = "0 0 3 * * *")
+    public void manageRedisMemory() {
+        try {
+            log.info("[Scheduled] 랭킹 데이터 최적화 시작");
+
+            // 현재 저장된 전체 키워드 개수 확인
+            Long totalSize = redisTemplate.opsForZSet().zCard(RANKING_KEY);
+
+            if (totalSize != null && totalSize > 1000) {
+                // 점수가 낮은 순 (0위부터 데이터수 - 1001위까지) 삭제, 상위 1000개만 남김
+                redisTemplate.opsForZSet().removeRange(RANKING_KEY, 0, totalSize - 1001);
+
+                log.info("[Redis] 최적화 완료: {}개의 하위 데이터를 삭제하고 상위 1000개를 유지합니다.",
+                        totalSize - 1000);
+            }
+        } catch (Exception e) {
+            log.error("[Scheduled Error] 데이터 최적화 중 오류 발생: {}", e.getMessage());
         }
     }
 }
