@@ -44,6 +44,14 @@ public class CafeRatingStatsEntity extends BaseEntity {
         this.reviewCount++;
     }
 
+    // 크롤링된 통계 데이터 덮어쓰기 메서드
+    public void updateCrawledStats(int reviewCount, String soloRatio, String dateRatio, String friendsRatio) {
+        this.reviewCount = reviewCount;
+        this.soloRatio = soloRatio;
+        this.dateRatio = dateRatio;
+        this.friendsRatio = friendsRatio;
+    }
+
     // 평점 수정 메서드 (리뷰 수정)
     public void modifyRating(int oldRating, int newRating){
         this.ratingSum = this.ratingSum - oldRating + newRating;
