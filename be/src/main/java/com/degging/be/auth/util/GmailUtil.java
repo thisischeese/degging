@@ -1,37 +1,29 @@
 package com.degging.be.auth.util;
 
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
-import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.degging.be.global.repository.SystemEntityRepository;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
-import com.google.api.services.gmail.GmailScopes;
-import com.google.api.services.gmail.model.Message;
 import com.degging.be.global.exception.BaseException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 
 @Slf4j
+@RequiredArgsConstructor
 @Component
 public class GmailUtil {
 
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
-    private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_SEND);
+    private final SystemEntityRepository systemEntityRepository;
 
     @Value("${spring.gmail.client-id}")
     private String clientId;
@@ -47,23 +39,24 @@ public class GmailUtil {
             return gmailService;
         }
 
+        // DB에서 Refresh Token 조회
+        String refreshToken = systemEntityRepository.findById("GOOGLE_REFRESH_TOKEN")
+                .map(config -> config.getConfigValue())
+                .orElseThrow(() -> {
+                    log.error("Google API Refresh Token이 DB에 설정되지 않았습니다. system_entity 테이블을 확인하세요.");
+                    return new BaseException(CommonErrorCode.INTERNAL_SERVER_ERROR);
+                });
+
         final var httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         final var jsonFactory = GsonFactory.getDefaultInstance();
 
-        GoogleClientSecrets secrets = new GoogleClientSecrets();
-        GoogleClientSecrets.Details details = new GoogleClientSecrets.Details();
-        details.setClientId(clientId);
-        details.setClientSecret(clientSecret);
-        secrets.setInstalled(details);
-
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                httpTransport, jsonFactory, secrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
-                .build();
-
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8000).build();
-        Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+        // 파일 시스템(FileDataStoreFactory)을 사용하지 않고 직접 토큰 주입하여 인메모리 생성
+        GoogleCredential credential = new GoogleCredential.Builder()
+                .setTransport(httpTransport)
+                .setJsonFactory(jsonFactory)
+                .setClientSecrets(clientId, clientSecret)
+                .build()
+                .setRefreshToken(refreshToken);
 
         // 생성된 객체를 필드에 할당
         gmailService = new Gmail.Builder(httpTransport, jsonFactory, credential)
