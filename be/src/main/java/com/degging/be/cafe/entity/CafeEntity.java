@@ -94,7 +94,10 @@ public class CafeEntity extends BaseEntity {
      * @return 생성된 CafeEntity 객체
      */
     public static CafeEntity of(StoreListInUpjongItem item, KakaoPlaceItem kakaoItem, Point location) {
-        String originalName = item.getBizesNm();
+        // 기존 소상공인 데이터명 대신 카카오 API 기반 업소명 우선 적용
+        String originalName = kakaoItem != null && kakaoItem.getPlaceName() != null 
+                ? kakaoItem.getPlaceName() 
+                : item.getBizesNm();
         String branchName = toNullIfBlank(item.getBrchNm());
 
         // 상호명에서 지점명을 제거하여 브랜드명 추출
