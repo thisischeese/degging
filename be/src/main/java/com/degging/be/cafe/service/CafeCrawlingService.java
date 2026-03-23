@@ -166,7 +166,7 @@ public class CafeCrawlingService {
 
             // 새 크롤링 리뷰 저장
             for (CafeCrawlingDto.CafeReviewDto reviewDto : dto.getCafeReviews()) {
-                if (reviewDto.getUserId() == null || reviewDto.getContent() == null)
+                if (reviewDto.getUserId() == null || reviewDto.getUserReview() == null)
                     continue;
 
                 String dummyEmail = "crawler_" + reviewDto.getUserId().toString() + "@degging.com";
@@ -191,8 +191,8 @@ public class CafeCrawlingService {
                 ReviewEntity newReview = ReviewEntity.builder()
                         .cafe(cafe)
                         .user(dummyUser)
-                        .rating(reviewDto.getRating() != null ? reviewDto.getRating() : 5)
-                        .content(reviewDto.getContent())
+                        .rating((short) 5) // DTO에 별점 정보가 없으므로 기본값 5점 부여
+                        .content(reviewDto.getUserReview())
                         .build();
 
                 reviewRepository.save(newReview);
