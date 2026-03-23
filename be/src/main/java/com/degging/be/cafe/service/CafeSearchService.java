@@ -1,10 +1,12 @@
 package com.degging.be.cafe.service;
 
+import com.degging.be.cafe.dto.request.AiSearchRequest;
 import com.degging.be.cafe.dto.request.CafeSearchRequest;
 import com.degging.be.cafe.dto.response.external.AiSearchResponse;
 import com.degging.be.cafe.dto.response.internal.CafeSearchResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
+import com.degging.be.cafe.repository.VibeRepository;
 import com.degging.be.global.event.SearchEvent;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class CafeSearchService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final ApplicationEventPublisher eventPublisher; // 이벤트 발행자
     private final CafeRepository cafeRepository;
+    private final VibeRepository vibeRepository;
 
     /**
      * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
@@ -38,23 +41,40 @@ public class CafeSearchService {
      * @return AI 분석 결과
      */
     public CafeSearchResponse processSearch(UUID userId, CafeSearchRequest request) {
+        // request 속 mood 를 tag_name (자연어) -> tag_id (UUID) 로 맵핑
+        List<UUID> tagIds = vibeRepository.findTagIdByTagNames(request.getMood());
+        AiSearchRequest aiSearchRequest = AiSearchRequest.of(userId, request, tagIds);
+
         // AI 서버 호출
         /* AI 서버 연동 전 주석 처리
         AiSearchResponse res = aiWebClient.post()
                 .uri("/ai/map/search")
-                .bodyValue(request)
+                .bodyValue(aiSearchRequest)
                 .retrieve()
                 .bodyToMono(AiSearchResponse.class)// 응답 형식
+                // 에러 발생 시 빈 결과 반환
+                .onErrorResume(e -> {
+                    log.error("AI 서버 호출 실패: {}", e.getMessage());
+                    return Mono.just(AiSearchResponse.empty());
+                })
                 .block(Duration.ofSeconds(5)); // 결과 나올 때까지 동기 방식으로 대기, 5초까지만 대기
         */
 
         // 테스트를 위한 mock 응답 데이터
-        AiSearchResponse res = AiSearchResponse.builder()
-                .cafes(Map.of(UUID.fromString("c5383afd-48e0-48f1-863b-33ccd638b410"), 1))
-                .extractedMenus(Map.of("1234", 3, "5678", 1))
-                .menuCount(2)
-                .build();
+//        AiSearchResponse res = AiSearchResponse.builder()
+//                .cafes(Map.of(UUID.fromString("c5383afd-48e0-48f1-863b-33ccd638b410"), 1))
+//                .extractedMenus(Map.of("1234", 3, "5678", 1))
+//                .menuCount(2)
+//                .build();
 
+        // Mock 데이터의 순서를 바꿔서 테스트!
+        AiSearchResponse res = AiSearchResponse.builder()
+                .cafes(Map.of(
+                        UUID.fromString("bd297883-2f0e-4f5d-bea0-813af23aacd9"), 3, // 3등
+                        UUID.fromString("46537625-27db-4bd0-b9f4-d87c112183ff"), 1, // 1등
+                        UUID.fromString("baa57837-bee2-4c46-9d9f-e21d3191d966"), 2  // 2등
+                ))
+                .build();
         // AI 응답 검증
         if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
             log.warn("AI 응답이 비어있습니다. 빈 결과를 반환합니다. User: {}", userId);

@@ -19,4 +19,9 @@ public interface VibeRepository extends JpaRepository<VibeEntity, UUID> {
     @Query("SELECT v.tagName FROM VibeEntity v " +
             "WHERE v.tagId IN :tagIds")
     List<String> findTagNameByTagIds(@Param("tagIds") List<UUID> tagIds);
+
+    // tagNames 에 해당하는 tagId 조회
+    @Query("SELECT v.tagId FROM VibeEntity v " +
+            "WHERE v.tagName IN :tagNames")
+    List<UUID> findTagIdByTagNames(@Param("tagNames") List<String> tagNames);
 }
