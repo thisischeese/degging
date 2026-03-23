@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -81,6 +82,20 @@ public class SecurityConfig {
                 .addFilterBefore(jwtExceptionFilter, JwtAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Swagger 관련 경로를 시큐리티 필터 체인에서 아예 제외
+     */
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring()
+                .requestMatchers(
+                        "/v3/api-docs/**",
+                        "/v3/api-docs",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html"
+                );
     }
 
     /**
