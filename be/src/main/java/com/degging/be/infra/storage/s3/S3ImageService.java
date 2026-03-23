@@ -32,10 +32,6 @@ public class S3ImageService implements ImageService{
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucketName;
 
-    // Cloudflare 도메인
-    @Value("${app.image.domain}")
-    private String imageDomain;
-
     /**
      * S3에 이미지를 업로드하는 메서드
      * @return CloudFront가 적용된 퍼블릭 URL
@@ -60,9 +56,8 @@ public class S3ImageService implements ImageService{
             s3Client.putObject(putObjectRequest,
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            String url = imageDomain + (imageDomain.endsWith("/") ? "" : "/") + storedName;
-            // CloudFront 결합 후 DTO 에 정보 담아 반환
-            return new ImageUploadResult(url, storedName, originalName);
+            // DTO 에 정보 담아 반환
+            return new ImageUploadResult(storedName, originalName);
 
         } catch (IOException e) {
             log.error("S3 업로드 중 IOException 발생: ", e);
@@ -77,22 +72,22 @@ public class S3ImageService implements ImageService{
     @Override
     public void deleteImage(String imageUrl) {
         try {
-            String fileName = imageUrl.replace(imageDomain, "");
             // '/'를 포함하고 있다면 제거해줌
-            if (fileName.startsWith("/")) fileName = fileName.substring(1);
+            if (imageUrl.startsWith("/")) imageUrl = imageUrl.substring(1);
 
             // 삭제 요청 객체 생성
             DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
-                    .key(fileName)
+                    .key(imageUrl)
                     .build();
 
             // 버킷에서 해당 파일 제거
             s3Client.deleteObject(deleteRequest);
-            log.info("[S3] 파일 삭제 성공: {}", fileName);
+            log.info("[S3] 파일 삭제 성공: {}", imageUrl);
 
         } catch (Exception e){
             // 메인 로직이 롤백되지 않도록 로그만 기록
-            log.error("[S3] 이미지 삭제 중 오류 발생. URL: {}, Error: {}", imageUrl, e.getMessage());        }
+            log.error("[S3] 이미지 삭제 중 오류 발생. URL: {}, Error: {}", imageUrl, e.getMessage());
+        }
     }
 }

@@ -145,7 +145,7 @@ public class ReviewService {
         if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()){
             // S3 에서 해당 파일 삭제
             List<ReviewImageEntity> targetImages = reviewImageRepository.findAllById(request.getDeleteImageIds());
-            targetImages.forEach(img -> imageService.deleteImage(img.getStoredName()));
+            targetImages.forEach(img -> imageService.deleteImage(img.getImageUrl()));
 
             // DB 에서도 삭제 
             reviewImageRepository.deleteAllById(request.getDeleteImageIds());
@@ -204,9 +204,8 @@ public class ReviewService {
             // 이미지 Entity 생성 후 저장
             ReviewImageEntity imageEntity = ReviewImageEntity.builder()
                     .review(review)
-                    .imageUrl(result.imageUrl())
+                    .imageUrl(result.storedName())
                     .sortOrder(startOrder + i)
-                    .storedName(result.storedName())
                     .originName(result.originName())
                     .build();
             entities.add(imageEntity);
@@ -228,7 +227,7 @@ public class ReviewService {
         // GCS 에서 이미지 파일 삭제
         if (review.getReviewImages() != null) {
             review.getReviewImages().forEach(imgEntity -> {
-                imageService.deleteImage(imgEntity.getStoredName());
+                imageService.deleteImage(imgEntity.getImageUrl());
             });
         }
 
