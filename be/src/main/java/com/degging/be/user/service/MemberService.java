@@ -10,6 +10,7 @@ import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.user.dto.request.UserUpdateRequest;
 import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.entity.UserEntity;
+import com.degging.be.user.entity.UserProfileEntity;
 import com.degging.be.user.entity.mongodb.UserOnboarding;
 import com.degging.be.user.repository.UserProfileRepository;
 import com.degging.be.user.repository.UserRepository;
@@ -68,6 +69,14 @@ public class MemberService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .abGroup(group)
                 .build();
+
+        // 닉네임, 성별, 생년월일 정보를 UserProfileEntity로 생성하여 UserEntity에 매핑
+        UserProfileEntity userProfile = UserProfileEntity.builder()
+                .nickname(request.getNickname())
+                .gender(request.getGender())
+                .birthDate(request.getBirthDate())
+                .build();
+        user.setProfile(userProfile);
 
         userRepository.save(user);
 
