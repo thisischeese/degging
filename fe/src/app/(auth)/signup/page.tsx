@@ -13,6 +13,7 @@ import StepWelcome from "@/features/auth/components/StepWelcome";
 
 // API 호출 함수 추가
 import { postSignup } from "@/features/auth/api/signupApi";
+import { postLogin } from "@/features/auth/api/loginApi";
 import { postOnboardingResults } from "@/features/onboarding/api/onboardingApi";
 
 export default function SignupPage() {
@@ -45,8 +46,22 @@ export default function SignupPage() {
 
       const result = await postSignup(signupData);
       
-      if (result.code === 200) {
+      // 숫자 200과 문자열 "200" 모두 처리
+      if (String(result.code) === "200") {
         console.log("회원가입 성공:", result.message);
+        
+        // 곧바로 자동 로그인 처리 (온보딩을 위한 토큰 발급)
+        try {
+          await postLogin({
+            email: currentData.email,
+            password: currentData.password,
+          });
+          console.log("회원가입 후 자동 로그인 성공 (토큰 발급 완료)");
+        } catch (loginError) {
+          console.error("자동 로그인 실패:", loginError);
+          // 로그인 실패해도 가입은 되었으므로 일단 넘어감
+        }
+
         return true;
       } else {
         alert(result.message || "회원가입에 실패했습니다.");
