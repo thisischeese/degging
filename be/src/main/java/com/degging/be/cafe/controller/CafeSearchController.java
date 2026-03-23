@@ -8,14 +8,10 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.common.reflection.qual.GetClass;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -52,4 +48,6 @@ public class CafeSearchController {
         CafeSearchResponse result = cafeSearchService.processSearch(userId, request);
         return BaseResponse.success(result);
     }
+
+    // 정렬 API GET /api/cafes/search/results?sort
 }

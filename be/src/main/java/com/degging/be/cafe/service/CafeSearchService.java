@@ -39,12 +39,21 @@ public class CafeSearchService {
      */
     public CafeSearchResponse processSearch(UUID userId, CafeSearchRequest request) {
         // AI 서버 호출
+        /* AI 서버 연동 전 주석 처리
         AiSearchResponse res = aiWebClient.post()
-                .uri("경로")
+                .uri("/ai/map/search")
                 .bodyValue(request)
                 .retrieve()
                 .bodyToMono(AiSearchResponse.class)// 응답 형식
                 .block(Duration.ofSeconds(5)); // 결과 나올 때까지 동기 방식으로 대기, 5초까지만 대기
+        */
+
+        // 테스트를 위한 mock 응답 데이터
+        AiSearchResponse res = AiSearchResponse.builder()
+                .cafes(Map.of(UUID.fromString("c5383afd-48e0-48f1-863b-33ccd638b410"), 1))
+                .extractedMenus(Map.of("1234", 3, "5678", 1))
+                .menuCount(2)
+                .build();
 
         // AI 응답 검증
         if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
@@ -57,14 +66,27 @@ public class CafeSearchService {
         // DB 에서 추천 카페 상세정보 조회
         List<CafeEntity> cafeList = cafeRepository.findAllById(res.getCafeIds());
 
-        // DTO 로 변환
+        // DTO 로 변환 및 추천 순서대로 정렬
         List<CafeSearchResponse.CafeSearchItem> items = cafeList.stream()
-                .map(cafe -> CafeSearchResponse.CafeSearchItem.from(cafe, request.getLatitude(), request.getLongitude()))
-                .sorted(Comparator.comparing(CafeSearchResponse.CafeSearchItem::getDistance)) // 거리순 정렬
+                .map(cafe -> CafeSearchResponse.CafeSearchItem.from(
+                        cafe, request.getLatitude(),
+                        request.getLongitude()
+                ))
+                // AI 응답에 있는 sortNum 에 따라 정렬
+                .sorted(Comparator.comparingInt(item -> res.getCafes().get(item.getCafeId())))
                 .toList();
 
+        // 추천 결과 캐싱, 10분 저장
+        redisTemplate.opsForValue().set("cache:search:" + userId, items, Duration.ofMinutes(10));
+
+        // 비동기로 추천 결과 캐싱
+        saveRecommendCache(userId, items);
+
         // 검색 이벤트 발행 -> 랭크 도메인에서 받아 실시간 트랜드 반영
-        eventPublisher.publishEvent(new SearchEvent(request.getKeyword()));
+        if (res.getExtractedMenus() != null && !res.getExtractedMenus().isEmpty()) {
+            eventPublisher.publishEvent(new SearchEvent(res.getExtractedMenus()));
+        }
+
         // 개인 검색 로그 저장 호출
         saveSearchLog(userId, request.getKeyword());
 
@@ -73,6 +95,18 @@ public class CafeSearchService {
                 .build();
     }
 
+    // AI 추천 결과를 Redis 에 저장
+    @Async("threadPoolTaskExecutor")
+    public void saveRecommendCache(UUID userId,List<CafeSearchResponse.CafeSearchItem> items){
+        try {
+            String key = "cache:search:" + userId;
+            redisTemplate.opsForValue().set(key, items, Duration.ofMinutes(10));
+            log.info("사용자 {}의 추천 결과 캐싱 완료", userId);
+        } catch (Exception e) {
+            log.error("추천 결과 캐싱 중 오류 발생: {}", e.getMessage());
+        }
+    }
+    
     // Redis 에 검색 로그를 저장하는 메서드
     @Async // 별도의 쓰레드에서 실행
     public void saveSearchLog(UUID userId, String keyword) {
