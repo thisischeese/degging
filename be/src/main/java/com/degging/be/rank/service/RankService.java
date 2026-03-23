@@ -13,6 +13,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -109,16 +110,74 @@ public class RankService {
     @Async // 검색 쓰레드와 점수 올리는 쓰레드를 분리
     @EventListener // 이벤트 발행 시 자동 실행
     public void handleSearchEvent(SearchEvent event){
+        Map<String, Integer> menus = event.extractedMenus();
+        if (menus == null || menus.isEmpty()) return;
+
         try {
-            // Redis 점수 업데이트
-            log.info("[Redis] 트렌드 반영 시작 - 키워드: {}", event.keyword());
-            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, event.keyword(), 1.0);
+            // 최종 점수 = 기본 점수(1.0) + 시간 가중치
+            double baseScore = calculateBaseScore();
+
+            // 메뉴별 점수 반영 로직을 별도 메서드로 분리하여 중첩 제거
+            menus.forEach((menuIdStr, aiCount) -> processMenuScore(menuIdStr, aiCount, baseScore));
+
         } catch (Exception e) {
-            // 비동기 작업, 다른 쓰레드라 글로벌 핸들러가 에러를 잡지 못해
-            // 내부적으로 에러 로그를 남겨 추적
             log.error("[Rank Error] {} : {}",
                     RankErrorcode.RANKING_PROCESS_ERROR.getCode(),
-                    RankErrorcode.RANKING_PROCESS_ERROR.getMessage());
+                    RankErrorcode.RANKING_PROCESS_ERROR.getMessage(), e);
+        }
+    }
+
+    /**
+     * 기준점 대비 시간 가중치가 적용된 기본 점수 계산
+     */
+    private double calculateBaseScore() {
+        long nowSeconds = System.currentTimeMillis() / 1000;
+        long referenceTime = 1767225600L; // 2026-01-01
+        double timeWeight = (nowSeconds - referenceTime) / 100000.0;
+        return 1.0 + timeWeight;
+    }
+
+    /**
+     * 개별 메뉴의 ID 변환 및 Redis 점수 업데이트 처리
+     */
+    private void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
+        try {
+            // String -> Integer 검증
+            Integer.parseInt(menuIdStr);
+
+            double finalScore = baseScore * aiCount;
+
+            // Redis 업데이트
+            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, menuIdStr, finalScore);
+
+            log.info("[Redis Trend] 메뉴ID: {}, 반영점수: {} (AI횟수: {})",
+                    menuIdStr, String.format("%.4f", finalScore), aiCount);
+
+        } catch (NumberFormatException e) {
+            log.error("[Type Error] MenuId 변환 실패: {}", menuIdStr);
+        }
+    }
+
+    /**
+     * 매일 새벽 3시에 실행하여 상위 1000개 이외의 저득점 데이터를 정리 (최적화 작업)
+     */
+    @Scheduled(cron = "0 0 3 * * *")
+    public void manageRedisMemory() {
+        try {
+            log.info("[Scheduled] 랭킹 데이터 최적화 시작");
+
+            // 현재 저장된 전체 키워드 개수 확인
+            Long totalSize = redisTemplate.opsForZSet().zCard(RANKING_KEY);
+
+            if (totalSize != null && totalSize > 1000) {
+                // 점수가 낮은 순 (0위부터 데이터수 - 1001위까지) 삭제, 상위 1000개만 남김
+                redisTemplate.opsForZSet().removeRange(RANKING_KEY, 0, totalSize - 1001);
+
+                log.info("[Redis] 최적화 완료: {}개의 하위 데이터를 삭제하고 상위 1000개를 유지합니다.",
+                        totalSize - 1000);
+            }
+        } catch (Exception e) {
+            log.error("[Scheduled Error] 데이터 최적화 중 오류 발생: {}", e.getMessage());
         }
     }
 }

@@ -12,6 +12,8 @@ import com.degging.be.infra.storage.s3.ImageService;
 import com.degging.be.infra.storage.s3.ImageUploadResult;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
+import com.degging.be.review.dto.response.CommonSliceResponse;
+import com.degging.be.review.dto.response.MyReviewResponse;
 import com.degging.be.review.dto.response.ReviewDetailResponse;
 import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.entity.ReviewEntity;
@@ -95,8 +97,8 @@ public class ReviewService {
         checkCafeValidation(cafeId);
 
         // 카페 ID로 리뷰와 리뷰, 작성자 조회하여 반환
-        Slice<ReviewResponse> reviewSlice = reviewRepository.findReviewDtosByCafeId(cafeId, pageable);
-
+        Slice<ReviewResponse> reviewSlice = reviewRepository.findReviewResponseByCafeId(cafeId, pageable);
+        log.info("[리뷰] reviewSlice = {}", reviewSlice );
         // 이미지 조회 후 채우기
         reviewSlice.forEach(response -> {
             List<ReviewImageEntity> images = reviewImageRepository.findByReviewReviewId(response.getReviewId());
@@ -122,12 +124,13 @@ public class ReviewService {
      * 내 리뷰 전체 조회 메서드
      */
     @Transactional(readOnly = true) // 조회라서
-    public Slice<ReviewResponse> getReviewsByUserId(UUID userId, Pageable pageable) {
+    public CommonSliceResponse<MyReviewResponse> getReviewsByUserId(UUID userId, Pageable pageable) {
         // 유효성 검증
         validateUser(userId);
 
         Slice<ReviewEntity> reviews = reviewRepository.findAllByUserIdWithImages(userId, pageable);
-        return reviews.map(ReviewResponse::toDto);
+        Slice<MyReviewResponse> reviewDto = reviews.map(MyReviewResponse::from);
+        return CommonSliceResponse.from(reviewDto);
     }
     /**
      * 리뷰 수정 메서드
@@ -145,7 +148,13 @@ public class ReviewService {
         if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()){
             // S3 에서 해당 파일 삭제
             List<ReviewImageEntity> targetImages = reviewImageRepository.findAllById(request.getDeleteImageIds());
-            targetImages.forEach(img -> imageService.deleteImage(img.getStoredName()));
+            targetImages.forEach(img -> {
+                    imageService.deleteImage(img.getImageUrl());
+                    if (img.getThumbnailImageUrl() != null) {
+                        imageService.deleteImage(img.getThumbnailImageUrl());
+                    }
+                }
+            );
 
             // DB 에서도 삭제 
             reviewImageRepository.deleteAllById(request.getDeleteImageIds());
@@ -191,26 +200,29 @@ public class ReviewService {
         // 리뷰 Entity 를 담을 리스트
         List<ReviewImageEntity> entities = new ArrayList<>();
 
-        // 리사이징한 이미지를 S3 업로드 후 URL 반환 받아 DB에 저장
+        // 리사이징한 이미지를 S3 업로드 후 KeyPath 반환 받아 DB에 저장
         for (int i = 0; i < images.size(); i++){
             MultipartFile file = images.get(i);
 
-            // 이미지 사이즈를 줄여줌
-            MultipartFile resized = ImageUtils.resizeImage(file, 800);
+            // 원본 리사이징 (800px) 및 업로드
+            MultipartFile resizedOrigin = ImageUtils.resizeImage(file, 800);
+            ImageUploadResult originResult = imageService.uploadImage(resizedOrigin, "review/origin");
 
-            // S3 에 이미지 업로드 후 원본 파일명, 저장 파일명, url 반환
-            ImageUploadResult result = imageService.uploadImage(resized, "review");
+            // 2. 썸네일 생성 (200px) 및 업로드
+            MultipartFile thumbnail = ImageUtils.resizeImage(file, 200);
+            ImageUploadResult thumbResult = imageService.uploadImage(thumbnail, "review/thumb");
 
             // 이미지 Entity 생성 후 저장
             ReviewImageEntity imageEntity = ReviewImageEntity.builder()
                     .review(review)
-                    .imageUrl(result.imageUrl())
+                    .imageUrl(originResult.storedName())
+                    .thumbnailImageUrl(thumbResult.storedName())
                     .sortOrder(startOrder + i)
-                    .storedName(result.storedName())
-                    .originName(result.originName())
+                    .originName(originResult.originName())
                     .build();
             entities.add(imageEntity);
         }
+
         // Batch 로 한번에 저장
         reviewImageRepository.saveAll(entities);
     }
@@ -225,10 +237,11 @@ public class ReviewService {
         ReviewEntity review = getValidReview(reviewId);
         validateAuthor(review, loginUser);
 
-        // GCS 에서 이미지 파일 삭제
+        // S3 에서 이미지 파일 삭제
         if (review.getReviewImages() != null) {
             review.getReviewImages().forEach(imgEntity -> {
-                imageService.deleteImage(imgEntity.getStoredName());
+                imageService.deleteImage(imgEntity.getImageUrl());
+                imageService.deleteImage(imgEntity.getThumbnailImageUrl());
             });
         }
 

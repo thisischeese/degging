@@ -35,7 +35,7 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
             "JOIN r.user u " + // 닉네임은 필요하니까 유저만 조인
             "WHERE r.cafe.cafeId = :cafeId " + // 카페 객체가 아닌 ID값만 조건으로 사용
             "ORDER BY r.createdAt DESC")
-    Slice<ReviewResponse> findReviewDtosByCafeId(@Param("cafeId") UUID cafeId, Pageable pageable);
+    Slice<ReviewResponse> findReviewResponseByCafeId(@Param("cafeId") UUID cafeId, Pageable pageable);
 
     // 특정 리뷰 상세 정보 조회 (리뷰, 리뷰 이미지, 회원 정보, 카페 정보)
     @Query("SELECT r FROM ReviewEntity r " +
