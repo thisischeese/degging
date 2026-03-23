@@ -23,6 +23,6 @@ export const postOnboardingResults = async (data: OnboardingResult): Promise<voi
 
 /** 사용자 취향 초기화 */
 export const postOnboardingReset = async (data: OnboardingInitialData) => {
-  const response = await axios_instance.post('/api/ai/onboarding', data);
+  const response = await axios_instance.post('/ai/onboarding', data);
   return response.data;
 };

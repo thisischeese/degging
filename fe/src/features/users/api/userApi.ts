@@ -16,7 +16,7 @@ export const patchPasswordReset = async (currentPassword: string, newPassword: s
 /** 3. 사용자 정보 조회 */
 export const getUserInfo = async () => {
     const response = await axios_instance.get('/api/users');
-    return response; 
+    return response;
 };
 
 /** 4. 사용자 정보 수정 */
