@@ -46,7 +46,7 @@ public class ImageUtils {
      * 썸네일 이미지 생성 시 사용하는 메서드 (빠른 조회를 위해 경량화, cafeEntity 의 필드 저장용)
      * 카페 데이터 적재 시 사용
      */
-    public static MultipartFile createCafeThumbnail(MultipartFile file) throws IOException {
+    public static MultipartFile createThumbnail(MultipartFile file) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         Thumbnails.of(file.getInputStream())

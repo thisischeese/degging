@@ -24,9 +24,13 @@ public class ReviewImageEntity extends BaseEntity {
     @JoinColumn(name = "review_id")
     private ReviewEntity review;
 
-    // S3에 실제로 저장된 파일명 (예: 7a97b0b7...jpg)
+    // S3에 저장된 기본 이미지 파일명 (예: 7a97b0b7...jpg)
     @Column(nullable = false)
     private String imageUrl;
+
+    // S3에 저장된 썸네일 이미지 파일명
+    @Column(nullable = false)
+    private String thumbnailImageUrl;
 
     // 원본 파일명 (예: 다운로드 (5).jpg)
     @Column(nullable = false)
