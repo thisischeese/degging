@@ -112,6 +112,29 @@ public class ScrapService {
     }
 
     /**
+     * 모든 스크랩 모아보기 상세조회 메서드
+     */
+    public ScrapDetailResponse getAllScrapDetail(UUID userId) {
+        getValidUser(userId);
+
+        // 해당 유저의 모든 스크랩 폴더 리스트 조회 (결과가 없으면 빈 리스트 반환)
+        List<ScrapEntity> scrapFolders = scrapRepository.findAllWithCafesByUserId(userId);
+
+        // 여러 폴더에 흩어진 카페 아이템들을 하나로 합치기
+        List<ScrapCafeResponse> cafes = scrapFolders.stream()
+                .flatMap(folder -> folder.getScrapItems().stream()) // 각 폴더의 아이템 리스트를 하나의 스트림으로 합침
+                .map(ScrapCafeResponse::toDto)                      // DTO 변환
+                .toList();
+
+        // 전체 보기용 가상 폴더 데이터 반환
+        return ScrapDetailResponse.builder()
+                .scrapId(null)          // 전체보기는 특정 ID가 없으므로 null
+                .name("모든 스크랩")     // 화면에 표시될 이름
+                .cafes(cafes)           // 합쳐진 카페 리스트
+                .build();
+    }
+
+    /**
      * 특정 스크랩의 상세 정보를 조회하는 메서드
      */
     public ScrapDetailResponse getScrapDetail(UUID scrapId, UUID userId) {
@@ -142,8 +165,6 @@ public class ScrapService {
         return ScrapDetailResponse.builder()
                 .scrapId(scrap.getScrapId())
                 .name(scrap.getName())
-                .color(scrap.getColor())
-                .thumbnailUrls(thumbnailUrls)
                 .cafes(cafes)
                 .build();
     }
