@@ -14,9 +14,11 @@ export const axios_instance = axios.create({
 axios_instance.interceptors.request.use(
   (config) => {
     const access_token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const onboarding_token = typeof window !== 'undefined' ? sessionStorage.getItem('ONBOARDING_TOKEN') : null;
     
-    if (access_token) {
-      config.headers.Authorization = `Bearer ${access_token}`;
+    const token = access_token || onboarding_token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
