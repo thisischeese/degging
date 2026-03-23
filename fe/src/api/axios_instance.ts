@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
 
 // 1. 기본 설정 (baseURL은 나중에 .env 파일에서 관리하세요)
 export const axios_instance = axios.create({
@@ -76,6 +77,14 @@ axios_instance.interceptors.response.use(
         const newAccessToken = response.data.data.accessToken; // 백엔드 응답 형태에 따라 수정 필요
         localStorage.setItem('access_token', newAccessToken);
 
+        // 쿠키도 함께 갱신
+        Cookies.set("access_token", newAccessToken, { 
+          expires: 7, 
+          path: "/",
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "Lax"
+        });
+
         // 대기열에 있던 기존 요청들에게 새 토큰 투척
         processQueue(null, newAccessToken);
         isRefreshing = false;
@@ -92,6 +101,7 @@ axios_instance.interceptors.response.use(
         alert('세션이 완전히 만료되었습니다. 다시 로그인해주세요.');
         if (typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
+          Cookies.remove("access_token", { path: "/" }); // 쿠키도 제거
           window.location.href = '/login'; // 로그인 페이지로 이동
         }
         return Promise.reject(refreshError);

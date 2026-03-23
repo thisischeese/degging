@@ -19,11 +19,13 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       const publicPaths = ["/login", "/signup", "/password", "/onboarding"];
       const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
-      if (!accessToken && !isPublicPath) {
-        router.replace("/onboarding");
-      } else {
-        setIsAuthorized(true);
-      }
+    if (!accessToken && !isPublicPath) {
+      // 미들웨어가 이미 처리하지만, 클라이언트 사이드 보완을 위해 유지하거나 
+      // 혹은 단순히 권한 없음 상태로만 둡니다.
+      setIsAuthorized(false);
+    } else {
+      setIsAuthorized(true);
+    }
     };
 
     checkAuth();
