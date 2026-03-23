@@ -34,6 +34,6 @@ export const config = {
      * - images (public images)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|images|favicon.ico).*)',
+     '/((?!api|swagger-ui|v3/api-docs|_next/static|_next/image|images|favicon.ico).*)',
   ],
 }
