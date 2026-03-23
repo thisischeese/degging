@@ -15,19 +15,19 @@ import java.util.UUID;
  */
 public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
 
-    // 스크랩 조회 시 필요한 항목만 꺼내기 위한 Projection
-    public interface ScrapSummaryProjection {
-        UUID getScrapId();
-        String getName();
-        String getColor();
-        List<String> getThumbnailUrls();
-    }
-
     // 특정 사용자의 스크랩명 중복 확인
     boolean existsByNameAndUser(String name, UserEntity user);
 
     // 특정 사용자의 스크랩 리스트 조회
     List<ScrapEntity> findAllByUserUserId(UUID user_userId);
+
+    // 특정 사용자의 스크랩 전체 상세 조회
+    @Query("SELECT DISTINCT s FROM ScrapEntity s " +
+            "LEFT JOIN FETCH s.scrapItems si " + // 스크랩 아이템(중간 테이블) 조인
+            "LEFT JOIN FETCH si.cafe c " +       // 실제 카페 정보 조인
+            "WHERE s.user.userId = :userId " +   // 로그인한 사용자의 것만
+            "ORDER BY s.createdAt DESC")         // 최신순 정렬
+    List<ScrapEntity> findAllWithCafesByUserId(@Param("userId") UUID userId);
 
     // 스크랩 상세 조회 (카페 정보 포함)
     @Query("SELECT s FROM ScrapEntity s " +
@@ -61,8 +61,4 @@ public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
             "AND si.cafe.cafeId = :cafeId")
     String findScrapColorByUserIdAndCafeId(@Param("userId") UUID userId, @Param("cafeId") UUID cafeId);
 
-
-    @Query("SELECT s.scrapId as scrapId, s.name as name, s.color as color, s.thumbnailUrls as thumbnailUrls " +
-            "FROM ScrapEntity s WHERE s.user.userId = :userId")
-    List<ScrapSummaryProjection> findScrapSummariesByUserId(@Param("userId") UUID userId);
 }

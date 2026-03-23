@@ -18,7 +18,5 @@ import java.util.UUID;
 public class ScrapDetailResponse {
     private UUID scrapId;
     private String name;
-    private String color;
     private List<ScrapCafeResponse> cafes; // 카페 정보 리스트
-    private List<String> thumbnailUrls; // 썸네일용 이미지 최대 4개, 없는 경우 null 로 채움 
 }

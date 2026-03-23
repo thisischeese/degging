@@ -21,12 +21,16 @@ public class ScrapCafeResponse {
     private UUID cafeId;
     private String name;
     private String cafeIntro; // 필요한 정보만 골라서 정의
+    private String thumbnailUrl;
+    private String address;
 
     public static ScrapCafeResponse toDto(ScrapItemEntity scrap){
         return ScrapCafeResponse.builder()
                         .cafeId(scrap.getCafe().getCafeId()) // 빈값
                         .name(scrap.getCafe().getName())
                         .cafeIntro(scrap.getCafe().getCafeIntro())
+                        .thumbnailUrl(scrap.getCafe().getThumbnailUrl())
+                        .address(scrap.getCafe().getAddress())
                         .build();
     }
 }
