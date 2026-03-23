@@ -76,8 +76,8 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
     // 모든 조건 충족 시 다음 단계
     if (isCheck && birthDate.length === 10 && gender) {
       // API 명세서에 맞춰 birthDate로 전달 (YYYY-MM-DD 형식으로 변환이 필요할 수 있음)
-      // 현재는 UI용 포맷(YYYY.MM.DD)이므로 서버 전송 시에는 .을 -로 바꿉니다.
-      const formattedBirthDate = birthDate.replace(/\./g, "-");
+      // 백엔드 요청에 따라 YYYY.MM.DD 형식 유지
+      const formattedBirthDate = birthDate;
       updateData({ nickname, birthDate: formattedBirthDate, gender });
       next();
     }
