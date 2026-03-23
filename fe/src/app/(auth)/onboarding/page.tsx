@@ -10,33 +10,33 @@ import { pushGtmEvent } from "@/lib/abTest";
 // 개별 사진 배치 데이터 (디자인 시안 콜라주 레이아웃 기반)
 const PHOTOS = [
   {
-    src: "/images/onboarding/onboard_coffee.svg",
+    src: "/images/onboarding/onboard_coffee.webp",
     alt: "커피와 크로와상",
     style: { top: "0%", left: "0%", width: "34%", height: "50%" }
   },
   {
-    src: "/images/onboarding/onboard_dessert.svg",
+    src: "/images/onboarding/onboard_dessert.webp",
     alt: "디저트",
     style: { top: "93%", right: "-7%", width: "30%", height: "20%" },
     rotate: 0,
   },
   {
-    src: "/images/onboarding/onboard_dujjon.svg",
+    src: "/images/onboarding/onboard_dujjon.webp",
     alt: "두쫀쿠",
     style: { top: "0%", right: "0%", width: "35%", height: "22%" }
   },
   {
-    src: "/images/onboarding/onboard_chu.svg",
+    src: "/images/onboarding/onboard_chu.webp",
     alt: "츄러스",
     style: { top: "85%", left: "-5%", width: "30%", height: "39%" }
   },
   {
-    src: "/images/onboarding/onboard_ice.svg",
+    src: "/images/onboarding/onboard_ice.webp",
     alt: "아이스크림",
     style: { top: "49%", right: "5%", width: "28%", height: "24%" }
   },
   {
-    src: "/images/onboarding/onboard_bagle.svg",
+    src: "/images/onboarding/onboard_bagle.webp",
     alt: "베이글",
     style: { top: "30%", right: "26%", width: "45%", height: "60%" }
   },

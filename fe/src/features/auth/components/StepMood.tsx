@@ -58,13 +58,15 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
                 onClick={() => toggleMood(cafe.cafeId)}
                 className="relative cursor-pointer"
               >
-                <div className={`relative aspect-square rounded-[16px] overflow-hidden border-[3px] transition-all duration-200 ${
+                <div className={`relative aspect-square rounded-[16px] overflow-hidden border-[3px] transition-all duration-200 bg-gray-100 ${
                   isActive ? "border-[#C3304F] shadow-[0_0_15px_rgba(195,48,79,0.3)]" : "border-transparent"
                 }`}>
                   <Image
                     src={cafe.thumbnailUrl}
                     alt="Cafe Mood"
                     fill
+                    priority={cafes.indexOf(cafe) < 4} // 처음 4개 이미지는 우선순위 높게 로드
+                    sizes="(max-width: 768px) 50vw, 33vw" // 뷰포트 크기에 맞는 최적의 이미지 로드
                     className={`object-cover transition-transform duration-300 ${isActive ? "scale-105" : "scale-100"}`}
                   />
                 </div>
