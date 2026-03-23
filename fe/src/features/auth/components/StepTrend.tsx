@@ -5,7 +5,7 @@ import { Chip } from "@/common/components/Chip";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 import { useQuery } from "@tanstack/react-query";
-import { getOnboardingRankings } from "@/features/ranks/api/rankingApi";
+import { getOnboardingMenus } from "@/features/onboarding/api/onboardingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 
 // 기존 DUMMY_MENUS를 제거하고 API 데이터를 사용합니다.
@@ -14,27 +14,26 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
   // 온보딩 랭킹 데이터 조회 (정적 데이터 성격이 강하므로 STATIC 옵션 적용)
   const { data: rankingData } = useQuery({
     queryKey: ["rankings", "onboarding"],
-    queryFn: getOnboardingRankings,
+    queryFn: getOnboardingMenus,
     ...QUERY_OPTIONS.STATIC,
   });
   
-  // 랭킹 키워드만 추출하여 메뉴 리스트 생성
-  const menus = rankingData?.data.rankings.map(item => item.keyword) || [];
+  // 랭킹 키워드만 추출하여 메뉴 리스트 생성 (언래핑된 데이터를 바로 사용)
+  const menus = rankingData?.map(item => item.keyword) || [];
 
   const [selectedMenus, setSelectedMenus] = useState<string[]>(formData.trends || []);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const toggleMenu = (menu: string, index: number) => {
-    const uniqueKey = `${menu}-${index}`;
+  const toggleMenu = (keyword: string) => {
     setErrorMessage("");
-    if (selectedMenus.includes(uniqueKey)) {
-      setSelectedMenus((prev) => prev.filter((item) => item !== uniqueKey));
+    if (selectedMenus.includes(keyword)) {
+      setSelectedMenus((prev) => prev.filter((item) => item !== keyword));
     } else {
       if (selectedMenus.length >= 5) {
         setErrorMessage("최대 5개까지 선택 가능합니다!");
         return;
       }
-      setSelectedMenus((prev) => [...prev, uniqueKey]);
+      setSelectedMenus((prev) => [...prev, keyword]);
     }
   };
 
@@ -55,15 +54,14 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
         <div className="max-h-full overflow-y-auto no-scrollbar">
           <div className="flex flex-wrap gap-x-2 gap-y-4 justify-center max-w-[360px] mx-auto pb-4">
             {menus.map((menu, index) => {
-              const uniqueKey = `${menu}-${index}`;
-              const isActive = selectedMenus.includes(uniqueKey);
+              const isActive = selectedMenus.includes(menu);
               return (
-                <div key={uniqueKey} className="relative">
+                <div key={`${menu}-${index}`} className="relative">
                   <Chip
                     label={menu}
                     variant="onboarding"
                     isActive={isActive}
-                    onClick={() => toggleMenu(menu, index)}
+                    onClick={() => toggleMenu(menu)}
                     /* [&_svg]:hidden: 칩 내부의 체크 아이콘(SVG)을 강제로 숨김
                       scale 제거: 레이아웃이 변하지 않도록 설정
                     */

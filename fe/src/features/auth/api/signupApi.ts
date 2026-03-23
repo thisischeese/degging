@@ -1,7 +1,7 @@
-import { axios_instance } from "@/api/axios_instance"; // 아까 만드신 인스턴스
-import { SignupFormData } from "../types";
+import { axios_instance } from "@/api/axios_instance";
+import { SignupRequest, BaseResponse } from "../types";
 
-export const postSignup = async (formData: SignupFormData) => {
-  const response = await axios_instance.post('/api/auth/signup', formData);
-  return response;
+export const postSignup = async (formData: SignupRequest): Promise<BaseResponse<null>> => {
+  const response = await axios_instance.post<BaseResponse<null>>('/api/auth/signup', formData);
+  return response as unknown as BaseResponse<null>;
 };

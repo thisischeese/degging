@@ -1,12 +1,18 @@
-export interface SignupFormData {
+export type Gender = 'MALE' | 'FEMALE';
+
+/** 1. 실제 백엔드 회원가입 요청 시 보내는 데이터 */
+export interface SignupRequest {
   email: string;
-  password?: string;
-  name?: string;
-  nickname?: string;
-  birthDate?: string;
-  gender?: "MALE" | "FEMALE";
-  trends?: string[];
-  moods?: string[];
+  password: string;
+  nickname: string;
+  gender: Gender;
+  birthDate: string; // "1111-11-11"
+}
+
+/** 2. 프론트엔드 회원가입 단계(Step1~5)에서 관리하는 전체 데이터 */
+export interface SignupFormData extends SignupRequest {
+  trends: string[]; // 온보딩용
+  moods: string[]; // 온보딩용
 }
 
 export interface SignupStepProps {
@@ -26,23 +32,14 @@ export interface LoginFormData {
   password?: string; // 소셜 로그인의 경우 비밀번호가 없을 수 있어 ?를 붙이기도 합니다.
 }
 
-/** 로그인 성공 시 서버에서 내려주는 응답 데이터 구조 (예시) */
-export interface LoginResponse {
-  status: string;
-  code: string;
-  message: string;
-  data: {
-    accessToken: string;
-    refreshToken: string;
-    user: {
-      id: number;
-      email: string;
-      nickname: string;
-    };
-  };
+/** 로그인 성공 시 서버에서 내려주는 응답 데이터 구조 */
+export interface LoginResponseData {
+  accessToken: string;
+  refreshToken: string;
 }
 
-/** 비밀번호 찾기 요청 데이터 */
-export interface FindPasswordData {
-  email: string;
+export interface BaseResponse<T> {
+  code: number;
+  message: string;
+  data: T;
 }
