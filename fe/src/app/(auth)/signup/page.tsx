@@ -13,6 +13,7 @@ import StepWelcome from "@/features/auth/components/StepWelcome";
 
 // API 호출 함수 추가
 import { postSignup } from "@/features/auth/api/signupApi";
+import { postLogin } from "@/features/auth/api/loginApi";
 import { postOnboardingResults } from "@/features/onboarding/api/onboardingApi";
 
 export default function SignupPage() {
@@ -45,8 +46,30 @@ export default function SignupPage() {
 
       const result = await postSignup(signupData);
       
-      if (result.code === 200) {
+      // 숫자 200과 문자열 "200" 모두 처리
+      if (String(result.code) === "200") {
         console.log("회원가입 성공:", result.message);
+        
+        // 1. 회원가입 응답에서 onboardingToken 추출 (타입 안전성 확보)
+        const token = result.data?.onboardingToken;
+
+        if (token) {
+          // 백엔드 레퍼런스 코드에 맞춰 sessionStorage에 저장
+          sessionStorage.setItem("ONBOARDING_TOKEN", token);
+          console.log("Onboarding Token 세션 저장 완료!");
+        } else {
+          // 2. 만약 onboardingToken이 명세와 달리 안 들어왔다면 기존 자동 로그인(폴백) 시도
+          try {
+            await postLogin({
+              email: currentData.email,
+              password: currentData.password,
+            });
+            console.log("회원가입 후 자동 로그인 성공 (대체 토큰 발급 완료)");
+          } catch (loginError) {
+            console.error("자동 로그인 실패:", loginError);
+          }
+        }
+
         return true;
       } else {
         alert(result.message || "회원가입에 실패했습니다.");
@@ -69,6 +92,10 @@ export default function SignupPage() {
 
       await postOnboardingResults(onboardingData);
       console.log("온보딩 데이터 제출 성공");
+      
+      // 온보딩 완료 시 임시 토큰 즉시 파기 (보안 및 백엔드 지침 준수)
+      sessionStorage.removeItem("ONBOARDING_TOKEN");
+      
       return true;
     } catch (error) {
       console.error("온보딩 실패:", error);

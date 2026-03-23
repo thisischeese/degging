@@ -39,7 +39,7 @@ export interface LoginResponseData {
 }
 
 export interface BaseResponse<T> {
-  code: number;
+  code: number | string;
   message: string;
   data: T;
 }
