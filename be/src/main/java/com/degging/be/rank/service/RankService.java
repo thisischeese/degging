@@ -110,34 +110,51 @@ public class RankService {
     @Async // 검색 쓰레드와 점수 올리는 쓰레드를 분리
     @EventListener // 이벤트 발행 시 자동 실행
     public void handleSearchEvent(SearchEvent event){
+        Map<String, Integer> menus = event.extractedMenus();
+        if (menus == null || menus.isEmpty()) return;
+
         try {
-            String keyword = event.keyword();
-
-            log.info("[Redis] 트렌드 반영 시작 - 키워드: {}", keyword);
-
-            // 현재 시간 (초 단위)
-            long nowSeconds = System.currentTimeMillis() / 1000;
-
-            // 가중치 계산 (최근 검색을 더 높게 평가)
-            // 2026년 1월 1일(기준점)
-            long referenceTime = 1767225600L;
-
-            // 기준점 이후 경과한 시간(초)
-            double timeWeight = (nowSeconds - referenceTime) / 100000.0;
-
             // 최종 점수 = 기본 점수(1.0) + 시간 가중치
-            double finalScore = 1.0 + timeWeight;
+            double baseScore = calculateBaseScore();
 
-            log.info("[Redis] 실시간 가중치 반영 - 키워드: {}, 점수: {}", keyword, finalScore);
+            // 메뉴별 점수 반영 로직을 별도 메서드로 분리하여 중첩 제거
+            menus.forEach((menuIdStr, aiCount) -> processMenuScore(menuIdStr, aiCount, baseScore));
 
-            // Redis ZSet 점수 업데이트
-            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, keyword, finalScore);
         } catch (Exception e) {
-            // 비동기 작업, 다른 쓰레드라 글로벌 핸들러가 에러를 잡지 못해
-            // 내부적으로 에러 로그를 남겨 추적
             log.error("[Rank Error] {} : {}",
                     RankErrorcode.RANKING_PROCESS_ERROR.getCode(),
-                    RankErrorcode.RANKING_PROCESS_ERROR.getMessage());
+                    RankErrorcode.RANKING_PROCESS_ERROR.getMessage(), e);
+        }
+    }
+
+    /**
+     * 기준점 대비 시간 가중치가 적용된 기본 점수 계산
+     */
+    private double calculateBaseScore() {
+        long nowSeconds = System.currentTimeMillis() / 1000;
+        long referenceTime = 1767225600L; // 2026-01-01
+        double timeWeight = (nowSeconds - referenceTime) / 100000.0;
+        return 1.0 + timeWeight;
+    }
+
+    /**
+     * 개별 메뉴의 ID 변환 및 Redis 점수 업데이트 처리
+     */
+    private void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
+        try {
+            // String -> Integer 검증
+            Integer.parseInt(menuIdStr);
+
+            double finalScore = baseScore * aiCount;
+
+            // Redis 업데이트
+            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, menuIdStr, finalScore);
+
+            log.info("[Redis Trend] 메뉴ID: {}, 반영점수: {} (AI횟수: {})",
+                    menuIdStr, String.format("%.4f", finalScore), aiCount);
+
+        } catch (NumberFormatException e) {
+            log.error("[Type Error] MenuId 변환 실패: {}", menuIdStr);
         }
     }
 
