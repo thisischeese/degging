@@ -16,10 +16,11 @@ def get_query_preprocess_service() -> QueryPreprocessService:
 @router.post(
     "/query-preprocess",
     response_model=QueryPreprocessResponse,
-    summary="사용자 쿼리 전처리",
+    deprecated=True,
+    summary="Preprocess a cafe query",
     description=(
-        "사용자 질의를 전처리하고 질의 벡터화 및 메뉴 추출 결과를 반환합니다. "
-        "현재 encoder 및 NER 연동은 stub 상태이므로 빈 결과를 반환합니다."
+        "Normalize the query text and return the current encoder and menu extraction "
+        "results. The endpoint is deprecated in favor of /ai/map/search."
     ),
 )
 async def query_preprocess(
