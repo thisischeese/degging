@@ -7,160 +7,273 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, MoreVertical, Star } from 'lucide-react';
 import { CafeCard } from '@/common/components/CafeCard';
 import { Dropdown } from '@/common/components/Dropdown';
+import { getReviewDetail } from '@/features/reviews/api/reviewApi';
+import {
+  ensureReviewDetailImages,
+  getLocalReviewDetail,
+  REVIEW_DETAIL_FALLBACK_IMAGE,
+} from '@/features/reviews/lib/reviewDetail';
+import { StoredCafeReview, ReviewDetailResponse } from '@/features/reviews/types';
 
-// 인터페이스 (기존 코드 참고 및 types.ts 호환)
-interface LocalReview {
-  id: string;
-  rating: number;
-  content: string;
-  imageUrl: string;
-  timestamp: number;
-}
+// 마이 리뷰 상세 화면에서 사용할 기본 상태를 정의합니다.
+const createInitialReviewDetail = (reviewId: string): ReviewDetailResponse => ({
+  reviewId,
+  rating: 0,
+  content: '',
+  createdAt: '',
+  updatedAt: '',
+  imageUrls: [REVIEW_DETAIL_FALLBACK_IMAGE],
+  nickname: '',
+  name: '',
+  cafeIntro: '',
+  address: '',
+  roadAddress: '',
+});
 
-interface ReviewDetail {
-  reviewId: string;
-  rating: number;
-  content: string;
-  createdAt: string;
-  imageUrls: string[];
-  nickname: string;
-  name: string;       // 카페 이름
-  cafeIntro: string;  // 카페 설명
-  roadAddress: string;// 카페 주소
-}
+// 리뷰 작성일을 화면용 문자열로 변환합니다.
+const formatDate = (dateString: string) => {
+  if (!dateString) {
+    return '';
+  }
 
-export default function MyReviewDetailPage({ params }: { params: Promise<{ reviewId: string }> | { reviewId: string } }) {
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const period = hours >= 12 ? '오후' : '오전';
+
+  hours = hours % 12 || 12;
+
+  return `${year}년 ${month}월 ${day}일 ${period} ${hours}시 ${minutes}분`;
+};
+
+export default function MyReviewDetailPage({
+  params,
+}: {
+  params: Promise<{ reviewId: string }> | { reviewId: string };
+}) {
   const router = useRouter();
   const resolvedParams = params instanceof Promise ? use(params) : params;
 
-  const mockReviewDetail: ReviewDetail = {
-    reviewId: resolvedParams.reviewId,
-    rating: 3.5,
-    content: "유명하다해서 기대하며 방문했는데 생각보다 응대가 친절하지 않았어요. ....... ㅜㅜ\n\n그래도 익숙하면서도 새로운 식감의 맛, 특히 시그니처 메뉴인 더티초코가 먹기는 힘들었지만 정말 맛있었어요. 그리고 공간이 넓어서 모임하기 좋았어요.",
-    createdAt: "2026-02-25T14:52:00Z",
-    imageUrls: ["/images/cafe/cafe1.png", "/images/cafe/cafe2.png"],
-    nickname: "SAYCH22Z",
-    name: "아우어베이커리 역삼점",
-    cafeIntro: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
-    roadAddress: "서울 강남구 언주로85길 29 1층"
-  };
+  // 리뷰 조회 상태를 관리합니다.
+  const [reviewData, setReviewData] = useState<ReviewDetailResponse>(() =>
+    createInitialReviewDetail(resolvedParams.reviewId)
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isLocalReview, setIsLocalReview] = useState(false);
 
-  const [reviewData, setReviewData] = useState<ReviewDetail>(mockReviewDetail);
+  // 리뷰 이미지 캐러셀 상태를 관리합니다.
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [currentImageSrc, setCurrentImageSrc] = useState(REVIEW_DETAIL_FALLBACK_IMAGE);
 
+  // 리뷰 상세 데이터를 로컬 또는 서버에서 조회합니다.
   useEffect(() => {
-    // localStorage에서 리뷰 찾기 로직
-    const loadLocalData = () => {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('cafeReviews-')) {
-          try {
-            const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
-            const foundReview = localReviews.find((r) => r.id === resolvedParams.reviewId);
+    let isMounted = true;
 
-            if (foundReview) {
-              // [오류 해결] setTimeout을 사용하여 다음 틱(Task)에서 업데이트되도록 합니다.
-              // 이렇게 하여 "동기적 호출(Synchronous)" 경고 해결
-              setTimeout(() => {
-                setReviewData(prev => ({
-                  ...prev,
-                  reviewId: foundReview.id,
-                  rating: foundReview.rating,
-                  content: foundReview.content,
-                  imageUrls: [foundReview.imageUrl],
-                  createdAt: foundReview.timestamp
-                    ? new Date(foundReview.timestamp).toISOString()
-                    : new Date().toISOString()
-                }));
-              }, 0);
-              break;
-            }
-          } catch (e) {
-            console.error(e);
-          }
+    const fetchReviewDetail = async () => {
+      setLoading(true);
+      setError('');
+
+      const localReview = getLocalReviewDetail(resolvedParams.reviewId);
+
+      if (localReview) {
+        if (!isMounted) {
+          return;
+        }
+
+        setReviewData({
+          ...localReview,
+          imageUrls: ensureReviewDetailImages(localReview.imageUrls),
+        });
+        setIsLocalReview(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await getReviewDetail(resolvedParams.reviewId);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setReviewData({
+          ...response,
+          imageUrls: ensureReviewDetailImages(response.imageUrls),
+        });
+        setIsLocalReview(false);
+      } catch (fetchError) {
+        console.error('Failed to fetch my review detail:', fetchError);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setError('리뷰를 불러오지 못했습니다.');
+      } finally {
+        if (isMounted) {
+          setLoading(false);
         }
       }
     };
 
-    loadLocalData();
+    fetchReviewDetail();
+
+    return () => {
+      isMounted = false;
+    };
   }, [resolvedParams.reviewId]);
 
-  const formatDate = (dateString: string) => {
-    const d = new Date(dateString);
-    const year = d.getFullYear();
-    const month = d.getMonth() + 1;
-    const day = d.getDate();
+  // 리뷰 데이터가 바뀌면 캐러셀 상태를 초기화합니다.
+  useEffect(() => {
+    const nextImages = ensureReviewDetailImages(reviewData.imageUrls);
 
-    let hours = d.getHours();
-    const minutes = d.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? '오후' : '오전';
+    setCurrentIndex(0);
+    setDirection(0);
+    setCurrentImageSrc(nextImages[0]);
+  }, [reviewData.imageUrls]);
 
-    hours = hours % 12;
-    hours = hours ? hours : 12;
+  // 현재 캐러셀 인덱스에 맞는 이미지를 반영합니다.
+  useEffect(() => {
+    const nextImages = ensureReviewDetailImages(reviewData.imageUrls);
+    setCurrentImageSrc(nextImages[currentIndex] ?? REVIEW_DETAIL_FALLBACK_IMAGE);
+  }, [currentIndex, reviewData.imageUrls]);
 
-    return `${year}년 ${month}월 ${day}일 ${ampm} ${hours}시 ${minutes}분`;
-  };
-
+  // 카페 카드에 필요한 데이터를 매핑합니다.
   const cafeData = {
-    id: "cafe-id-placeholder",
-    name: reviewData.name,
-    description: reviewData.cafeIntro,
-    address: reviewData.roadAddress,
-    imageUrl: reviewData.imageUrls[0] || '/images/cafe/baseCafeImage.png',
+    id: 'cafe-id-placeholder',
+    name: reviewData.name || '카페 정보 없음',
+    description: reviewData.cafeIntro || '카페 소개가 없습니다.',
+    address: reviewData.roadAddress || reviewData.address || '주소 정보 없음',
+    imageUrl: ensureReviewDetailImages(reviewData.imageUrls)[0],
   };
 
-  const handleDropdown = (val: string) => {
-    if (val === 'edit') {
-      router.push(`/users/reviews/${resolvedParams.reviewId}/edit`);
-    } else if (val === 'delete') {
-      if (window.confirm('리뷰를 삭제하시겠습니까?')) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('cafeReviews-')) {
-            try {
-              const localReviews: LocalReview[] = JSON.parse(localStorage.getItem(key) || '[]');
-              const filtered = localReviews.filter((r) => r.id !== resolvedParams.reviewId);
-              if (filtered.length !== localReviews.length) {
-                localStorage.setItem(key, JSON.stringify(filtered));
-                break;
-              }
-            } catch { }
-          }
-        }
-        // 수정된 사항 반영을 위해 목록으로 이동 후 새로고침 (문제 구체적인 로직 반영)
-        router.replace('/users/reviews');
-        setTimeout(() => {
-          window.location.reload();
-        }, 50);
-      }
+  // 캐러셀 스와이프 종료 시 다음 이미지를 계산합니다.
+  const handleDragEnd = (offsetX: number, velocityX: number) => {
+    const imageUrls = ensureReviewDetailImages(reviewData.imageUrls);
+
+    if (imageUrls.length <= 1) {
+      return;
+    }
+
+    if (offsetX < -50 || velocityX < -500) {
+      setDirection(1);
+      setCurrentIndex((previous) => (previous + 1) % imageUrls.length);
+      return;
+    }
+
+    if (offsetX > 50 || velocityX > 500) {
+      setDirection(-1);
+      setCurrentIndex((previous) => (previous - 1 + imageUrls.length) % imageUrls.length);
     }
   };
 
+  // 로컬 저장 리뷰를 삭제합니다.
+  const deleteLocalReview = () => {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+
+      if (!key || !key.startsWith('cafeReviews-')) {
+        continue;
+      }
+
+      try {
+        const rawData = localStorage.getItem(key);
+        const localReviews: StoredCafeReview[] = rawData ? JSON.parse(rawData) : [];
+        const filteredReviews = localReviews.filter((review) => review.id !== resolvedParams.reviewId);
+
+        if (filteredReviews.length !== localReviews.length) {
+          localStorage.setItem(key, JSON.stringify(filteredReviews));
+          return true;
+        }
+      } catch (deleteError) {
+        console.error('Failed to delete local review:', deleteError);
+      }
+    }
+
+    return false;
+  };
+
+  // 드롭다운 액션을 처리합니다.
+  const handleDropdown = (value: string) => {
+    if (value === 'edit') {
+      router.push(`/users/reviews/${resolvedParams.reviewId}/edit`);
+      return;
+    }
+
+    if (value === 'delete') {
+      if (!window.confirm('리뷰를 삭제하시겠습니까?')) {
+        return;
+      }
+
+      if (isLocalReview) {
+        deleteLocalReview();
+        router.replace('/users/reviews');
+        return;
+      }
+
+      window.alert('서버 삭제 API 연동 전이라 상세 조회만 지원합니다.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[100dvh] w-full items-center justify-center bg-white font-pretendard text-[15px] text-gray-500">
+        리뷰를 불러오는 중입니다...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center gap-4 bg-white px-6 text-center font-pretendard">
+        <p className="text-[15px] text-gray-700">{error}</p>
+        <button
+          onClick={() => router.back()}
+          className="rounded-full border border-gray-900 px-4 py-2 text-[14px] font-medium text-gray-900 transition-colors hover:bg-gray-100"
+        >
+          이전 화면으로
+        </button>
+      </div>
+    );
+  }
+
+  const imageUrls = ensureReviewDetailImages(reviewData.imageUrls);
+
   return (
-    <div className="w-full min-h-[100dvh] bg-[#FFFFFF] font-pretendard flex flex-col max-w-md mx-auto relative">
-      <header className="sticky top-0 z-10 bg-[#F9F9F4] border-b border-gray-200">
-        <div className="flex items-center justify-between h-14 px-4 pt-safe-top">
+    <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col bg-[#FFFFFF] font-pretendard">
+      {/* 마이 리뷰 상세 상단 헤더를 표시합니다. */}
+      <header className="sticky top-0 z-10 border-b border-gray-200 bg-[#F9F9F4]">
+        <div className="flex h-14 items-center justify-between px-4 pt-safe-top">
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-900 bg-transparent hover:bg-gray-100 transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-900 bg-transparent transition-colors hover:bg-gray-100"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-900" strokeWidth={1.2} />
+            <ArrowLeft className="h-5 w-5 text-gray-900" strokeWidth={1.2} />
           </button>
-          <h1 className="text-[16px] font-bold text-gray-900 absolute left-1/2 -translate-x-1/2">
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-[16px] font-bold text-gray-900">
             마이 리뷰
           </h1>
-          <div className="relative flex items-center justify-center w-10 h-10">
+          <div className="relative flex h-10 w-10 items-center justify-center">
             <Dropdown
               options={[
                 { label: '수정', value: 'edit' },
-                { label: '삭제', value: 'delete' }
+                { label: '삭제', value: 'delete' },
               ]}
               value=""
               onChange={handleDropdown}
               triggerNode={
-                <button className="flex items-center justify-center w-10 h-10 rounded-full bg-transparent hover:bg-gray-100 transition-colors pointer-events-auto">
-                  <MoreVertical className="w-6 h-6 text-gray-900" strokeWidth={1.5} />
+                <button className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-gray-100">
+                  <MoreVertical className="h-6 w-6 text-gray-900" strokeWidth={1.5} />
                 </button>
               }
             />
@@ -168,15 +281,17 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
         </div>
       </header>
 
-      <main className="flex-1 w-full overflow-y-auto relative no-scrollbar pb-20">
+      {/* 마이 리뷰 상세 본문 콘텐츠를 표시합니다. */}
+      <main className="relative flex-1 overflow-y-auto pb-20 no-scrollbar">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex flex-col pb-8 mx-auto w-full"
+          className="mx-auto flex w-full flex-col pb-8"
         >
-          <div className="px-5 pt-5 pb-4">
-            <div className="shadow-sm rounded-2xl overflow-hidden">
+          {/* 리뷰에 연결된 카페 정보를 표시합니다. */}
+          <div className="px-5 pb-4 pt-5">
+            <div className="overflow-hidden rounded-2xl shadow-sm">
               <CafeCard
                 id={cafeData.id}
                 name={cafeData.name}
@@ -187,15 +302,16 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
             </div>
           </div>
 
-          <div className="px-5 relative w-full shrink-0">
-            <div className="w-full relative rounded-2xl overflow-hidden shadow-sm aspect-square bg-gray-100 touch-pan-y">
+          {/* 리뷰 이미지 캐러셀을 표시합니다. */}
+          <div className="relative w-full shrink-0 px-5">
+            <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 shadow-sm touch-pan-y">
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
                   key={currentIndex}
                   custom={direction}
                   variants={{
-                    enter: (dir: number) => ({
-                      x: dir > 0 ? 100 : -100,
+                    enter: (currentDirection: number) => ({
+                      x: currentDirection > 0 ? 100 : -100,
                       opacity: 0,
                       zIndex: 1,
                     }),
@@ -204,9 +320,9 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
                       x: 0,
                       opacity: 1,
                     },
-                    exit: (dir: number) => ({
+                    exit: (currentDirection: number) => ({
                       zIndex: 0,
-                      x: dir > 0 ? -50 : 50,
+                      x: currentDirection > 0 ? -50 : 50,
                       opacity: 0,
                     }),
                   }}
@@ -214,69 +330,63 @@ export default function MyReviewDetailPage({ params }: { params: Promise<{ revie
                   animate="center"
                   exit="exit"
                   transition={{
-                    x: { type: "spring", stiffness: 300, damping: 30 },
+                    x: { type: 'spring', stiffness: 300, damping: 30 },
                     opacity: { duration: 0.3 },
                   }}
-                  className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
+                  className="absolute inset-0 h-full w-full cursor-grab active:cursor-grabbing"
                   drag="x"
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.2}
-                  onDragEnd={(e, { offset, velocity }) => {
-                    const swipe = offset.x;
-                    if (swipe < -50 || velocity.x < -500) {
-                      setDirection(1);
-                      setCurrentIndex((prev) => (prev + 1) % reviewData.imageUrls.length);
-                    } else if (swipe > 50 || velocity.x > 500) {
-                      setDirection(-1);
-                      setCurrentIndex((prev) => (prev - 1 + reviewData.imageUrls.length) % reviewData.imageUrls.length);
-                    }
-                  }}
+                  onDragEnd={(_, info) => handleDragEnd(info.offset.x, info.velocity.x)}
                 >
                   <Image
-                    src={reviewData.imageUrls[currentIndex]}
+                    src={currentImageSrc}
                     alt={`리뷰 상세 이미지 ${currentIndex + 1}`}
                     fill
-                    className="object-cover pointer-events-none"
+                    className="pointer-events-none object-cover"
                     draggable={false}
                     priority={currentIndex === 0}
                     unoptimized
+                    onError={() => setCurrentImageSrc(REVIEW_DETAIL_FALLBACK_IMAGE)}
                   />
                 </motion.div>
               </AnimatePresence>
 
-              {reviewData.imageUrls.length > 1 && (
-                <div className="absolute bottom-4 inset-x-0 flex justify-center items-center gap-1.5 z-20 pointer-events-none">
-                  {reviewData.imageUrls.map((_, i) => (
+              {imageUrls.length > 1 ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-1.5">
+                  {imageUrls.map((_, index) => (
                     <div
-                      key={i}
-                      className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${i === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'}`}
+                      key={`${reviewData.reviewId}-${index}`}
+                      className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${
+                        index === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'
+                      }`}
                     />
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 
-          <div className="px-5 flex items-center justify-between mt-4 mb-3">
+          {/* 리뷰 작성자와 별점을 표시합니다. */}
+          <div className="mb-3 mt-4 flex items-center justify-between px-5">
             <div className="flex flex-col justify-center">
-              <span className="text-[15px] font-bold text-gray-900 mb-0.5">
-                @{reviewData.nickname}
+              <span className="mb-0.5 text-[15px] font-bold text-gray-900">
+                @{reviewData.nickname || '알 수 없음'}
               </span>
-              <span className="text-[13px] text-gray-500 font-medium">
-                {formatDate(reviewData.createdAt)}
-              </span>
+              <span className="text-[13px] font-medium text-gray-500">{formatDate(reviewData.createdAt)}</span>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0 self-start mt-1">
-              <Star className="w-[22px] h-[22px] text-[#FFC107] fill-[#FFC107]" />
-              <span className="text-[17px] font-bold text-gray-900 leading-none mt-0.5">
+            <div className="mt-1 flex shrink-0 items-center gap-1.5 self-start">
+              <Star className="h-[22px] w-[22px] fill-[#FFC107] text-[#FFC107]" />
+              <span className="mt-0.5 text-[17px] font-bold leading-none text-gray-900">
                 {reviewData.rating}
               </span>
             </div>
           </div>
 
+          {/* 리뷰 본문 내용을 표시합니다. */}
           <div className="px-5">
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-              <p className="text-[15px] text-gray-900 leading-relaxed whitespace-pre-line break-words break-all font-medium">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <p className="whitespace-pre-line break-all text-[15px] font-medium leading-relaxed text-gray-900">
                 {reviewData.content}
               </p>
             </div>

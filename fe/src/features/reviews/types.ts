@@ -1,13 +1,10 @@
-/**
- * 리뷰 관련 타입 정의
- */
-
-// 1. 리뷰 이미지 인터페이스
+// 리뷰 이미지 정보를 표현하는 타입입니다.
 export interface ReviewImage {
   imageId: string;
   imageUrl: string;
 }
 
+// 로컬 저장소에 보관하는 카페 리뷰 타입입니다.
 export interface StoredCafeReview {
   id: string;
   rating: number;
@@ -16,7 +13,7 @@ export interface StoredCafeReview {
   timestamp: number;
 }
 
-// 2. 개별 리뷰 아이템 인터페이스 (API 응답 기준)
+// 리뷰 목록 응답에 사용하는 리뷰 타입입니다.
 export interface Review {
   reviewId: string;
   rating: number;
@@ -25,10 +22,25 @@ export interface Review {
   updatedAt: string;
   images: ReviewImage[];
   nickname: string;
-  cafeName?: string; // 전체 조회에는 없지만 상세 조회나 기존 목업 데이터 호환을 위해 추가 가능
+  cafeName?: string;
 }
 
-// 3. 페이지네이션 정보 인터페이스
+// 리뷰 상세 응답에 사용하는 리뷰 타입입니다.
+export interface ReviewDetailResponse {
+  reviewId: string;
+  rating: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  imageUrls: string[];
+  nickname: string;
+  name: string;
+  cafeIntro: string;
+  address: string;
+  roadAddress: string;
+}
+
+// 페이지네이션 정보를 표현하는 타입입니다.
 export interface Pageable {
   pageNumber: number;
   pageSize: number;
@@ -42,7 +54,7 @@ export interface Pageable {
   paged: boolean;
 }
 
-// 4. 내 리뷰 전체 조회 응답 인터페이스
+// 내 리뷰 목록 응답에 사용하는 타입입니다.
 export interface MyReviewsResponse {
   content: Review[];
   pageable: Pageable;
@@ -59,11 +71,13 @@ export interface MyReviewsResponse {
   empty: boolean;
 }
 
+// 카페 리뷰 이미지 응답에 사용하는 타입입니다.
 export interface CafeReviewImageDto {
   imageId: string;
   imageUrl: string;
 }
 
+// 카페 리뷰 목록 항목에 사용하는 타입입니다.
 export interface CafeReviewResponse {
   reviewId: string;
   rating: number;
@@ -74,6 +88,7 @@ export interface CafeReviewResponse {
   nickname: string;
 }
 
+// 카페 리뷰 목록 응답에 사용하는 타입입니다.
 export interface CafeReviewsSliceResponse {
   content: CafeReviewResponse[];
   pageable: Pageable;
@@ -90,16 +105,16 @@ export interface CafeReviewsSliceResponse {
   empty: boolean;
 }
 
-// 5. 검색 필터 타입
+// 리뷰 검색 필터에 사용하는 타입입니다.
 export interface ReviewFilter {
   startDate: Date | null;
   endDate: Date | null;
 }
 
-// 6. 백엔드의 모든 응답 구조
+// 공통 API 응답 래퍼에 사용하는 타입입니다.
 export interface ApiResponse<T> {
   status: string;
   code: string;
   message: string;
-  data: T; // 실제 우리가 필요한 데이터는 여기에 들어있음
+  data: T;
 }

@@ -2,11 +2,20 @@ import { http, HttpResponse } from 'msw';
 
 const API_BASE_URL = 'http://localhost:8080';
 
+// 카페 메타데이터를 재사용하기 위한 목업 데이터입니다.
+const cafeSeed = {
+  name: '싸피카페',
+  cafeIntro: '공부하기 좋은 카페입니다.',
+  address: '서울시 강남구',
+  roadAddress: '테헤란로 123',
+};
+
+// 리뷰 목록과 상세 응답에 공통으로 사용하는 목업 데이터입니다.
 const reviewSeed = [
   {
     reviewId: 'e636cba2-f5a2-4161-a972-b9e2d7ac7975',
     rating: 5,
-    content: '카페가 정말 예쁘네요!~~~~~~~~하하하',
+    content: '카페가 정말 예뻐요! 사진도 잘 나와요.',
     createdAt: '2026-03-18T13:21:08.446623',
     updatedAt: '2026-03-18T13:21:08.446623',
     images: [
@@ -21,7 +30,7 @@ const reviewSeed = [
           'https://dqee7nuafmp2e.cloudfront.net/review/80044a35-d709-4744-9a17-c501a3d50586_image-2.jpg',
       },
     ],
-    nickname: '킴싸피',
+    nickname: '김싸피',
   },
   {
     reviewId: '4f4ae9be-2857-4389-a534-3197567175a0',
@@ -29,22 +38,17 @@ const reviewSeed = [
     content: '분위기 좋고 커피도 맛있었어요.',
     createdAt: '2026-03-16T13:27:19.991701',
     updatedAt: '2026-03-16T13:27:19.991701',
-    images: [
-      {
-        imageId: '2a348d01-b897-436b-a4f4-f80e3a082285',
-        imageUrl: 'https://s3.cloud/test/image.png',
-      },
-    ],
-    nickname: '킴싸피',
+    images: [{ imageId: '2a348d01-b897-436b-a4f4-f80e3a082285', imageUrl: 'https://s3.cloud/test/image.png' }],
+    nickname: '최라떼',
   },
   {
     reviewId: '1295ff18-3f84-4366-87b5-8212126825c7',
     rating: 3,
-    content: '수정이요~~',
+    content: '무난했어요.',
     createdAt: '2026-03-16T13:19:49.415999',
     updatedAt: '2026-03-16T13:26:31.179429',
     images: [],
-    nickname: '킴싸피',
+    nickname: '박원두',
   },
   {
     reviewId: '95de77df-a40e-4f9d-82d7-d23549d0d101',
@@ -53,12 +57,12 @@ const reviewSeed = [
     createdAt: '2026-03-15T09:12:11.000000',
     updatedAt: '2026-03-15T09:12:11.000000',
     images: [{ imageId: 'img-4', imageUrl: 'https://s3.cloud/test/cafe4.png' }],
-    nickname: '하늘',
+    nickname: '한늘',
   },
   {
     reviewId: 'b0c33ed0-a0e9-42f0-9044-8a9af234f001',
     rating: 4,
-    content: '디저트가 생각보다 괜찮았어요.',
+    content: '인테리어가 생각보다 괜찮았어요.',
     createdAt: '2026-03-14T18:43:20.000000',
     updatedAt: '2026-03-14T18:43:20.000000',
     images: [],
@@ -80,7 +84,7 @@ const reviewSeed = [
     createdAt: '2026-03-12T15:00:00.000000',
     updatedAt: '2026-03-12T15:00:00.000000',
     images: [{ imageId: 'img-7', imageUrl: 'https://s3.cloud/test/cafe7.png' }],
-    nickname: '단비',
+    nickname: '하비',
   },
   {
     reviewId: 'b0c33ed0-a0e9-42f0-9044-8a9af234f004',
@@ -89,21 +93,21 @@ const reviewSeed = [
     createdAt: '2026-03-11T14:00:00.000000',
     updatedAt: '2026-03-11T14:00:00.000000',
     images: [],
-    nickname: '한결',
+    nickname: '수결',
   },
   {
     reviewId: 'b0c33ed0-a0e9-42f0-9044-8a9af234f005',
     rating: 5,
-    content: '재방문 의사 있어요.',
+    content: '디저트가 맛있어요.',
     createdAt: '2026-03-10T08:30:00.000000',
     updatedAt: '2026-03-10T08:30:00.000000',
     images: [{ imageId: 'img-9', imageUrl: 'https://s3.cloud/test/cafe9.png' }],
-    nickname: '예나',
+    nickname: '은하',
   },
   {
     reviewId: 'b0c33ed0-a0e9-42f0-9044-8a9af234f006',
     rating: 3,
-    content: '무난했지만 특별한 포인트는 적었어요.',
+    content: '무난했지만 재방문 의사는 애매해요.',
     createdAt: '2026-03-09T12:50:00.000000',
     updatedAt: '2026-03-09T12:50:00.000000',
     images: [],
@@ -121,16 +125,16 @@ const reviewSeed = [
   {
     reviewId: 'b0c33ed0-a0e9-42f0-9044-8a9af234f008',
     rating: 5,
-    content: '서비스가 친절했어요.',
+    content: '서비스가 친절해요.',
     createdAt: '2026-03-07T10:05:00.000000',
     updatedAt: '2026-03-07T10:05:00.000000',
     images: [{ imageId: 'img-12', imageUrl: 'https://s3.cloud/test/cafe12.png' }],
-    nickname: '서연',
+    nickname: '세연',
   },
   {
     reviewId: 'b0c33ed0-a0e9-42f0-9044-8a9af234f009',
     rating: 4,
-    content: '창가 자리 채광이 좋아요.',
+    content: '창가 자리가 채광도 좋고 편해요.',
     createdAt: '2026-03-06T09:45:00.000000',
     updatedAt: '2026-03-06T09:45:00.000000',
     images: [],
@@ -138,18 +142,48 @@ const reviewSeed = [
   },
 ];
 
+// 카페별 리뷰 목록 응답으로 변환합니다.
+const buildCafeReviews = (cafeId: string) => {
+  return reviewSeed.map((review) => ({
+    ...review,
+    reviewId: `${cafeId}-${review.reviewId}`,
+  }));
+};
+
+// 리뷰 상세 응답으로 변환합니다.
+const buildReviewDetail = (reviewId: string) => {
+  const reviewIdParts = reviewId.split('-');
+  const baseReviewId =
+    reviewIdParts.length > 5 ? reviewIdParts.slice(1).join('-') : reviewId;
+  const matchedReview = reviewSeed.find((review) => review.reviewId === baseReviewId);
+
+  if (!matchedReview) {
+    return null;
+  }
+
+  return {
+    reviewId,
+    rating: matchedReview.rating,
+    content: matchedReview.content,
+    createdAt: matchedReview.createdAt,
+    updatedAt: matchedReview.updatedAt,
+    imageUrls: matchedReview.images.map((image) => image.imageUrl),
+    nickname: matchedReview.nickname,
+    name: cafeSeed.name,
+    cafeIntro: cafeSeed.cafeIntro,
+    address: cafeSeed.address,
+    roadAddress: cafeSeed.roadAddress,
+  };
+};
+
+// 리뷰 API 목업 핸들러를 정의합니다.
 export const reviewHandlers = [
   http.get(`${API_BASE_URL}/api/cafes/:cafeId/reviews`, ({ request, params }) => {
     const url = new URL(request.url);
     const page = Number(url.searchParams.get('page') ?? '0');
     const size = Number(url.searchParams.get('size') ?? '10');
     const cafeId = String(params.cafeId ?? 'unknown-cafe');
-
-    const content = reviewSeed.map((review) => ({
-      ...review,
-      reviewId: `${cafeId}-${review.reviewId}`,
-    }));
-
+    const content = buildCafeReviews(cafeId);
     const startIndex = page * size;
     const endIndex = startIndex + size;
     const slicedContent = content.slice(startIndex, endIndex);
@@ -186,6 +220,31 @@ export const reviewHandlers = [
           numberOfElements: slicedContent.length,
           empty: slicedContent.length === 0,
         },
+      },
+      { status: 200 }
+    );
+  }),
+  http.get(`${API_BASE_URL}/api/reviews/:reviewId`, ({ params }) => {
+    const reviewId = String(params.reviewId ?? '');
+    const reviewDetail = buildReviewDetail(reviewId);
+
+    if (!reviewDetail) {
+      return HttpResponse.json(
+        {
+          status: 'fail',
+          code: '404',
+          message: '리뷰를 찾을 수 없습니다.',
+        },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(
+      {
+        status: 'success',
+        code: '200',
+        message: '요청이 성공적으로 처리되었습니다.',
+        data: reviewDetail,
       },
       { status: 200 }
     );

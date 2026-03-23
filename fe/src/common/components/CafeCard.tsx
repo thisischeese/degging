@@ -1,6 +1,5 @@
-import React from 'react';
-import Image from 'next/image';
-import { StaticImageData } from 'next/image';
+import React, { useState } from 'react';
+import Image, { StaticImageData } from 'next/image';
 import { MapPin } from 'lucide-react';
 
 export interface CafeCardProps {
@@ -15,6 +14,9 @@ export interface CafeCardProps {
   onClick?: () => void;
   isActive?: boolean;
 }
+
+// 카페 카드에서 사용할 기본 이미지를 정의합니다.
+const FALLBACK_CAFE_IMAGE = '/images/cafe/baseCafeImage.png';
 
 export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
   //  id, // 사용되지 않는 값 주석
@@ -31,34 +33,44 @@ export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
   //   e.stopPropagation();
   //   onScrapClick?.(e);
   // };
+  // 카페 카드에서 실패한 원격 이미지 URL을 기억합니다.
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+
+  // 현재 렌더링에 사용할 카페 이미지를 계산합니다.
+  const resolvedImageUrl =
+    typeof imageUrl === 'string' && failedImageUrl === imageUrl
+      ? FALLBACK_CAFE_IMAGE
+      : imageUrl || FALLBACK_CAFE_IMAGE;
 
   return (
     <div
       ref={ref}
       onClick={onClick}
-      className={`box-border w-full font-pretendard flex p-4 bg-white border border-transparent rounded-2xl cursor-pointer hover:bg-gray-50 transition-all gap-4 ${isActive ? 'ring-2 ring-inset ring-[#865B28] shadow-md' : '!border-gray-200'
-        }`}
+      className={`box-border w-full font-pretendard flex gap-4 rounded-2xl bg-white p-4 transition-all ${isActive
+          ? 'ring-2 ring-inset ring-[#865B28] shadow-md'
+          : 'border border-gray-200 hover:bg-gray-50'
+        } ${onClick ? 'cursor-pointer' : ''}`}
     >
-      {/* 1. 좌측 이미지 영역: 80x80 크기, rounded-xl */}
-      <div className="relative w-20 h-20 shrink-0">
+      {/* 카페 대표 이미지를 표시합니다. */}
+      <div className="relative h-20 w-20 shrink-0">
         <Image
-          src={imageUrl || '/images/cafe/baseCafeImage.png'}
+          src={resolvedImageUrl || FALLBACK_CAFE_IMAGE}
           alt={name}
           fill
           className="rounded-xl object-cover"
           unoptimized
+          onError={() => {
+            if (typeof imageUrl === 'string') {
+              setFailedImageUrl(imageUrl);
+            }
+          }}
         />
       </div>
 
-      {/* 2. 우측 정보 영역: 말줄임(truncate) 처리를 고려한 flex 컨테이너 */}
-      <div className="flex flex-col flex-1 min-w-0 justify-center">
-        {/* 카페 이름 및 스크랩 아이콘 컨테이너 */}
-        <div className="flex justify-between items-start gap-2">
-          {/* 타이틀: font-bold, 크기 14px */}
-          <h3 className="font-bold text-[14px] text-gray-900 truncate">
-            {name}
-          </h3>
-
+      {/* 카페 텍스트 정보를 표시합니다. */}
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="truncate text-[14px] font-bold text-gray-900">{name}</h3>
           {/* {onScrapClick && (
             <button
               type="button"
@@ -85,7 +97,7 @@ export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
         <div className="flex items-center text-gray-600 mt-auto pt-2">
           <MapPin size={14} className="shrink-0 mr-1" />
           <span className="text-[12px] truncate">{address}</span>
-          {distance && (
+          {distance ? (
             <>
               {/* 시각적 구분자 */}
               <span className="mx-1.5 text-[10px] text-gray-300 font-light">
@@ -95,7 +107,7 @@ export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
                 {distance}
               </span>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
