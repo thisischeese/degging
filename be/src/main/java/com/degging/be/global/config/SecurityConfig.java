@@ -68,7 +68,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/users/onboarding",
                                 "/api/ranks/desserts/onboarding",
-                                "api/cafes/onboarding"
+                                "/api/cafes/onboarding"
                         ).hasRole("TEMPORARY_USER")
                         .anyRequest().authenticated()
                 )
