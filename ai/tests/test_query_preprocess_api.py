@@ -87,7 +87,7 @@ class QueryPreprocessAPITest(unittest.TestCase):
         response = self.client.post(
             "/ai/cafe/query-preprocess",
             {
-                "query": "  햇살 좋은 두준국과 커피 맛집  ",
+                "query": "  quiet cafe with coffee  ",
                 "user_id": "123e4567-e89b-12d3-a456-426614174000",
             },
         )
@@ -98,11 +98,10 @@ class QueryPreprocessAPITest(unittest.TestCase):
             {
                 "status": "success",
                 "data": {
-                    "original_query": "햇살 좋은 두준국과 커피 맛집",
+                    "original_query": "quiet cafe with coffee",
                     "vector": [],
                     "dimensions": 0,
-                    "extracted_menus": [],
-                    "menu_count": 0,
+                    "extracted_menus": {},
                 },
             },
         )
@@ -124,7 +123,7 @@ class QueryPreprocessAPITest(unittest.TestCase):
         response = self.client.post(
             "/ai/cafe/query-preprocess",
             {
-                "query": "커피",
+                "query": "coffee",
                 "user_id": "not-a-uuid",
             },
         )
