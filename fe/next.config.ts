@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'dqee7nuafmp2e.cloudfront.net',
+        hostname: process.env.NEXT_PUBLIC_CLOUDFRONT_URL!.replace('https://', ''),
         port: '',
         pathname: '/**',
       },
