@@ -60,12 +60,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // type이 ONBOARDING인 경우
             if ("ONBOARDING".equals(tokenType)) {
                 handleOnboardingAuth(jwt);
+            } else {
+                // 인증 객체 생성 및 SecurityContext 저장 (일반 유저일 때만)
+                Authentication authentication = jwtProvider.getAuthentication(jwt);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.info("인증 정보가 SecurityContext에 저장되었습니다: {}", authentication.getName());
             }
-
-            // 인증 객체 생성 및 SecurityContext 저장
-            Authentication authentication = jwtProvider.getAuthentication(jwt);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.info("인증 정보가 SecurityContext에 저장되었습니다: {}", authentication.getName());
         }
 
         filterChain.doFilter(request, response);
