@@ -19,13 +19,13 @@ export const postCreateScrap = async (data: { name: string; color: StarColor }) 
     return response.data;
 };
 
-/** 4. 내 스크랩 카테고리 목록 조회 */
+/** (완료) 내 스크랩 카테고리 목록 조회 */
 export const getScraps = async (): Promise<ScrapList[]> => {
     const response = await axios_instance.get('/api/scraps');
     return response.data;
 };
 
-/** 5. 특정 카테고리 상세 조회 (카페 리스트 포함) */
+/** (완료) 특정 카테고리 상세 조회 (카페 리스트 포함) */
 export const getScrapDetail = async (scrapId: string): Promise<ScrapDetail> => {
     const response = await axios_instance.get(`/api/scraps/${scrapId}`);
     return response.data;

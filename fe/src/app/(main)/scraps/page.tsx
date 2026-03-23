@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "@/common/components/Header";
 import Modal from "@/common/components/Modal";
 import Button from "@/common/components/Button";
 import { Input } from "@/common/components/Input";
-import { ScrapCategory, StarColor } from "@/features/scraps/types";
+import { ScrapList, StarColor } from "@/features/scraps/types";
+import { getScraps, postCreateScrap, patchUpdateScrap, deleteScrap } from "@/features/scraps/api/scrapApi";
 import { Plus, MoreVertical, Star, Pencil, Trash2 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────
@@ -34,35 +35,6 @@ const STAR_COLORS: { value: StarColor; hex: string }[] = [
     { value: 'SKY', hex: '#B7E3E4' },
 ];
 
-// ─────────────────────────────────────────────────────────
-// Mock 데이터 (API 연동 전 임시)
-// ─────────────────────────────────────────────────────────
-const MOCK_CATEGORIES: ScrapCategory[] = [
-    {
-        scrapId: "1",
-        name: "역삼역 근처",
-        color: "RED",
-        thumbnailUrl: ["/images/curation/mangoBingsu.png", "/images/curation/mangoBingsu.png", "/images/curation/mangoBingsu.png"],
-    },
-    {
-        scrapId: "2",
-        name: "연남 분좋카 투어",
-        color: "PINK",
-        thumbnailUrl: [],
-    },
-    {
-        scrapId: "3",
-        name: "소금빵 맛집",
-        color: "IVORY",
-        thumbnailUrl: [],
-    },
-    {
-        scrapId: "4",
-        name: "대전 빵지순례",
-        color: "GREEN",
-        thumbnailUrl: [],
-    },
-];
 
 // ─────────────────────────────────────────────────────────
 // 썸네일 그리드 컴포넌트 (카테고리 카드 내부)
@@ -185,7 +157,7 @@ function EditCategoryModal({
     isOpen: boolean;
     onClose: () => void;
     onEdit: (scrapId: string, name: string, color: StarColor) => void;
-    category: ScrapCategory | null;
+    category: ScrapList | null;
 }) {
     const [name, setName] = useState(category?.name ?? "");
     const [selectedColor, setSelectedColor] = useState<StarColor>(category?.color ?? "RED");
@@ -303,35 +275,53 @@ function DeleteConfirmModal({
 // ─────────────────────────────────────────────────────────
 export default function ScrapsPage() {
     const router = useRouter();
-    const [categories, setCategories] = useState<ScrapCategory[]>(MOCK_CATEGORIES);
+    const [categories, setCategories] = useState<ScrapList[]>([]);
     const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [mode, setMode] = useState<'default' | 'edit' | 'delete'>('default');
-    const [editingCategory, setEditingCategory] = useState<ScrapCategory | null>(null);
-    const [deletingCategory, setDeletingCategory] = useState<ScrapCategory | null>(null);
+    const [editingCategory, setEditingCategory] = useState<ScrapList | null>(null);
+    const [deletingCategory, setDeletingCategory] = useState<ScrapList | null>(null);
+
+    // 스크랩 목록 불러오기
+    useEffect(() => {
+        getScraps()
+            .then((data) => setCategories(data))
+            .catch((err) => console.error('스크랩 목록 조회 실패', err));
+    }, []);
 
     // 모든 스크랩 썸네일 모아서 표시
     const allThumbnails = categories.flatMap((cat) => cat.thumbnailUrl);
 
-    const handleAddCategory = (name: string, color: StarColor) => {
-        const newCategory: ScrapCategory = {
-            scrapId: String(Date.now()),
-            name,
-            color: color,
-            thumbnailUrl: [],
-        };
-        setCategories((prev) => [...prev, newCategory]);
+    const handleAddCategory = async (name: string, color: StarColor) => {
+        try {
+            await postCreateScrap({ name, color });
+            const updated = await getScraps();
+            setCategories(updated);
+        } catch (err) {
+            console.error('카테고리 추가 실패', err);
+        }
     };
 
-    const handleDeleteCategory = (scrapId: string) => {
-        setCategories((prev) => prev.filter((c) => c.scrapId !== scrapId));
-        setDeletingCategory(null);
+    const handleDeleteCategory = async (scrapId: string) => {
+        try {
+            await deleteScrap(scrapId);
+            setCategories((prev) => prev.filter((c) => c.scrapId !== scrapId));
+        } catch (err) {
+            console.error('카테고리 삭제 실패', err);
+        } finally {
+            setDeletingCategory(null);
+        }
     };
 
-    const handleEditCategory = (scrapId: string, name: string, color: StarColor) => {
-        setCategories((prev) =>
-            prev.map((c) => (c.scrapId === scrapId ? { ...c, name, color: color } : c))
-        );
+    const handleEditCategory = async (scrapId: string, name: string, color: StarColor) => {
+        try {
+            await patchUpdateScrap(scrapId, { name, color });
+            setCategories((prev) =>
+                prev.map((c) => (c.scrapId === scrapId ? { ...c, name, color } : c))
+            );
+        } catch (err) {
+            console.error('카테고리 수정 실패', err);
+        }
     };
 
     return (
