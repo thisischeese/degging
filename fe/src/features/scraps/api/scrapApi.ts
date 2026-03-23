@@ -1,5 +1,5 @@
 import { axios_instance } from "@/api/axios_instance";
-import { ScrapCategory, ScrapDetail, StarColor } from "../types";
+import { ScrapList, ScrapDetail, StarColor } from "../types";
 
 /** 1. 카페 스크랩 추가 */
 export const postScrapCafe = async (scrapId: string, cafeId: string) => {
@@ -20,7 +20,7 @@ export const postCreateScrap = async (data: { name: string; color: StarColor }) 
 };
 
 /** 4. 내 스크랩 카테고리 목록 조회 */
-export const getScraps = async (): Promise<ScrapCategory[]> => {
+export const getScraps = async (): Promise<ScrapList[]> => {
     const response = await axios_instance.get('/api/scraps');
     return response.data;
 };
