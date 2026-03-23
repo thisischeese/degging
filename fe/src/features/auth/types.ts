@@ -17,7 +17,7 @@ export interface SignupFormData extends SignupRequest {
 
 export interface SignupStepProps {
   /** 다음 단계로 이동하는 함수 */
-  next: () => void;
+  next: (data?: unknown) => void;
   /** 이전 단계로 이동하는 함수 (선택 사항) */
   prev?: () => void;
   /** 현재까지 입력된 전체 데이터 */

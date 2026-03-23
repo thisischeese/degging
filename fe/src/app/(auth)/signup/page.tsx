@@ -32,15 +32,15 @@ export default function SignupPage() {
   };
   
   // 1단계: 회원가입 진행 (Step 3 완료 후 호출)
-  const handleSignupRequest = async () => {
+  const handleSignupRequest = async (currentData: SignupFormData) => {
     try {
       // 명세서에 맞는 데이터 전송 (name 없이 진행)
       const signupData: SignupRequest = {
-        email: formData.email,
-        password: formData.password,
-        nickname: formData.nickname,
-        gender: formData.gender as "MALE" | "FEMALE",
-        birthDate: formData.birthDate,
+        email: currentData.email,
+        password: currentData.password,
+        nickname: currentData.nickname,
+        gender: currentData.gender as "MALE" | "FEMALE",
+        birthDate: currentData.birthDate,
       };
 
       const result = await postSignup(signupData);
@@ -77,9 +77,18 @@ export default function SignupPage() {
     }
   };
 
-  const nextStep = async () => {
+  const nextStep = async (stepData?: unknown) => {
+    let currentData = formData;
+    // 이벤트 객체가 아닌 순수 데이터(Partial<SignupFormData>)인 경우에만 병합
+    if (stepData && typeof stepData === "object") {
+      const isEvent = "nativeEvent" in stepData;
+      if (!isEvent) {
+        currentData = { ...formData, ...(stepData as Partial<SignupFormData>) };
+      }
+    }
+
     if (step === 3) {
-      const success = await handleSignupRequest();
+      const success = await handleSignupRequest(currentData);
       if (!success) return; // 실패 시 다음 단계로 가지 않음
     }
     setStep((prev) => prev + 1);

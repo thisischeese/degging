@@ -78,8 +78,9 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
       // API 명세서에 맞춰 birthDate로 전달 (YYYY-MM-DD 형식으로 변환이 필요할 수 있음)
       // 백엔드 요청에 따라 YYYY.MM.DD 형식 유지
       const formattedBirthDate = birthDate;
-      updateData({ nickname, birthDate: formattedBirthDate, gender });
-      next();
+      const stepData = { nickname, birthDate: formattedBirthDate, gender };
+      updateData(stepData);
+      next(stepData);
     }
   };
 
