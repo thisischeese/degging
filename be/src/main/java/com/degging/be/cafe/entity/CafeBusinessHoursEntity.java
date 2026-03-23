@@ -46,4 +46,14 @@ public class CafeBusinessHoursEntity {
     @Column(name = "sun_hours")
     private String sunHours;
 
+    public void updateCrawledHours(String mon, String tue, String wed, String thu, String fri, String sat, String sun) {
+        this.monHours = mon;
+        this.tuesHours = tue;
+        this.wedHours = wed;
+        this.thurHours = thu;
+        this.friHours = fri;
+        this.satHours = sat;
+        this.sunHours = sun;
+    }
+
 }
