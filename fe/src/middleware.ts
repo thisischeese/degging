@@ -26,7 +26,7 @@ export function middleware(request: NextRequest) {
 // 미들웨어가 실행될 경로 설정
 export const config = {
   matcher: [
-     /*
+    /*
      * 아래 경로를 제외한 모든 요청에서 미들웨어 실행:
      * - api (API routes)
      * - swagger-ui, v3/api-docs (Swagger docs)
