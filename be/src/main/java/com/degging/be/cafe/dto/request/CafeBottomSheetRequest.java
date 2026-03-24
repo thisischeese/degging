@@ -1,12 +1,12 @@
 package com.degging.be.cafe.dto.request;
 
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
  * 지도 바텀시트 카페 리스트 조회 요청 DTO
  */
-@Getter
+@Data
 @NoArgsConstructor
 public class CafeBottomSheetRequest {
 

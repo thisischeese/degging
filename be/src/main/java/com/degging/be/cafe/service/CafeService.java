@@ -13,6 +13,7 @@ import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
+import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
