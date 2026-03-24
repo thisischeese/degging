@@ -5,6 +5,8 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
+import com.degging.be.review.dto.response.CommonSliceResponse;
+import com.degging.be.review.dto.response.MyReviewResponse;
 import com.degging.be.review.dto.response.ReviewDetailResponse;
 import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.service.ReviewService;
@@ -15,7 +17,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -68,13 +69,13 @@ public class ReviewController {
      * @return 200, ReviewResponse 리스트 (리뷰, 이미지, 작성자 정보)
      */
     @GetMapping("/cafes/{cafeId}/reviews")
-    public BaseResponse<Slice<ReviewResponse>> getReviews(
+    public BaseResponse<CommonSliceResponse<ReviewResponse>> getReviews(
                     @AuthenticationPrincipal UserDetails user,
                     @PathVariable("cafeId") UUID cafeId,
                     @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
         UUID userId = getUserId(user);
         Slice<ReviewResponse> reviews = reviewService.getReviewsByCafeId(cafeId, userId, pageable);
-        return BaseResponse.success(reviews);
+        return BaseResponse.success(CommonSliceResponse.from(reviews));
     }
 
     /**
@@ -99,11 +100,11 @@ public class ReviewController {
      * @return 200, 다음 페이지 여부(hasNext)가 포함된 리뷰 목록 Slice
      */
     @GetMapping("/reviews/mine")
-    public BaseResponse<Slice<ReviewResponse>> getMyReviews(
+    public BaseResponse<CommonSliceResponse<MyReviewResponse>> getMyReviews(
             @AuthenticationPrincipal UserDetails user,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
         UUID userId = getUserId(user);
-        Slice<ReviewResponse> reviews = reviewService.getReviewsByUserId(userId, pageable);
+        CommonSliceResponse<MyReviewResponse> reviews = reviewService.getReviewsByUserId(userId, pageable);
         return BaseResponse.success(reviews);
     }
 

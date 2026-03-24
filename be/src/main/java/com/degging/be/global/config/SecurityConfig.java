@@ -60,6 +60,7 @@ public class SecurityConfig {
                                 "/wss",
 
                                 // Swagger 관련 api 허용
+                                "/v3/api-docs",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
@@ -68,7 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/users/onboarding",
                                 "/api/ranks/desserts/onboarding",
-                                "api/cafes/onboarding"
+                                "/api/cafes/onboarding"
                         ).hasRole("TEMPORARY_USER")
                         .anyRequest().authenticated()
                 )

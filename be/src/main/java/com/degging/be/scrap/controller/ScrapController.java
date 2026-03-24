@@ -62,6 +62,18 @@ public class ScrapController {
     }
 
     /**
+     * 스크랩 전체 모아보기 조회
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @return 200, 전체 스크랩 조회
+     */
+    @GetMapping("/all")
+    public BaseResponse<ScrapDetailResponse> getAllScraps(
+            @AuthenticationPrincipal UserDetails user) {
+        UUID userId = getUserId(user);
+        return BaseResponse.success(scrapService.getAllScrapDetail(userId));
+    }
+    
+    /**
      * 특정 스크랩을 상세 조회하는 메서드
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
      * @param scrapId 조회하려는 스크랩 ID
@@ -72,6 +84,7 @@ public class ScrapController {
             @AuthenticationPrincipal UserDetails user,
             @PathVariable(value = "scrapId") UUID scrapId){
         UUID userId = getUserId(user);
+
         ScrapDetailResponse detail = scrapService.getScrapDetail(scrapId, userId);
         return BaseResponse.success(detail);
     }

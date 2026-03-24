@@ -1,8 +1,8 @@
 package com.degging.be.cafe.repository;
 
-import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.entity.CafeStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,6 +24,12 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
          * 카카오 장소 식별자 중복 여부
          */
         boolean existsByKakaoPlaceId(String kakaoPlaceId);
+
+        /**
+         * 여러 카카오 플레이스 ID 중 이미 DB에 존재하는 ID 리스트 조회
+         */
+        @Query("SELECT c.kakaoPlaceId FROM CafeEntity c WHERE c.kakaoPlaceId IN :kakaoPlaceIds")
+        List<String> findAllExistingKakaoPlaceIds(@Param("kakaoPlaceIds") List<String> kakaoPlaceIds);
 
         /**
          * 이름을 기반으로 카페 목록 조회
@@ -157,4 +163,11 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
          * TODO: AI 연동을 통한 추천 카페 리스트업 예정
          */
 
+        /**
+         * AI 크롤링이 필요한 카페 목록 조회 (썸네일이 없는 카페 기준)
+         *
+         * @param pageable 페이징 정보
+         * @return 썸네일이 없는 카페 Page
+         */
+        Page<CafeEntity> findAllByThumbnailUrlIsNull(Pageable pageable);
 }
