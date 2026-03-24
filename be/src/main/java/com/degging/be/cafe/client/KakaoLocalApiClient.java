@@ -24,24 +24,39 @@ public class KakaoLocalApiClient {
     private String kakaoRestApiKey;
 
     /**
-     * 카카오 장소 검색 API 호출
+     * 카카오 장소 검색 API 호출 (좌표 기반 검색 지원)
      *
      * @param keyword 검색 키워드 (카페 이름)
+     * @param x 경도 (Double)
+     * @param y 위도 (Double)
+     * @param radius 검색 반경 (meters, 0~20000)
      * @param page 페이지 번호
      * @param size 페이지 크기
      * @return 카카오 장소 검색 응답 DTO
      */
-    public KakaoPlaceResponse searchPlaces(String keyword, int page, int size) {
+    public KakaoPlaceResponse searchPlaces(String keyword, Double x, Double y, Integer radius, int page, int size) {
 
         return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .scheme("https")
-                        .host("dapi.kakao.com")
-                        .path("/v2/local/search/keyword.json")
-                        .queryParam("query", keyword)
-                        .queryParam("page", page)
-                        .queryParam("size", size)
-                        .build())
+                .uri(uriBuilder -> {
+                    uriBuilder
+                            .scheme("https")
+                            .host("dapi.kakao.com")
+                            .path("/v2/local/search/keyword.json")
+                            .queryParam("query", keyword)
+                            .queryParam("page", page)
+                            .queryParam("size", size);
+
+                    if (x != null && y != null) {
+                        uriBuilder.queryParam("x", x)
+                                .queryParam("y", y);
+                    }
+
+                    if (radius != null) {
+                        uriBuilder.queryParam("radius", radius);
+                    }
+
+                    return uriBuilder.build();
+                })
                 .header(HttpHeaders.AUTHORIZATION, "KakaoAK " + kakaoRestApiKey)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
