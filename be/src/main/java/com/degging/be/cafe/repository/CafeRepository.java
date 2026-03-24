@@ -1,8 +1,8 @@
 package com.degging.be.cafe.repository;
 
-import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.entity.CafeStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -150,5 +150,13 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * [바텀시트] 반경 내 카페 조회 - 추천순
      * TODO: AI 연동을 통한 추천 카페 리스트업 예정
      */
+    
+    /**
+     * AI 크롤링이 필요한 카페 목록 조회 (썸네일이 없는 카페 기준)
+     *
+     * @param pageable 페이징 정보
+     * @return 썸네일이 없는 카페 Page
+     */
+    Page<CafeEntity> findAllByThumbnailUrlIsNull(Pageable pageable);
     
 }
