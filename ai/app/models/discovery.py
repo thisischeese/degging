@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
 from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class DiscoveryRequest(BaseModel):
@@ -9,6 +10,7 @@ class DiscoveryRequest(BaseModel):
 class DiscoveryResponse(BaseModel):
     user_id: UUID
     cafe_ids: list[UUID] = Field(
-        ..., description="취향 유사도 내림차순으로 정렬된 카페 UUID 목록 (최대 100개)"
+        ...,
+        description="취향 유사도 순으로 정렬된 카페 UUID 목록 (최대 100개)",
     )
     total: int = Field(..., description="반환된 카페 수")

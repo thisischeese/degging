@@ -1,3 +1,6 @@
+# Model 업로드 x
+food_ner_model/
+.codex-temp-deps
 # 환경 변수 (실제 값 포함 - .env.example은 커밋 대상)
 .env
 
@@ -29,3 +32,4 @@ htmlcov/
 *.npz
 data/
 checkpoints/
+food_ner_model/

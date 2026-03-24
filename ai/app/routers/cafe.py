@@ -17,10 +17,10 @@ def get_query_preprocess_service() -> QueryPreprocessService:
     "/query-preprocess",
     response_model=QueryPreprocessResponse,
     deprecated=True,
-    summary="Preprocess a cafe query",
+    summary="카페 검색어 전처리",
     description=(
-        "Normalize the query text and return the current encoder and menu extraction "
-        "results. The endpoint is deprecated in favor of /ai/map/search."
+        "입력된 검색어를 정규화하고 현재 인코더 결과와 메뉴 개체 추출 결과를 반환합니다. "
+        "이 엔드포인트는 `/ai/map/search`로 대체될 예정입니다."
     ),
 )
 async def query_preprocess(

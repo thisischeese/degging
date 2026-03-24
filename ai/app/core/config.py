@@ -61,6 +61,8 @@ class Settings(BaseSettings):
 
     # Discovery
     discovery_top_k: int = 100
+    
+    hf_token: str | None = None
 
     @computed_field
     @property
