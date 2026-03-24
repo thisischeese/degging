@@ -78,6 +78,12 @@ public class CafeSearchService {
                         UUID.fromString("46537625-27db-4bd0-b9f4-d87c112183ff"), 1, // 1등
                         UUID.fromString("baa57837-bee2-4c46-9d9f-e21d3191d966"), 2  // 2등
                 ))
+                .extractedMenus(Map.of(
+                        "소금빵", 5,
+                        "아메리카노", 3,
+                        "초코까눌레", 2
+                ))
+                .menuCount(3)
                 .build();
         // AI 응답 검증
         if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
