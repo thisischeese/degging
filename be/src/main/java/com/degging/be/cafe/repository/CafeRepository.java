@@ -164,5 +164,10 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * @return 썸네일이 없는 카페 Page
      */
     Page<CafeEntity> findAllByThumbnailUrlIsNull(Pageable pageable);
+
+    /**
+     * AI 크롤링이 필요한 카페의 총 개수 조회
+     */
+    long countByThumbnailUrlIsNull();
     
 }
