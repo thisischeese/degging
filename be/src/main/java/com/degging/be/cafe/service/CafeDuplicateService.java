@@ -4,8 +4,10 @@ import com.degging.be.cafe.client.KakaoLocalApiClient;
 import com.degging.be.cafe.dto.response.external.KakaoPlaceItem;
 import com.degging.be.cafe.dto.response.external.KakaoPlaceResponse;
 import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
+import com.degging.be.cafe.entity.CafeCategory;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
+import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +29,12 @@ import java.util.List;
 public class CafeDuplicateService {
 
     private static final int SEARCH_PAGE = 1;
-    private static final int SEARCH_SIZE = 5;
+    private static final int SEARCH_SIZE = 10; // 결과 후보를 조금 더 늘려 매칭 확률 향상
+    private static final int SEARCH_RADIUS = 1000; // 반경 1km 이내 검색
 
     private final KakaoLocalApiClient kakaoLocalApiClient;
     private final CafeRepository cafeRepository;
+    private final CafeFilterService cafeFilterService;
 
     // SRID 4326 기준 Point 생성용 GeometryFactory
     // 위도/경도를 PostGIS로 바꿀 때 사용
@@ -49,8 +53,14 @@ public class CafeDuplicateService {
 
         for (StoreListInUpjongItem item : items) {
             try {
-                // 카카오 데이터와 매칭 시도
-                KakaoPlaceItem matchedPlace = findMatchedPlace(item);
+                // 상호명 정규화 (괄호, 주식회사 등 제거)
+                String normalizedName = normalizeName(item.getBizesNm());
+
+                // 카테고리 판별 (커피/제과/디저트)
+                CafeCategory category = cafeFilterService.determineCategory(item);
+
+                // 카카오 데이터와 매칭 시도 (좌표 기반 검색 활용)
+                KakaoPlaceItem matchedPlace = findMatchedPlace(item, normalizedName);
 
                 // 매칭된 곳이 없으면 다음 item으로 넘어감
                 if (matchedPlace == null) {
@@ -60,14 +70,18 @@ public class CafeDuplicateService {
 
                 // 매칭 성공 시 저장 로직 호출
                 Point location = createPoint(item.getLon(), item.getLat());
-                if (processSave(item, matchedPlace, location)) {
+                if (processSave(item, matchedPlace, location, category)) {
                     matchedCount++;
                 } else {
                     duplicateSkippedCount++;
                 }
 
+            } catch (BaseException e) {
+                log.error("카페 매칭 중 비즈니스 예외 발생 - 카페명: [{}], 에러코드: [{}], 사유: {}", 
+                        item.getBizesNm(), e.getErrorCode().getCode(), e.getMessage());
             } catch (Exception e) {
-                log.error("카페 매칭 처리 중 오류 발생 - 카페ID: {}, 사유: {}", item.getBizesNm(), e.getMessage());
+                log.error("카페 매칭 중 예상치 못한 오류 발생 - 카페명: [{}], 사유: {}", 
+                        item.getBizesNm(), e.getMessage());
             }
         }
 
@@ -78,6 +92,19 @@ public class CafeDuplicateService {
     }
 
     /**
+     * 상호명에서 검색에 불필요한 노이즈 제거
+     */
+    private String normalizeName(String name) {
+        if (name == null) return "";
+        return name.replaceAll("\\(주\\)", "")
+                   .replaceAll("주식회사", "")
+                   .replaceAll("\\(유\\)", "")
+                   .replaceAll("\\(복\\)", "")
+                   .replaceAll("\\(합\\)", "")
+                   .trim();
+    }
+
+    /**
      * 특정 카페의 카카오 정보 업데이트 처리
      *
      * 동일한 카카오 플레이스 ID가 이미 존재하는지 검증하여 중복 저장 방지
@@ -85,9 +112,10 @@ public class CafeDuplicateService {
      *
      * @param item  저장할 카페 데이터
      * @param matchedPlace  일치한 카카오 API의 카페 정보
+     * @param category  판별된 카페 카테고리
      */
     @Transactional
-    public boolean processSave(StoreListInUpjongItem item, KakaoPlaceItem matchedPlace, Point location) {
+    public boolean processSave(StoreListInUpjongItem item, KakaoPlaceItem matchedPlace, Point location, CafeCategory category) {
 
         // 중복 방지
         if (cafeRepository.existsByKakaoPlaceId(matchedPlace.getId())) {
@@ -95,7 +123,7 @@ public class CafeDuplicateService {
         }
 
         // 엔티티 생성
-        CafeEntity cafe = CafeEntity.of(item, matchedPlace, location);
+        CafeEntity cafe = CafeEntity.of(item, matchedPlace, location, category);
 
         // DB 저장
         cafeRepository.save(cafe);
@@ -107,19 +135,30 @@ public class CafeDuplicateService {
      * 카카오 검색 결과에서 동일 매장 찾기
      *
      * 카페 이름을 키워드로 검색하여 반환된 목록 중 주소가 가장 유사한 항목 선정
-     * 도로명 주소와 지번 주소 모두를 대조
+     * 좌표(x, y)와 반경(radius)을 활용해 검색 정확도 극대화
      *
      * @param item  매칭할 카페
+     * @param keyword 정제된 검색 키워드
      */
-    private KakaoPlaceItem findMatchedPlace(StoreListInUpjongItem item) {
-        KakaoPlaceResponse response = kakaoLocalApiClient.searchPlaces(item.getBizesNm(), SEARCH_PAGE, SEARCH_SIZE);
+    private KakaoPlaceItem findMatchedPlace(StoreListInUpjongItem item, String keyword) {
+        // 좌표 기반 검색 수행
+        KakaoPlaceResponse response = kakaoLocalApiClient.searchPlaces(
+                keyword, 
+                item.getLon(), 
+                item.getLat(), 
+                SEARCH_RADIUS, 
+                SEARCH_PAGE, 
+                SEARCH_SIZE
+        );
 
-        // 카카오 API 검색 결과가 아예 없을 경우, 로그에 에러코드 명시
+        // 검색 결과 자체가 없는 경우
         if (response == null || response.getDocuments() == null || response.getDocuments().isEmpty()) {
-            log.warn("매칭 실패 코드: {}, 대상: {}", CafeErrorCode.KAKAO_PLACE_NOT_FOUND.getCode(), item.getBizesNm());
+            log.warn("매칭 실패 [{}]: 검색 결과 없음 - 카페명: [{}], 키워드: [{}]", 
+                    CafeErrorCode.KAKAO_PLACE_NOT_FOUND.getCode(), item.getBizesNm(), keyword);
             return null;
         }
 
+        // 검색 결과는 있으나 주소가 일치하는 항목이 없는 경우
         for (KakaoPlaceItem document : response.getDocuments()) {
             if (isAddressMatch(item.getRdnmAdr(), document.getRoadAddressName()) ||
                     isAddressMatch(item.getLnoAdr(), document.getAddressName())) {
@@ -127,6 +166,8 @@ public class CafeDuplicateService {
             }
         }
 
+        log.warn("매칭 실패 [{}]: 주소 불일치 - 카페명: [{}], 카카오 검색결과 {}건 중 일치항목 없음", 
+                CafeErrorCode.KAKAO_PLACE_NOT_FOUND.getCode(), item.getBizesNm(), response.getDocuments().size());
         return null;
     }
 
