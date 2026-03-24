@@ -35,17 +35,17 @@ public class CafeCrawlingService {
      */
     @Async
     public void saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
-        log.info("Starting bulk update for {} crawled cafes...", dataList.size());
+        log.info("크롤링된 카페: {}개, 업데이트 시작...", dataList.size());
 
         for (AiCrawlerItemResponse dto : dataList) {
             try {
                 cafeCrawlingUpdateService.updateSingleCafe(dto);
             } catch (Exception e) {
-                log.error("Failed to update cafe data for cafeId: {}. Error: {}",
+                log.error("카페 데이터 업데이트 실패 (cafeId: {}). 에러: {}",
                         (dto.getCafes() != null ? dto.getCafes().getCafeId() : "unknown"), e.getMessage());
             }
         }
-        log.info("Finished processing crawling data batch. Triggering next batch...");
+        log.info("크롤링 데이터 배치 처리 완료. 다음 배치 요청...");
 
         // 다음 배치를 수집하기 위해 crawling() 다시 호출
         this.crawling();
@@ -57,14 +57,14 @@ public class CafeCrawlingService {
      */
     @Async
     public void crawling() {
-        log.info("Requesting a batch of AI crawling (Target: cafes without thumbnails)...");
+        log.info("AI 크롤링 배치 요청을 시작합니다 (대상: 썸네일 없는 카페)...");
 
         // DB에서 크롤링이 필요한(썸네일 없는) 카페 목록 100개 조회
         Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, BATCH_SIZE));
         List<CafeEntity> cafes = cafePage.getContent();
 
         if (cafes.isEmpty()) {
-            log.info("No more cafes to find thumbnails for. Process stopped.");
+            log.info("썸네일 수집할 카페가 없음. 프로세스 종료.");
             return;
         }
 
@@ -74,25 +74,25 @@ public class CafeCrawlingService {
                 .collect(Collectors.toList());
 
         // AI 서버 호출
-        log.info("Sending batch to AI server (size: {})", requestBatch.size());
+        log.info("AI 서버로 배치 전송 중 (크기: {})", requestBatch.size());
 
         try {
             AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
 
             // 수집된 데이터 저장 (성공 시 saveCrawlingData 호출)
             if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
-                log.info("Received {} items from AI crawler.", response.getItems().size());
+                log.info("{}개 수신", response.getItems().size());
                 this.saveCrawlingData(response.getItems());
 
                 if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
-                    log.warn("AI server could not find data for {} cafes in this batch.",
+                    log.warn("미수집 카페: {}개",
                             response.getMissingCafeIds().size());
                 }
             } else {
-                log.warn("Empty or null response from AI server.");
+                log.warn("AI 서버 비어있거나 올바르지 않은 응답");
             }
         } catch (Exception e) {
-            log.error("Error occurred while calling AI crawler API: {}", e.getMessage());
+            log.error("AI 크롤러 API 호출 중 오류 발생: {}", e.getMessage());
         }
     }
 }
