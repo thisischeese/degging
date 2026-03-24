@@ -174,7 +174,7 @@ public class CafeCrawlingUpdateService {
                 ReviewEntity newReview = ReviewEntity.builder()
                         .cafe(cafe)
                         .user(dummyUser)
-                        .rating((short) 5) // DTO에 별점 정보가 없으므로 기본값 5점 부여
+                        .rating(reviewDto.getRating() != null ? reviewDto.getRating() : (short) 5) // 크롤링된 평점 적용 (없으면 기본값 5)
                         .content(reviewDto.getUserReview())
                         .build();
 
