@@ -16,10 +16,8 @@ export interface ReviewContent {
 
 export interface MyReviewResponse {
   content: ReviewContent[];
-  totalElements?: number;
-  totalPages?: number;
-  size?: number;
-  number?: number;
+  hasNext?: boolean;
+  page?: number;
 }
 
 /** 2. 리뷰 아이템 컴포넌트 Props (UI용) */
