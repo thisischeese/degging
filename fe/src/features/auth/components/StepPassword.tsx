@@ -88,7 +88,7 @@ export default function StepPassword({ next, updateData }: SignupStepProps) {
         <Button
           variant="gray"
           size="full"
-          disabled={!isPasswordValid || !isPasswordMatch} 
+          disabled={!password || !confirmPassword} 
           onClick={handleNext} 
           className={isPasswordValid && isPasswordMatch ? "bg-[#C3304F]! text-white!" : ""}
         >
