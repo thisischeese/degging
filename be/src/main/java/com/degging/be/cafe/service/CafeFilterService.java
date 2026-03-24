@@ -20,13 +20,13 @@ public class CafeFilterService {
     private static final List<String> EXCLUDE_KEYWORDS = List.of(
 
             // 만화카페 계열
-            "만화카페", "놀숲", "벌툰", "툰카페", "만화",
+            "만화카페", "놀숲", "벌툰", "툰카페", "만화", "북카페",
 
             // 보드게임 계열
             "보드게임", "보드카페",
 
             // 방탈출 계열
-            "방탈출",
+            "방탈출", "이스케이프",
 
             // PC방 계열
             "pc카페", "pc방", "pczone", "피시방",
@@ -41,18 +41,18 @@ public class CafeFilterService {
             "키즈카페", "키즈룸",
 
             // 룸카페 계열
-            "룸카페", "카페룸",
+            "룸카페", "카페룸", "룸",
 
             // 멀티카페 계열
-            "멀티카페", "멀티플레이스",
+            "멀티카페", "멀티플레이스", "멀티",
 
             // vr/게임 계열
-            "vr카페", "vr게임", "게임카페", "인터넷카페",
+            "vr카페", "vr게임", "게임카페", "인터넷카페", "VR", "게임",
 
             // 기타 비카페성 시설
-            "휴게실", "매점"
+            "휴게실", "매점", "다방", "기원", "편의점", "마트", "슈퍼마켓", "백화점", "아울렛"
     );
-
+ 
     /**
      * 해당 업소가 실제 카페인지 판단
      *
@@ -60,39 +60,52 @@ public class CafeFilterService {
      * @return 실제 카페이면 true, 아니면 false
      */
     public boolean isCafe(StoreListInUpjongItem item) {
-
+ 
         if (item == null) {
             return false;
         }
-
+ 
         String name = item.getBizesNm();
         String smallCategoryName = item.getIndsSclsNm();
         String ksicName = item.getKsicNm();
-
+ 
         if (name == null || name.isBlank()) {
             return false;
         }
-
+ 
         // 상호명 소문자 변환
         String normalizedName = name.toLowerCase();
-
+ 
         // 제외 키워드가 포함되면 카페가 아님
         for (String keyword : EXCLUDE_KEYWORDS) {
             if (normalizedName.contains(keyword.toLowerCase())) {
                 return false;
             }
         }
-
-        // 상권 업종 소분류가 카페가 아니면 저장하지 않음
-        if (smallCategoryName == null || !smallCategoryName.contains("카페")) {
+ 
+        // 상권 업종 소분류명이 카페/디저트/제과 계열인지 확인
+        boolean isValidCategory = smallCategoryName != null && (
+                smallCategoryName.contains("카페") ||
+                smallCategoryName.contains("제과") ||
+                smallCategoryName.contains("빵") ||
+                smallCategoryName.contains("베이커리") ||
+                smallCategoryName.contains("디저트") ||
+                smallCategoryName.contains("아이스크림") ||
+                smallCategoryName.contains("빙수") ||
+                smallCategoryName.contains("도넛") ||
+                smallCategoryName.contains("샌드위치") ||
+                smallCategoryName.contains("토스트")
+        );
+ 
+        if (!isValidCategory) {
             return false;
         }
-
-        // 표준산업분류명이 "커피"를 포함하면 카페로 판단 (ex. 커피 전문점)
-        if (ksicName != null && ksicName.contains("커피")) {
+ 
+        // 표준산업분류명이 커피/제과 계열인지 확인
+        if (ksicName != null && (ksicName.contains("커피") || ksicName.contains("제과") || ksicName.contains("빵"))) {
             return true;
         }
-
+ 
         return false;
     }
 }
