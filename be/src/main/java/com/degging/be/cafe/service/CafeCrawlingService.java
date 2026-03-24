@@ -45,7 +45,10 @@ public class CafeCrawlingService {
                         (dto.getCafes() != null ? dto.getCafes().getCafeId() : "unknown"), e.getMessage());
             }
         }
-        log.info("Finished processing crawling data.");
+        log.info("Finished processing crawling data batch. Triggering next batch...");
+
+        // 다음 배치를 수집하기 위해 crawling() 다시 호출
+        this.crawling();
     }
 
     /**
