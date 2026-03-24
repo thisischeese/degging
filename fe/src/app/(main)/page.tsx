@@ -11,17 +11,18 @@ import SurveyModal from "@/features/ranks/components/SurveyModal";
 import { useQuery } from "@tanstack/react-query";
 import { getRealTimeRankings } from "@/features/ranks/api/rankingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
+import { getAbTestJoin } from "@/features/users/api/userApi";
+import { setAbGroup as syncAbGroupWithBackend } from "@/lib/abTest";
 
 export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
-  const [abGroup, setAbGroup] = useState<'A' | 'B' | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const startTime = Date.now();
     const timer = setTimeout(() => {
-      setAbGroup(getAbGroup());
+      // abGroup 상태를 여기서 세팅하던 로직은 activeGroup 변수로 대체되었습니다.
     }, 0);
     return () => {
       clearTimeout(timer);
@@ -31,6 +32,22 @@ export default function MainPage() {
       }
     };
   }, []);
+
+  // 백엔드 A/B 테스트 배정 정보 동기화
+  const { data: abSyncData } = useQuery({
+    queryKey: ["ab-test", "sync"],
+    queryFn: getAbTestJoin,
+    staleTime: Infinity, // 앱 세션 동안 한 번만 동기화
+  });
+
+  // 현재 활성 그룹 결정 (백엔드 응답 우선 -> 로컬 스토리지 -> 랜덤)
+  const activeGroup = abSyncData?.data?.group || getAbGroup();
+
+  useEffect(() => {
+    if (abSyncData?.data?.group) {
+      syncAbGroupWithBackend(abSyncData.data.group);
+    }
+  }, [abSyncData]);
 
   // PC 환경 마우스 드래그 스크롤을 위한 상태
 
@@ -252,7 +269,7 @@ export default function MainPage() {
 
       {/* 설문조사 모달 */}
       {isSurveyOpen && (
-        <SurveyModal abGroup={abGroup} onClose={() => setIsSurveyOpen(false)} />
+        <SurveyModal abGroup={activeGroup} onClose={() => setIsSurveyOpen(false)} />
       )}
     </div>
   );
