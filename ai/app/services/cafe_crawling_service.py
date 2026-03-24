@@ -1205,8 +1205,8 @@ def build_location(lon: float | None, lat: float | None) -> str | None:
     return None if lon is None or lat is None else f"SRID=4326;POINT({lon} {lat})"
 
 
-def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[dict[str, str]]:
-    cafe_reviews: list[dict[str, str]] = []
+def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cafe_reviews: list[dict[str, Any]] = []
     for index, review in enumerate(reviews):
         review_text = review.get("review_text")
         if not review_text:
@@ -1217,6 +1217,7 @@ def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[di
             {
                 "user_id": str(uuid5(NAMESPACE_URL, review_identity)),
                 "user_review": review_text,
+                "rating": 3,
             }
         )
     return cafe_reviews

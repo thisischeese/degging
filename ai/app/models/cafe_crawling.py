@@ -89,6 +89,7 @@ class CafeVibeTag(BaseModel):
 class CafeReview(BaseModel):
     user_id: str
     user_review: str
+    rating: int
 
 
 class CafeCrawlingMergedItem(BaseModel):

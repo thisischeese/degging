@@ -9,6 +9,7 @@ from app.services.cafe_crawling_service import (
     MAX_REVIEWS,
     RuntimeSettings,
     SequenceState,
+    build_cafe_reviews,
     parse_review_metrics,
     parse_structured_visitor_reviews,
     parse_total_review_count,
@@ -192,3 +193,31 @@ class CafeCrawlingReviewMetricsTest(unittest.TestCase):
         self.assertEqual(metrics["review_count"], 2)
         self.assertEqual(metrics["rating_sum"], 6)
         self.assertEqual(metrics["friends_ratio"], "1.000")
+
+    def test_build_cafe_reviews_adds_fixed_rating_field(self) -> None:
+        seed = CafeSeed(
+            cafe_id="46537625-27db-4bd0-b9f4-d87c112183ff",
+            bizes_id="BIZ123",
+            name="테스트카페",
+            status="OPEN",
+            address=None,
+            road_address=None,
+            lon=None,
+            lat=None,
+            thumbnail_url=None,
+            kakao_place_id=None,
+            kakao_map_url=None,
+        )
+
+        cafe_reviews = build_cafe_reviews(
+            seed,
+            [
+                {
+                    "reviewer_name": "reviewer-1",
+                    "review_text": "테스트 리뷰 본문",
+                }
+            ],
+        )
+
+        self.assertEqual(len(cafe_reviews), 1)
+        self.assertEqual(cafe_reviews[0]["rating"], 3)
