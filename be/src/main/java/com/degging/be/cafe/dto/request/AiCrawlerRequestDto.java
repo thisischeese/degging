@@ -18,7 +18,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class AiCrawlerRequestDto {
 
-    @JsonProperty("cafe_id")
     private UUID cafeId;
 
     private String name;
