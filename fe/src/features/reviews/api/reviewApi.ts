@@ -7,6 +7,7 @@ import {
   Review,
   ReviewDetailResponse,
   StoredCafeReview,
+  PostReviewResponse,
 } from "../types";
 
 // 로컬 저장 리뷰를 내 리뷰 목록 형식으로 변환합니다.
@@ -136,20 +137,59 @@ export const getMyReviews = async (
   }
 };
 
-// 카페 리뷰 목록을 조회하는 함수입니다.
+// [실제 API 연동] 카페 리뷰 목록을 서버에서 조회하는 함수입니다.
+// page, size, 그리고 정렬 옵션(sort)을 쿼리 파라미터로 넘겨 실제 데이터를 가져옵니다.
 export const getCafeReviews = async (
   cafeId: string,
   page: number = 0,
-  size: number = 10
+  size: number = 10,
+  sort?: string[]
 ): Promise<CafeReviewsSliceResponse> => {
   const response = (await axios_instance.get<BaseResponse<CafeReviewsSliceResponse>>(
     `/api/cafes/${cafeId}/reviews`,
     {
-      params: { page, size },
+      params: { page, size, sort }, // 정렬(sort) 파라미터 추가
     }
   )) as unknown as BaseResponse<CafeReviewsSliceResponse>;
 
-  return response.data;
+  return response.data; // 서버 응답에서 실제 데이터(content, hasNext, page)만 추출하여 반환
+};
+
+export interface PostCafeReviewPayload {
+  cafeId: string;
+  rating: number;
+  content: string;
+  // 사용자가 <input type="file">로 선택한 실제 파일 객체들인 경우
+  images?: File[]; // 이미지 배열 (필요에 따라 타입 수정)
+}
+
+// [실제 API 연동] 카페에 새로운 리뷰를 등록하는 함수입니다.
+// 별점, 리뷰 내용, 이미지 목록을 담아 서버에 POST 요청을 보냅니다.
+export const postCafeReview = async (
+  cafeId: string,
+  payload: PostCafeReviewPayload
+): Promise<PostReviewResponse> => {
+  // 파일 전송을 위해 FormData 객체를 생성합니다.
+  const formData = new FormData();
+  formData.append('rating', payload.rating.toString());
+  formData.append('content', payload.content);
+  formData.append('cafeId', payload.cafeId);
+
+  // 이미지가 존재할 경우 FormData에 순차적으로 추가합니다.
+  if (payload.images && payload.images.length > 0) {
+    payload.images.forEach((file) => {
+      formData.append('images', file);
+    });
+  }
+  const response = (await axios_instance.post<BaseResponse<PostReviewResponse>>(
+    `/api/cafes/${cafeId}/reviews`,
+    formData,
+    {
+      headers: {  'Content-Type': 'multipart/form-data' }, // 파일 업로드를 위한 헤더 설정
+    } 
+  )) as unknown as BaseResponse<PostReviewResponse>;
+
+  return response.data; // 등록된 리뷰 상세 데이터(reviewId 포함)를 반환
 };
 
 // 리뷰 상세 데이터를 조회하는 함수입니다.

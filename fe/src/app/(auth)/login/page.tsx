@@ -5,14 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
-import { useRouter } from "next/navigation";
 import { postLogin } from "@/features/auth/api/loginApi";
+import Cookies from "js-cookie";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const router = useRouter();
 
   const handleLogin = async () => {
     try {
@@ -22,10 +20,9 @@ export default function LoginPage() {
       // 2. 성공 시
       console.log("로그인 성공!", loginData);
       
-      localStorage.setItem("access_token", loginData.accessToken);
-      localStorage.setItem("refresh_token", loginData.refreshToken);
+      Cookies.set("refresh_token", loginData.refreshToken, { path: "/" });
 
-      router.push("/"); // 메인으로 이동
+      window.location.href = "/"; // 메인으로 이동
     } catch (error) {
       console.error("로그인 실패:", error);
       alert("이메일 또는 비밀번호가 올바르지 않습니다.");

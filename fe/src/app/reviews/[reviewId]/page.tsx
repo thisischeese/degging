@@ -130,7 +130,7 @@ export default function ReviewDetailPage({
 
   // 카페 카드에 필요한 데이터를 매핑합니다.
   const cafeData = {
-    id: 'cafe-id-placeholder',
+    id: '',
     name: reviewData.name || '카페 정보 없음',
     description: reviewData.cafeIntro || '카페 소개가 없습니다.',
     address: reviewData.roadAddress || reviewData.address || '주소 정보 없음',
@@ -208,8 +208,9 @@ export default function ReviewDetailPage({
           className="mx-auto flex w-full max-w-md flex-col pb-8"
         >
           {/* 리뷰에 연결된 카페 정보를 표시합니다. */}
+          {/* pointer-events-none을 추가하여 클릭이 안 되는 순수 정보 카드로 지정함. */}
           <div className="px-5 pb-4 pt-5">
-            <div className="overflow-hidden rounded-2xl shadow-sm">
+            <div className="overflow-hidden rounded-2xl shadow-sm pointer-events-none">
               <CafeCard
                 id={cafeData.id}
                 name={cafeData.name}
@@ -275,9 +276,8 @@ export default function ReviewDetailPage({
                   {imageUrls.map((_, index) => (
                     <div
                       key={`${reviewData.reviewId}-${index}`}
-                      className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${
-                        index === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'
-                      }`}
+                      className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${index === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'
+                        }`}
                     />
                   ))}
                 </div>

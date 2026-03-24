@@ -12,69 +12,8 @@ import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
 import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
-
-// === 더미 데이터 및 fetcher (useSuspenseQuery 용도) ===
-interface Cafe {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  isRecommend?: boolean;
-  imageUrl?: string | StaticImageData;
-  description?: string;
-  address?: string;
-  distance?: string;
-}
-
-const fetchCafes = async (): Promise<Cafe[]> => {
-  // 실제 API 호출로 변경될 부분
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([
-        {
-          id: '1', name: '아우어베이커리 역삼점',
-          lat: 37.502035,
-          lng: 127.040018,
-          isRecommend: true,
-          imageUrl: "/images/cafe/cafe1.png",
-          description: '조용하고 넓은 공간에서 즐기는 시그니처 빵',
-          address: '서울 강남구 언주로85길 29 1층',
-          distance: '99m'
-        },
-        {
-          id: '2', name: '씨티커피 역삼',
-          lat: 37.5036601,
-          lng: 127.0382947,
-          isRecommend: true,
-          imageUrl: "/images/cafe/cafe2.png",
-          description: '직장인들을 위한 최고의 휴식 공간',
-          address: '서울 강남구 테헤란로 123',
-          distance: '200m'
-        },
-        {
-          id: '3', name: '씨티커피 역삼',
-          lat: 37.5036,
-          lng: 127.038,
-          isRecommend: true,
-          imageUrl: "/images/cafe/cafe2.png",
-          description: '직장인들을 위한 최고의 휴식 공간',
-          address: '서울 강남구 테헤란로 123',
-          distance: '200m'
-        },
-        {
-          id: '4', name: '씨티커피 역삼',
-          lat: 37.6000,
-          lng: 127.0444,
-          isRecommend: true,
-          imageUrl: "/images/cafe/cafe2.png",
-          description: '직장인들을 위한 최고의 휴식 공간',
-          address: '서울 강남구 테헤란로 123',
-          distance: '200m'
-        },
-      ]);
-    }, 1000);
-  });
-};
+import { getCafeMarkers } from '@/features/map/api/mapApi';
+import { CafeMarker } from '@/features/map/types';
 
 const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
 
@@ -112,6 +51,12 @@ function MapContent() {
   const controls = useAnimation();
   const initialUserLocationRef = useRef(userLocation);
 
+  // [수정] 지도 중심 좌표 상태 추가 (API 호출용) - 초기 렌더링 시 ref 접근 에러를 방지하기 위해 상수로 초기화
+  const [mapCenter, setMapCenter] = useState({ 
+    lat: 37.5665, 
+    lng: 126.978 
+  });
+
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<kakao.maps.Map | null>(null);
@@ -128,10 +73,14 @@ function MapContent() {
     }
   }, []);
 
-  // TanStack Query v5 suspense 쿼리
+  // [수정] 실제 API 연동 쿼리. 지도 중심 좌표와 프랜차이즈 포함 여부가 변경될 때마다 갱신
   const { data: cafes } = useSuspenseQuery({
-    queryKey: ['map', 'cafes', selectedFilters],
-    queryFn: fetchCafes,
+    queryKey: ['map', 'markers', mapCenter.lat, mapCenter.lng, isFranchiseIncluded],
+    queryFn: () => getCafeMarkers({
+      latitude: mapCenter.lat,
+      longitude: mapCenter.lng,
+      includeFranchise: isFranchiseIncluded
+    }),
   });
 
   // 0. 초기 진입 시 자동 현 위치 추적
@@ -151,6 +100,11 @@ function MapContent() {
         ? new window.kakao.maps.LatLng(initialUserLocation.lat, initialUserLocation.lng)
         : new window.kakao.maps.LatLng(37.5665, 126.978);
 
+      // [추가] 사용자의 초기 위치가 있다면 mapCenter 상태도 동기화
+      if (initialUserLocation) {
+        setMapCenter({ lat: initialUserLocation.lat, lng: initialUserLocation.lng });
+      }
+
       const options = {
         center,
         level: 3,
@@ -164,6 +118,21 @@ function MapContent() {
       window.kakao.maps.event.addListener(mapInstance.current, 'click', () => {
         setActiveCafeId(null);
         controls.start({ y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } }); // 시트 원위치
+      });
+
+      // [추가] 지도 영역 이동, 줌 조절 후 지도 중심 좌표 갱신 (API 호출 목적)
+      window.kakao.maps.event.addListener(mapInstance.current, 'dragend', () => {
+        if (!mapInstance.current) return;
+        // 타입 확장을 통해 any 키워드 없이 안전하게 getCenter() 메서드 호출
+        const center = mapInstance.current.getCenter();
+        setMapCenter({ lat: center.getLat(), lng: center.getLng() });
+      });
+
+      window.kakao.maps.event.addListener(mapInstance.current, 'zoom_changed', () => {
+        if (!mapInstance.current) return;
+        // 타입 확장을 통해 any 키워드 없이 안전하게 getCenter() 메서드 호출
+        const center = mapInstance.current.getCenter();
+        setMapCenter({ lat: center.getLat(), lng: center.getLng() });
       });
 
     });
@@ -182,25 +151,26 @@ function MapContent() {
     const markerImage = new window.kakao.maps.MarkerImage("/images/map/recommendLogo.png", imageSize);
 
     cafes.forEach((cafe) => {
-      const markerPosition = new window.kakao.maps.LatLng(cafe.lat, cafe.lng);
+      // [수정] API 응답 타입의 latitude, longitude 사용
+      const markerPosition = new window.kakao.maps.LatLng(cafe.latitude, cafe.longitude);
 
       // 모든 마커에 커스텀 이미지 적용
       const markerOptions: kakao.maps.MarkerOptions = {
         position: markerPosition,
-        title: cafe.name,
+        title: `카페 ID: ${cafe.cafeId}`, // name 속성이 API에 없으므로 cafeId 노출
         image: markerImage,
-        zIndex: cafe.isRecommend ? 10 : 1
+        zIndex: 1 // isRecommend 도 api에서 아직 안주므로 기본값
       };
       const marker = new window.kakao.maps.Marker(markerOptions);
 
       // 클릭 이벤트: 공통적으로 지도를 해당 위치로 이동(panTo)
       window.kakao.maps.event.addListener(marker, 'click', () => {
         // [수정] Ref를 사용하여 최신 activeCafeId와 비교 (클로저 문제 해결)
-        if (activeCafeIdRef.current === cafe.id) {
+        if (activeCafeIdRef.current === cafe.cafeId) {
           setActiveCafeId(null);
           controls.start({ y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } });
         } else {
-          setActiveCafeId(cafe.id);
+          setActiveCafeId(cafe.cafeId);
           
           const map = mapInstance.current;
           if (map) {
@@ -299,8 +269,8 @@ function MapContent() {
   };
 
   // 카페 카드 클릭 핸들러
-  const handleCafeClick = (cafe: Cafe) => {
-    router.push(`/cafes/${cafe.id}`);
+  const handleCafeClick = (cafe: CafeMarker) => {
+    router.push(`/cafes/${cafe.cafeId}`);
   };
 
   return (
@@ -393,15 +363,15 @@ function MapContent() {
 
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 no-scrollbar relative">
           {cafes.map((cafe) => (
-            <div key={cafe.id} ref={(el) => { cardRefs.current[cafe.id] = el; }}>
+            <div key={cafe.cafeId} ref={(el) => { cardRefs.current[cafe.cafeId] = el; }}>
               <CafeCard
-                id={cafe.id}
-                name={cafe.name}
-                description={cafe.description || ''}
-                address={cafe.address || ''}
-                distance={cafe.distance || ''}
-                imageUrl={cafe.imageUrl || ''}
-                isActive={activeCafeId === cafe.id}
+                id={cafe.cafeId}
+                name={`카페 (ID: ${cafe.cafeId.slice(0, 6)})`} // 임시 이름 처리 (API에 이름이 없음)
+                description=""
+                address="주소 정보 없음"
+                distance=""
+                imageUrl=""
+                isActive={activeCafeId === cafe.cafeId}
                 onClick={() => handleCafeClick(cafe)}
               />
             </div>

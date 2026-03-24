@@ -34,7 +34,7 @@ export interface ReviewDetailResponse {
   updatedAt: string;
   imageUrls: string[];
   nickname: string;
-  name: string;
+  name: string; //카페이름
   cafeIntro: string;
   address: string;
   roadAddress: string;
@@ -117,4 +117,18 @@ export interface ApiResponse<T> {
   code: string;
   message: string;
   data: T;
+}
+
+// 리뷰 등록 성공 시 서버에서 내려주는 응답 데이터 타입입니다.
+export interface PostReviewResponse {
+  reviewId: string;
+  rating: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  images: {
+    imageId: string;
+    imageUrl: string;
+  }[];
+  nickname: string;
 }

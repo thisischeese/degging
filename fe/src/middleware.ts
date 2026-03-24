@@ -29,11 +29,12 @@ export const config = {
     /*
      * 아래 경로를 제외한 모든 요청에서 미들웨어 실행:
      * - api (API routes)
+     * - swagger-ui, v3/api-docs (Swagger docs)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - images (public images)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|images|favicon.ico).*)',
+    '/((?!api|swagger-ui|v3/api-docs|_next/static|_next/image|images|favicon.ico).*)',
   ],
 }
