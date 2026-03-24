@@ -84,6 +84,10 @@ dependencies {
 
     // 이미지 리사이징을 위한 라이브러리
     implementation 'net.coobird:thumbnailator:0.4.20'
+
+    // Kafka
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
 }
 
 tasks.named('test') {
