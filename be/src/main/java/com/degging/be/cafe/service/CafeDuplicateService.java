@@ -7,7 +7,6 @@ import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
 import com.degging.be.cafe.entity.CafeCategory;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
-import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +17,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -45,10 +45,15 @@ public class CafeDuplicateService {
      *
      * 상세 정보가 채워지지 않은 카페 대상으로 매칭 작업 수행
      * 전체 리스트를 순회하며 카카오 검색 결과와 대조하여 유효한 경우 정보 갱신
+     * 배치 처리를 통해 DB 조회 및 저장 성능 최적화 적용
      */
+    @Transactional
     public int matchKakaoPlaces(List<StoreListInUpjongItem> items) {
-        int matchedCount = 0;
-        int duplicateSkippedCount = 0;
+        if (items == null || items.isEmpty()) {
+            return 0;
+        }
+
+        List<CafeEntity> candidatesToSave = new ArrayList<>();
         int notFoundCount = 0;
 
         for (StoreListInUpjongItem item : items) {
@@ -68,27 +73,63 @@ public class CafeDuplicateService {
                     continue;
                 }
 
-                // 매칭 성공 시 저장 로직 호출
+                // 엔티티 생성 (DB 저장은 나중에 일괄 처리)
                 Point location = createPoint(item.getLon(), item.getLat());
-                if (processSave(item, matchedPlace, location, category)) {
-                    matchedCount++;
-                } else {
-                    duplicateSkippedCount++;
-                }
+                candidatesToSave.add(CafeEntity.of(item, matchedPlace, location, category));
 
-            } catch (BaseException e) {
-                log.error("카페 매칭 중 비즈니스 예외 발생 - 카페명: [{}], 에러코드: [{}], 사유: {}", 
-                        item.getBizesNm(), e.getErrorCode().getCode(), e.getMessage());
             } catch (Exception e) {
-                log.error("카페 매칭 중 예상치 못한 오류 발생 - 카페명: [{}], 사유: {}", 
-                        item.getBizesNm(), e.getMessage());
+                log.error("카페 매칭 처리 중 오류 발생 - 카페명: {}, 사유: {}", item.getBizesNm(), e.getMessage());
+            }
+        }
+
+        if (candidatesToSave.isEmpty()) {
+            log.info("카카오 매칭 작업 완료 - 매칭성공: 0, 미발견: {}", notFoundCount);
+            return 0;
+        }
+
+        // --- 배치 최적화 시작: 중복 체크 및 최종 저장 (100건 단위로 쪼개서 처리) ---
+        
+        int totalSavedCount = 0;
+        int totalDuplicateSkippedCount = 0;
+
+        int batchSize = 100; // 한 번에 처리할 단위 (리스크 분산을 위해 100건으로 설정)
+        for (int i = 0; i < candidatesToSave.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, candidatesToSave.size());
+            List<CafeEntity> batchList = candidatesToSave.subList(i, end);
+
+            // 현재 배치의 카카오 플레이스 ID 추출
+            List<String> kakaoPlaceIds = batchList.stream()
+                    .map(CafeEntity::getKakaoPlaceId)
+                    .toList();
+
+            try {
+                // 이미 DB에 존재하는 카카오 플레이스 ID 리스트 조회 (배치 단위 쿼리)
+                List<String> existingIds = cafeRepository.findAllExistingKakaoPlaceIds(kakaoPlaceIds);
+
+                // 존재하지 않는 신규 카페만 필터링하여 저장 목록 확정
+                List<CafeEntity> finalToSave = batchList.stream()
+                        .filter(cafe -> !existingIds.contains(cafe.getKakaoPlaceId()))
+                        .toList();
+
+                // 최종 리스트 일괄 저장 (Batch Insert 효과로 성능 향상)
+                if (!finalToSave.isEmpty()) {
+                    cafeRepository.saveAll(finalToSave);
+                    totalSavedCount += finalToSave.size();
+                }
+                
+                // 중복 스킵된 수 누적
+                totalDuplicateSkippedCount += (batchList.size() - finalToSave.size());
+
+            } catch (Exception e) {
+                log.error("배치 저장 중 오류 발생 - 범위: [{}~{}], 사유: {}", i, end, e.getMessage());
+                // 해당 100건 실패 시 로그를 남기고 다음 100건으로 진행
             }
         }
 
         log.info("카카오 매칭 작업 완료 - 매칭성공: {}, 중복스킵: {}, 미발견: {}",
-                 matchedCount, duplicateSkippedCount, notFoundCount);
+                totalSavedCount, totalDuplicateSkippedCount, notFoundCount);
 
-        return matchedCount;
+        return totalSavedCount; // 실제 신규 저장된 수만 반환
     }
 
     /**
@@ -108,26 +149,14 @@ public class CafeDuplicateService {
      * 특정 카페의 카카오 정보 업데이트 처리
      *
      * 동일한 카카오 플레이스 ID가 이미 존재하는지 검증하여 중복 저장 방지
-     * 트랜잭션을 짧게 유지하기 위해 개별 업데이트 단위 처리
-     *
-     * @param item  저장할 카페 데이터
-     * @param matchedPlace  일치한 카카오 API의 카페 정보
-     * @param category  판별된 카페 카테고리
+     * 배치 처리가 아닌 단건 업데이트가 필요한 경우를 위해 유지
      */
     @Transactional
     public boolean processSave(StoreListInUpjongItem item, KakaoPlaceItem matchedPlace, Point location, CafeCategory category) {
-
-        // 중복 방지
         if (cafeRepository.existsByKakaoPlaceId(matchedPlace.getId())) {
             return false;
         }
-
-        // 엔티티 생성
-        CafeEntity cafe = CafeEntity.of(item, matchedPlace, location, category);
-
-        // DB 저장
-        cafeRepository.save(cafe);
-
+        cafeRepository.save(CafeEntity.of(item, matchedPlace, location, category));
         return true;
     }
 
