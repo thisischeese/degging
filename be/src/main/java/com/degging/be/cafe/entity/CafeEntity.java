@@ -54,6 +54,10 @@ public class CafeEntity extends BaseEntity {
     @Column(nullable = false)
     private CafeStatus status; // Enum으로 지정된 영업 상태 (영업/폐업/상태확인불가)
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private CafeCategory category; // 카페 카테고리 (커피, 제과, 디저트)
+
     @Column(columnDefinition = "geography(Point,4326)", nullable = false)
     private Point location; // 카페 위치 PostGIS
 
@@ -91,9 +95,10 @@ public class CafeEntity extends BaseEntity {
      * @param item      상가정보 API에서 조회한 업소 데이터
      * @param kakaoItem 가져온 상가정보와 매칭된 카카오 API 데이터
      * @param location  카페 위치 정보 (PostGIS Point)
+     * @param category  판별된 카페 카테고리 (커피, 제과, 디저트)
      * @return 생성된 CafeEntity 객체
      */
-    public static CafeEntity of(StoreListInUpjongItem item, KakaoPlaceItem kakaoItem, Point location) {
+    public static CafeEntity of(StoreListInUpjongItem item, KakaoPlaceItem kakaoItem, Point location, CafeCategory category) {
         // 기존 소상공인 데이터명 대신 카카오 API 기반 업소 적용
         String originalName = kakaoItem != null && kakaoItem.getPlaceName() != null
                 ? kakaoItem.getPlaceName()
@@ -117,6 +122,7 @@ public class CafeEntity extends BaseEntity {
                 .phone(kakaoItem.getPhone())
                 .thumbnailUrl(null)
                 .status(CafeStatus.OPEN)
+                .category(category)
                 .location(location)
                 .cafeIntro(null)
                 .build();

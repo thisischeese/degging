@@ -1,6 +1,7 @@
 package com.degging.be.cafe.service;
 
 import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
+import com.degging.be.cafe.entity.CafeCategory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -107,5 +108,36 @@ public class CafeFilterService {
         }
  
         return false;
+    }
+
+    /**
+     * 업종 정보를 기반으로 카페 카테고리 판별
+     *
+     * @param item 상가업소 데이터
+     * @return 판별된 CafeCategory (기본값: COFFEE)
+     */
+    public CafeCategory determineCategory(StoreListInUpjongItem item) {
+        String smallCategoryName = item.getIndsSclsNm();
+        String ksicName = item.getKsicNm();
+
+        if (smallCategoryName == null) {
+            return CafeCategory.COFFEE;
+        }
+
+        // 1. 제과/베이커리 판별
+        if (smallCategoryName.contains("제과") || smallCategoryName.contains("빵") || 
+            smallCategoryName.contains("베이커리") || (ksicName != null && ksicName.contains("제과"))) {
+            return CafeCategory.BAKERY;
+        }
+
+        // 2. 디저트/기타 판별
+        if (smallCategoryName.contains("디저트") || smallCategoryName.contains("아이스크림") || 
+            smallCategoryName.contains("빙수") || smallCategoryName.contains("도넛") || 
+            smallCategoryName.contains("샌드위치") || smallCategoryName.contains("토스트")) {
+            return CafeCategory.DESSERT;
+        }
+
+        // 3. 기본 및 카페 판별
+        return CafeCategory.COFFEE;
     }
 }

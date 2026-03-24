@@ -4,6 +4,7 @@ import com.degging.be.cafe.client.KakaoLocalApiClient;
 import com.degging.be.cafe.dto.response.external.KakaoPlaceItem;
 import com.degging.be.cafe.dto.response.external.KakaoPlaceResponse;
 import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
+import com.degging.be.cafe.entity.CafeCategory;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
@@ -33,6 +34,7 @@ public class CafeDuplicateService {
 
     private final KakaoLocalApiClient kakaoLocalApiClient;
     private final CafeRepository cafeRepository;
+    private final CafeFilterService cafeFilterService;
 
     // SRID 4326 기준 Point 생성용 GeometryFactory
     // 위도/경도를 PostGIS로 바꿀 때 사용
@@ -54,6 +56,9 @@ public class CafeDuplicateService {
                 // 상호명 정규화 (괄호, 주식회사 등 제거)
                 String normalizedName = normalizeName(item.getBizesNm());
 
+                // 카테고리 판별 (커피/제과/디저트)
+                CafeCategory category = cafeFilterService.determineCategory(item);
+
                 // 카카오 데이터와 매칭 시도 (좌표 기반 검색 활용)
                 KakaoPlaceItem matchedPlace = findMatchedPlace(item, normalizedName);
 
@@ -65,7 +70,7 @@ public class CafeDuplicateService {
 
                 // 매칭 성공 시 저장 로직 호출
                 Point location = createPoint(item.getLon(), item.getLat());
-                if (processSave(item, matchedPlace, location)) {
+                if (processSave(item, matchedPlace, location, category)) {
                     matchedCount++;
                 } else {
                     duplicateSkippedCount++;
@@ -107,9 +112,10 @@ public class CafeDuplicateService {
      *
      * @param item  저장할 카페 데이터
      * @param matchedPlace  일치한 카카오 API의 카페 정보
+     * @param category  판별된 카페 카테고리
      */
     @Transactional
-    public boolean processSave(StoreListInUpjongItem item, KakaoPlaceItem matchedPlace, Point location) {
+    public boolean processSave(StoreListInUpjongItem item, KakaoPlaceItem matchedPlace, Point location, CafeCategory category) {
 
         // 중복 방지
         if (cafeRepository.existsByKakaoPlaceId(matchedPlace.getId())) {
@@ -117,7 +123,7 @@ public class CafeDuplicateService {
         }
 
         // 엔티티 생성
-        CafeEntity cafe = CafeEntity.of(item, matchedPlace, location);
+        CafeEntity cafe = CafeEntity.of(item, matchedPlace, location, category);
 
         // DB 저장
         cafeRepository.save(cafe);
@@ -145,14 +151,14 @@ public class CafeDuplicateService {
                 SEARCH_SIZE
         );
 
-        // 1. 검색 결과 자체가 없는 경우
+        // 검색 결과 자체가 없는 경우
         if (response == null || response.getDocuments() == null || response.getDocuments().isEmpty()) {
             log.warn("매칭 실패 [{}]: 검색 결과 없음 - 카페명: [{}], 키워드: [{}]", 
                     CafeErrorCode.KAKAO_PLACE_NOT_FOUND.getCode(), item.getBizesNm(), keyword);
             return null;
         }
 
-        // 2. 검색 결과는 있으나 주소가 일치하는 항목이 없는 경우
+        // 검색 결과는 있으나 주소가 일치하는 항목이 없는 경우
         for (KakaoPlaceItem document : response.getDocuments()) {
             if (isAddressMatch(item.getRdnmAdr(), document.getRoadAddressName()) ||
                     isAddressMatch(item.getLnoAdr(), document.getAddressName())) {
