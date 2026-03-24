@@ -7,6 +7,7 @@ import com.degging.be.cafe.dto.response.internal.CafeSearchResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.cafe.repository.VibeRepository;
+import com.degging.be.global.event.KafkaProducer;
 import com.degging.be.global.event.SearchEvent;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,9 @@ public class CafeSearchService {
     private final ApplicationEventPublisher eventPublisher; // 이벤트 발행자
     private final CafeRepository cafeRepository;
     private final VibeRepository vibeRepository;
+    private final KafkaProducer kafkaProducer;
+
+    private final String TOPIC_NAME = "degging.cafe.search.events"; // kafka topic 명
 
     /**
      * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
@@ -104,7 +108,7 @@ public class CafeSearchService {
 
         // 검색 이벤트 발행 -> 랭크 도메인에서 받아 실시간 트랜드 반영
         if (res.getExtractedMenus() != null && !res.getExtractedMenus().isEmpty()) {
-            eventPublisher.publishEvent(new SearchEvent(res.getExtractedMenus()));
+            kafkaProducer.send(TOPIC_NAME, SearchEvent.of(res.getExtractedMenus(), userId));
         }
 
         // 개인 검색 로그 저장 호출

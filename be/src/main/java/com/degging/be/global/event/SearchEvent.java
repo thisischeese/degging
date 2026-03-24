@@ -1,9 +1,19 @@
 package com.degging.be.global.event;
 
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 /**
- * 검색 발생 시 전달할 데이터를 담는 이벤트 클래스
+ * Kafka를 통해 전송될 검색 로그 이벤트
  */
-public record SearchEvent(Map<String, Integer> extractedMenus) {
+public record SearchEvent(
+        Map<String, Integer> extractedMenus, // 검색어에서 추출한 디저트명과 빈도
+        UUID userId, // 검색한 유저 ID
+        LocalDateTime timestamp // 이벤트 발생 시간
+) {
+    // 이벤트 발행 시간을 담아 발행
+    public static SearchEvent of(Map<String, Integer> extractedMenus, UUID userId){
+        return new SearchEvent(extractedMenus, userId, LocalDateTime.now());
+    }
 }
