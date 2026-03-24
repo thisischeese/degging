@@ -26,6 +26,12 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     boolean existsByKakaoPlaceId(String kakaoPlaceId);
 
     /**
+     * 여러 카카오 플레이스 ID 중 이미 DB에 존재하는 ID 리스트 조회
+     */
+    @Query("SELECT c.kakaoPlaceId FROM CafeEntity c WHERE c.kakaoPlaceId IN :kakaoPlaceIds")
+    List<String> findAllExistingKakaoPlaceIds(@Param("kakaoPlaceIds") List<String> kakaoPlaceIds);
+
+    /**
      * 이름을 기반으로 카페 목록 조회
      */
     List<CafeEntity> findAllByName(String name);
@@ -65,7 +71,7 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * @return 반경 내 카페 엔티티 리스트
      */
     @Query("SELECT c FROM CafeEntity c " +
-            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false)")
     List<CafeEntity> findMarkersByRadius(
             @Param("point") String point,
@@ -105,9 +111,9 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * @return 거리순 정렬된 카페 Slice
      */
     @Query("SELECT c FROM CafeEntity c " +
-            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false) " +
-            "ORDER BY ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) ASC")
+            "ORDER BY ST_Distance(c.location, ST_GeogFromText(:point)) ASC")
     Slice<CafeEntity> findBottomSheetByDistance(
             @Param("point") String point,
             @Param("radius") Double radius,
@@ -121,7 +127,7 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      */
     @Query("SELECT c FROM CafeEntity c " +
             "LEFT JOIN c.ratingStats rs " +
-            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false) " +
             "ORDER BY CASE WHEN rs.reviewCount > 0 THEN CAST(rs.ratingSum AS double) / rs.reviewCount ELSE 0 END DESC")
     Slice<CafeEntity> findBottomSheetByRating(
@@ -137,7 +143,7 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      */
     @Query("SELECT c FROM CafeEntity c " +
             "LEFT JOIN c.ratingStats rs " +
-            "WHERE ST_Distance_Sphere(c.location, ST_GeomFromText(:point, 4326)) <= :radius " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false) " +
             "ORDER BY COALESCE(rs.reviewCount, 0) DESC")
     Slice<CafeEntity> findBottomSheetByReviewCount(
