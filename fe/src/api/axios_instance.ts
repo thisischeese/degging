@@ -13,7 +13,7 @@ export const axios_instance = axios.create({
 // 2. 요청 인터셉터 (토큰 자동 주입)
 axios_instance.interceptors.request.use(
   (config) => {
-    const access_token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const access_token = Cookies.get('access_token') || null;
     const onboarding_token = typeof window !== 'undefined' ? sessionStorage.getItem('ONBOARDING_TOKEN') : null;
     
     const token = access_token || onboarding_token;
@@ -77,11 +77,10 @@ axios_instance.interceptors.response.use(
 
         // 갱신 성공! 새 토큰 저장
         const newAccessToken = response.data.data.accessToken; // 백엔드 응답 형태에 따라 수정 필요
-        localStorage.setItem('access_token', newAccessToken);
 
-        // 쿠키도 함께 갱신
+        // 쿠키에 갱신
         Cookies.set("access_token", newAccessToken, { 
-          expires: 7, 
+          // expires: 7, 
           path: "/",
           secure: process.env.NODE_ENV === "production",
           sameSite: "Lax"
@@ -102,8 +101,8 @@ axios_instance.interceptors.response.use(
 
         alert('세션이 완전히 만료되었습니다. 다시 로그인해주세요.');
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          Cookies.remove("access_token", { path: "/" }); // 쿠키도 제거
+          Cookies.remove("access_token", { path: "/" }); // 쿠키 제거
+          Cookies.remove("refresh_token", { path: "/" });
           window.location.href = '/login'; // 로그인 페이지로 이동
         }
         return Promise.reject(refreshError);
