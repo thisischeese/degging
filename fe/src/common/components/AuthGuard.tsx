@@ -15,7 +15,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     // 클라이언트 사이드에서만 실행
     const checkAuth = () => {
-      const accessToken = localStorage.getItem("access_token");
+      const accessToken = sessionStorage.getItem("access_token");
       const publicPaths = ["/login", "/signup", "/password", "/onboarding"];
       const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
