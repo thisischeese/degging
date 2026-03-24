@@ -4,9 +4,6 @@ import com.degging.be.cafe.client.CommercialStoreApiClient;
 import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
 import com.degging.be.cafe.dto.response.external.StoreListInUpjongResponse;
 import com.degging.be.cafe.repository.CafeRepository;
-import com.degging.be.global.exception.BaseException;
-import com.degging.be.global.exception.errorcode.CafeErrorCode;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +24,6 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class CafeCollectService {
 
     // MVP 단계에서는 서울 지역만 수집
@@ -64,65 +60,68 @@ public class CafeCollectService {
             int currentUpjongTotal = 0;
 
             do {
-                StoreListInUpjongResponse response = commercialStoreApiClient.fetchCafeStores(upjongCode, pageNo, numOfRows);
+                try {
+                    StoreListInUpjongResponse response = commercialStoreApiClient.fetchCafeStores(upjongCode, pageNo, numOfRows);
 
-                if (response == null || response.getBody() == null) {
-                    throw new BaseException(CafeErrorCode.EXTERNAL_API_ERROR);
+                    if (response == null || response.getBody() == null) {
+                        log.error("상가정보 API 호출 실패 - 업종: {}, 페이지: {}", upjongCode, pageNo);
+                    } else if (response.getBody().getItems() == null) {
+                        if (pageNo == 1) { // 첫 페이지부터 데이터가 없는 경우
+                            log.warn("업종 코드 [{}]에 해당하는 데이터가 없습니다.", upjongCode);
+                        }
+                        break;
+                    } else {
+                        // 첫 페이지에서 해당 업종의 전체 개수 누적
+                        if (pageNo == 1) {
+                            currentUpjongTotal = response.getBody().getTotalCount();
+                            totalApiResultCount += currentUpjongTotal;
+                        }
+
+                        List<StoreListInUpjongItem> items = response.getBody().getItems();
+                        List<StoreListInUpjongItem> validCandidates = new ArrayList<>();
+
+                        for (StoreListInUpjongItem item : items) {
+
+                            // 1. 서울 데이터만 저장
+                            if (!isTargetRegion(item)) {
+                                totalFilteredCount++;
+                                continue;
+                            }
+
+                            // 2. 실제 카페만 저장 (필터링 로격 통과 시에만)
+                            if (!cafeFilterService.isCafe(item)) {
+                                totalFilteredCount++;
+                                continue;
+                            }
+
+                            // 3. 좌표가 없으면 저장하지 않음
+                            if (item.getLon() == null || item.getLat() == null) {
+                                totalFilteredCount++;
+                                continue;
+                            }
+
+                            // 4. 상가업소번호 기준 중복 저장 방지
+                            if (cafeRepository.existsByBizesId(item.getBizesId())) {
+                                totalDuplicateCount++;
+                                continue;
+                            }
+
+                            validCandidates.add(item);
+                        }
+
+                        // 카카오 매칭 및 저장
+                        int savedInPage = cafeDuplicateService.matchKakaoPlaces(validCandidates);
+                        totalSavedCount += savedInPage;
+                        
+                        // 매칭 실패 수 계산 (전체 후보 - 실제 저장된 수)
+                        totalNotFoundCount += (validCandidates.size() - savedInPage);
+
+                        log.info("업종 [{}], 페이지 {} 완료. (누적 저장: {})", upjongCode, pageNo, totalSavedCount);
+                    }
+                } catch (Exception e) {
+                    log.error("페이지 수집 중 예상치 못한 오류 발생 - 페이지: {}, 사유: {}", pageNo, e.getMessage());
                 }
 
-                if (response.getBody().getItems() == null) {
-                    if (pageNo == 1) { // 첫 페이지부터 데이터가 없는 경우
-                        log.warn("업종 코드 [{}]에 해당하는 데이터가 없습니다.", upjongCode);
-                    }
-                    break;
-                }
-
-                // 첫 페이지에서 해당 업종의 전체 개수 누적
-                if (pageNo == 1) {
-                    currentUpjongTotal = response.getBody().getTotalCount();
-                    totalApiResultCount += currentUpjongTotal;
-                }
-
-                List<StoreListInUpjongItem> items = response.getBody().getItems();
-                List<StoreListInUpjongItem> validCandidates = new ArrayList<>();
-
-                for (StoreListInUpjongItem item : items) {
-
-                    // 1. 서울 데이터만 저장
-                    if (!isTargetRegion(item)) {
-                        totalFilteredCount++;
-                        continue;
-                    }
-
-                    // 2. 실제 카페만 저장 (필터링 로격 통과 시에만)
-                    if (!cafeFilterService.isCafe(item)) {
-                        totalFilteredCount++;
-                        continue;
-                    }
-
-                    // 3. 좌표가 없으면 저장하지 않음
-                    if (item.getLon() == null || item.getLat() == null) {
-                        totalFilteredCount++;
-                        continue;
-                    }
-
-                    // 4. 상가업소번호 기준 중복 저장 방지
-                    if (cafeRepository.existsByBizesId(item.getBizesId())) {
-                        totalDuplicateCount++;
-                        continue;
-                    }
-
-                    validCandidates.add(item);
-                }
-
-                // 카카오 매칭 및 저장
-                int savedInPage = cafeDuplicateService.matchKakaoPlaces(validCandidates);
-                totalSavedCount += savedInPage;
-                
-                // 매칭 실패 수 계산 (전체 후보 - 실제 저장된 수)
-                totalNotFoundCount += (validCandidates.size() - savedInPage);
-
-                log.info("업종 [{}], 페이지 {} 완료. (누적 저장: {})", upjongCode, pageNo, totalSavedCount);
                 pageNo++;
 
             } while ((pageNo - 1) * numOfRows < currentUpjongTotal);
