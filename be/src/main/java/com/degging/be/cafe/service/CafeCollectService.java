@@ -39,78 +39,103 @@ public class CafeCollectService {
     private final CafeDuplicateService cafeDuplicateService;
     private final CafeFranchiseService cafeFranchiseService;
 
+    private static final List<String> UPJONG_CODES = List.of(
+            "I21201", // 커피 전문점
+            "I21202", // 제과점
+            "I21203", // 아이스크림/빙수전문점
+            "I21204"  // 기타 간이 식음료 점포 (도넛, 주스 등)
+    );
+
     /**
-     * 서울 내의 카페 전체 데이터 수집
-     * 상가정보 API에서 카페 데이터 조회하여 DB에 저장
-     * return 없음. 데이터 수집 실행 후 로그로 결과 출력
+     * 서울 내의 카페 및 디저트 업소 데이터 수집
+     * 상가정보 API에서 업종별 데이터를 조회하여 DB에 저장
      */
     public void collectCafes() {
-        int pageNo = 1; // 현재 조회할 페이지 번호
-        int numOfRows = 1000;   // 한번에 조회할 데이터 수
-        int totalCount = 0; // 전체 데이터 개수
-        int savedCount = 0; // 실제 DB에 저장된 카페 수
+        int totalApiResultCount = 0; // 공공데이터 기준 전체 업소 수
+        int totalSavedCount = 0;     // 최종 저장 성공 수
+        int totalDuplicateCount = 0; // 중복(이미 DB에 있음) 수
+        int totalNotFoundCount = 0;  // 카카오 매칭 실패 수
+        int totalFilteredCount = 0;  // 지역/업종 필터링 제외 수
 
-        // 최소 1번은 API를 호출해야 totalCount를 알 수 있기 때문에 do-while 사용
-        do {
-            // 현재 페이지의 카페 업소 목록 조회
-            StoreListInUpjongResponse response = commercialStoreApiClient.fetchCafeStores(pageNo, numOfRows);
+        for (String upjongCode : UPJONG_CODES) {
+            log.info("업종 코드 [{}] 데이터 수집 시작", upjongCode);
+            int pageNo = 1;
+            int numOfRows = 1000;
+            int currentUpjongTotal = 0;
 
-            // API 통신 실패
-            if (response == null || response.getBody() == null) {
-                throw new BaseException(CafeErrorCode.EXTERNAL_API_ERROR);
-            }
+            do {
+                StoreListInUpjongResponse response = commercialStoreApiClient.fetchCafeStores(upjongCode, pageNo, numOfRows);
 
-            // 결과 데이터가 아예 없는 경우
-            if (response.getBody().getItems() == null) {
-                log.error("수집 에러 발생: {}", CafeErrorCode.COLLECT_DATA_NOT_FOUND.getMessage());
-                throw new BaseException(CafeErrorCode.COLLECT_DATA_NOT_FOUND);
-            }
-
-            // 전체 업소 개수 응답에서 가져옴
-            totalCount = response.getBody().getTotalCount();
-
-            // 현재 페이지에 있는 업소 목록
-            List<StoreListInUpjongItem> items = response.getBody().getItems();
-
-            // CafeDuplicateService로 넘겨줄 매칭 후보 리스트
-            List<StoreListInUpjongItem> validCandidates = new ArrayList<>();
-
-            for (StoreListInUpjongItem item : items) {
-
-                // 서울 데이터만 저장
-                if (!isTargetRegion(item)) {
-                    continue;
+                if (response == null || response.getBody() == null) {
+                    throw new BaseException(CafeErrorCode.EXTERNAL_API_ERROR);
                 }
 
-                // 실제 카페만 저장
-                if (!cafeFilterService.isCafe(item)) {
-                    continue;
+                if (response.getBody().getItems() == null) {
+                    if (pageNo == 1) { // 첫 페이지부터 데이터가 없는 경우
+                        log.warn("업종 코드 [{}]에 해당하는 데이터가 없습니다.", upjongCode);
+                    }
+                    break;
                 }
 
-                // 좌표가 없으면 저장하지 않음
-                if (item.getLon() == null || item.getLat() == null) {
-                    continue;
+                // 첫 페이지에서 해당 업종의 전체 개수 누적
+                if (pageNo == 1) {
+                    currentUpjongTotal = response.getBody().getTotalCount();
+                    totalApiResultCount += currentUpjongTotal;
                 }
 
-                // 상가업소번호 기준 중복 저장 방지
-                if (cafeRepository.existsByBizesId(item.getBizesId())) {
-                    continue;
+                List<StoreListInUpjongItem> items = response.getBody().getItems();
+                List<StoreListInUpjongItem> validCandidates = new ArrayList<>();
+
+                for (StoreListInUpjongItem item : items) {
+
+                    // 1. 서울 데이터만 저장
+                    if (!isTargetRegion(item)) {
+                        totalFilteredCount++;
+                        continue;
+                    }
+
+                    // 2. 실제 카페만 저장 (필터링 로격 통과 시에만)
+                    if (!cafeFilterService.isCafe(item)) {
+                        totalFilteredCount++;
+                        continue;
+                    }
+
+                    // 3. 좌표가 없으면 저장하지 않음
+                    if (item.getLon() == null || item.getLat() == null) {
+                        totalFilteredCount++;
+                        continue;
+                    }
+
+                    // 4. 상가업소번호 기준 중복 저장 방지
+                    if (cafeRepository.existsByBizesId(item.getBizesId())) {
+                        totalDuplicateCount++;
+                        continue;
+                    }
+
+                    validCandidates.add(item);
                 }
 
-                // 모든 기준 통과한 카페 정보 매칭 후보로 추가
-                validCandidates.add(item);
+                // 카카오 매칭 및 저장
+                int savedInPage = cafeDuplicateService.matchKakaoPlaces(validCandidates);
+                totalSavedCount += savedInPage;
+                
+                // 매칭 실패 수 계산 (전체 후보 - 실제 저장된 수)
+                totalNotFoundCount += (validCandidates.size() - savedInPage);
 
-            }
+                log.info("업종 [{}], 페이지 {} 완료. (누적 저장: {})", upjongCode, pageNo, totalSavedCount);
+                pageNo++;
 
-            // 필터링된 리스트를 DuplicateService로 넘겨 매칭 및 저장 수행
-            savedCount += cafeDuplicateService.matchKakaoPlaces(validCandidates);
-            log.info("페이지 {} 완료. 현재까지 누적 저장: {}", pageNo, savedCount);
+            } while ((pageNo - 1) * numOfRows < currentUpjongTotal);
+        }
 
-            pageNo++;
-
-        } while ((pageNo - 1) * numOfRows < totalCount);
-
-        log.info("서울 카페 데이터 수집 완료. 총 저장된 카페 수: {}", savedCount);
+        log.info("========================================");
+        log.info("서울 카페 데이터 수집 통합 결과");
+        log.info("- 공공데이터 총 검색 결과: {}건", totalApiResultCount);
+        log.info("- 필터링 제외(지역/비카페): {}건", totalFilteredCount);
+        log.info("- 중복 스킵(DB 이미 존재): {}건", totalDuplicateCount);
+        log.info("- 카카오 매칭 실패: {}건", totalNotFoundCount);
+        log.info("- 최종 신규 저장 성공: {}건", totalSavedCount);
+        log.info("========================================");
 
         // 수집 완료 후 프랜차이즈 여부 일괄 업데이트
         log.info("프랜차이즈 식별(업데이트) 로직 실행");
