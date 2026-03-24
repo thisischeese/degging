@@ -41,7 +41,7 @@ public class CafeCrawlingService {
             try {
                 cafeCrawlingUpdateService.updateSingleCafe(dto);
             } catch (Exception e) {
-                log.error("Failed to update cafe data for cafeId: {}. Error: {}", 
+                log.error("Failed to update cafe data for cafeId: {}. Error: {}",
                         (dto.getCafes() != null ? dto.getCafes().getCafeId() : "unknown"), e.getMessage());
             }
         }
@@ -50,52 +50,46 @@ public class CafeCrawlingService {
 
     /**
      * 전체 카페에 대한 AI 크롤링 실행 (비동기)
-     * DB에서 썸네일이 없는 카페 목록을 100개씩 읽어와 AI 서버에 크롤링 요청을 보냅니다.
+     * DB에서 썸네일이 없는 카페 목록을 100개씩 읽어와 AI 서버에 크롤링 요청
      */
     @Async
     public void crawling() {
-        log.info("Starting full AI crawling process (Target: cafes without thumbnails)...");
+        log.info("Requesting a batch of AI crawling (Target: cafes without thumbnails)...");
 
-        int pageNum = 0;
-        long totalProcessed = 0;
-        Page<CafeEntity> cafePage;
+        // DB에서 크롤링이 필요한(썸네일 없는) 카페 목록 100개 조회
+        Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, BATCH_SIZE));
+        List<CafeEntity> cafes = cafePage.getContent();
 
-        do {
-            // DB에서 크롤링이 필요한(썸네일 없는) 카페 목록 100개씩 조회
-            cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, BATCH_SIZE));
-            List<CafeEntity> cafes = cafePage.getContent();
+        if (cafes.isEmpty()) {
+            log.info("No more cafes to find thumbnails for. Process stopped.");
+            return;
+        }
 
-            if (cafes.isEmpty()) break;
+        // AI 서버 요청 DTO로 변환
+        List<AiCrawlerRequestDto> requestBatch = cafes.stream()
+                .map(AiCrawlerRequestDto::from)
+                .collect(Collectors.toList());
 
-            // AI 서버 요청 DTO로 변환
-            List<AiCrawlerRequestDto> requestBatch = cafes.stream()
-                    .map(AiCrawlerRequestDto::from)
-                    .collect(Collectors.toList());
+        // AI 서버 호출
+        log.info("Sending batch to AI server (size: {})", requestBatch.size());
 
-            // AI 서버 호출
-            log.info("Crawling batch {} (size: {})", pageNum + 1, requestBatch.size());
+        try {
             AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
 
-            // 수집된 데이터 저장 (saveCrawlingData 호출)
+            // 수집된 데이터 저장 (성공 시 saveCrawlingData 호출)
             if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                log.info("Received {} items from AI crawler.", response.getItems().size());
                 this.saveCrawlingData(response.getItems());
-                
+
                 if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
-                    log.warn("AI server could not find data for {} cafes in batch {}", 
-                            response.getMissingCafeIds().size(), pageNum + 1);
+                    log.warn("AI server could not find data for {} cafes in this batch.",
+                            response.getMissingCafeIds().size());
                 }
             } else {
-                log.warn("Empty or null response from AI server for batch {}", pageNum + 1);
+                log.warn("Empty or null response from AI server.");
             }
-
-            totalProcessed += cafes.size();
-            pageNum++;
-            
-            // 처리가 완료된 카페는 thumbnailUrl이 채워져 다음 조회 대상(null)에서 제외
-            // 따라서 매번 0페이지를 요청하여 새로운 '미수집' 카페 100건을 가져옴
-
-        } while (cafePage.hasNext() && pageNum < 500); // 무한 루프 방지 안전장치
-
-        log.info("Full AI crawling process finished. Total cafes sent: {}", totalProcessed);
+        } catch (Exception e) {
+            log.error("Error occurred while calling AI crawler API: {}", e.getMessage());
+        }
     }
 }
