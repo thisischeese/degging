@@ -29,3 +29,4 @@ htmlcov/
 *.npz
 data/
 checkpoints/
+food_ner_model/
