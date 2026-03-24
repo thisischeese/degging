@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import mimetypes
 import random
 import re
@@ -24,6 +25,8 @@ from app.models.cafe_crawling import (
 
 if TYPE_CHECKING:
     from playwright.async_api import Page
+
+logger = logging.getLogger("uvicorn.error")
 
 
 NAVER_MAP_BASE_URL = "https://map.naver.com/p/search/"
@@ -517,7 +520,7 @@ def parse_review_metrics(review_text: str, visitor_reviews: list[dict[str, Any]]
             if friends_ratio is None:
                 friends_ratio = counts.get("친구", 0) / total
 
-    return {
+    metrics = {
         "review_count": total_review_count,
         "rating_sum": rating_sum,
         "solo_ratio": format_ratio(solo_ratio),
@@ -525,6 +528,13 @@ def parse_review_metrics(review_text: str, visitor_reviews: list[dict[str, Any]]
         "friends_ratio": format_ratio(friends_ratio),
         "reviews": reviews,
     }
+    logger.info(
+        "Parsed review metrics: review_count=%s rating_sum=%s reviews=%s",
+        metrics["review_count"],
+        metrics["rating_sum"],
+        len(metrics["reviews"]),
+    )
+    return metrics
 
 
 def normalize_hours_value(value: str) -> str:
@@ -964,7 +974,14 @@ async def fetch_review_tab_data(page: Page, tab_url: str) -> tuple[str, list[dic
         await asyncio.sleep(0.8)
 
     review_text = (await page.evaluate("() => document.body.innerText")).strip()
-    return review_text, parse_structured_visitor_reviews(raw_reviews)
+    parsed_reviews = parse_structured_visitor_reviews(raw_reviews)
+    logger.info(
+        "Fetched review tab data: raw_reviews=%s parsed_reviews=%s review_text_chars=%s",
+        len(raw_reviews),
+        len(parsed_reviews),
+        len(review_text),
+    )
+    return review_text, parsed_reviews
 
 
 async def collect_cdn_images(page: Page, scroll_steps: int = 4) -> list[str]:
@@ -1021,6 +1038,7 @@ def ensure_playwright_runtime_supported() -> None:
 
 
 async def crawl_place(seed: CafeSeed) -> dict[str, Any]:
+    logger.info("Starting crawl_place: cafe_id=%s name=%s", seed.cafe_id, seed.name)
     try:
         from playwright.async_api import async_playwright
     except ImportError as exc:
@@ -1099,6 +1117,7 @@ async def crawl_place(seed: CafeSeed) -> dict[str, Any]:
                 raise CafeCrawlingItemError(
                     f"Failed to find a Naver Place entry for cafe_id={seed.cafe_id}"
                 )
+            logger.info("Resolved place url: cafe_id=%s place_base_url=%s", seed.cafe_id, place_base_url)
 
             tab_page = await context.new_page()
             await configure_page(tab_page, search_mode=False)
@@ -1108,6 +1127,13 @@ async def crawl_place(seed: CafeSeed) -> dict[str, Any]:
                     texts[tab_name], visitor_reviews = await fetch_review_tab_data(
                         tab_page,
                         f"{place_base_url}/{slug}",
+                    )
+                    logger.info(
+                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s visitor_reviews=%s",
+                        seed.cafe_id,
+                        tab_name,
+                        len(texts[tab_name]),
+                        len(visitor_reviews),
                     )
                 else:
                     scroll_steps = 0
@@ -1120,15 +1146,24 @@ async def crawl_place(seed: CafeSeed) -> dict[str, Any]:
                     texts[tab_name] = await fetch_tab_text(tab_page, tab_url, scroll_steps=scroll_steps)
                     if tab_name == "사진":
                         photo_urls = collect_unique_urls(await collect_cdn_images(tab_page, scroll_steps=4))[:MAX_PHOTOS]
+                    logger.info(
+                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s photo_urls=%s",
+                        seed.cafe_id,
+                        tab_name,
+                        len(texts[tab_name]),
+                        len(photo_urls),
+                    )
 
                 await asyncio.sleep(random.uniform(1.5, 3.5))
 
             await tab_page.close()
             await browser.close()
     except CafeCrawlingItemError:
+        logger.warning("crawl_place item error: cafe_id=%s name=%s", seed.cafe_id, seed.name)
         raise
     except Exception as exc:
         message = str(exc)
+        logger.exception("crawl_place unexpected failure: cafe_id=%s name=%s message=%s", seed.cafe_id, seed.name, message)
         if isinstance(exc, NotImplementedError):
             raise CafeCrawlingSourceError(WINDOWS_PLAYWRIGHT_LOOP_ERROR) from exc
         if "Executable doesn't exist" in message or "playwright install" in message.lower():
@@ -1302,6 +1337,7 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
 
 class CafeCrawlingService:
     async def crawl_cafes(self, request_items: list[CafeCrawlingRequestItem]) -> CafeCrawlingResponse:
+        logger.info("Cafe crawling batch start: requested=%s", len(request_items))
         runtime_settings = resolve_runtime_settings()
         sequences = SequenceState()
         items: list[CafeCrawlingMergedItem] = []
@@ -1309,19 +1345,37 @@ class CafeCrawlingService:
 
         for request_item in request_items:
             seed = normalize_request_item(request_item)
+            logger.info("Cafe crawling item start: cafe_id=%s name=%s", seed.cafe_id, seed.name)
             try:
                 crawled = await self.crawl_single_cafe(seed, runtime_settings, sequences)
             except CafeCrawlingItemError:
+                logger.warning("Cafe crawling item missing: cafe_id=%s name=%s", seed.cafe_id, seed.name)
                 missing_cafe_ids.append(seed.cafe_id)
                 continue
 
-            items.append(CafeCrawlingMergedItem.model_validate(crawled))
+            validated = CafeCrawlingMergedItem.model_validate(crawled)
+            logger.info(
+                "Cafe crawling item completed: cafe_id=%s review_count=%s reviews=%s menus=%s images=%s",
+                seed.cafe_id,
+                validated.cafe_rating_stats.review_count,
+                len(validated.cafe_reviews),
+                len(validated.cafe_menus),
+                len(validated.cafe_images),
+            )
+            items.append(validated)
 
-        return CafeCrawlingResponse(
+        response = CafeCrawlingResponse(
             items=items,
             total=len(items),
             missing_cafe_ids=missing_cafe_ids,
         )
+        logger.info(
+            "Cafe crawling batch complete: requested=%s succeeded=%s missing=%s",
+            len(request_items),
+            response.total,
+            len(response.missing_cafe_ids),
+        )
+        return response
 
     async def crawl_single_cafe(
         self,

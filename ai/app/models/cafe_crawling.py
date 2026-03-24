@@ -49,9 +49,9 @@ class CafeRatingStats(BaseModel):
     cafe_id: str
     review_count: int
     rating_sum: int
-    solo_ratio: str
-    date_ratio: str
-    friends_ratio: str
+    solo_ratio: str | None = None
+    date_ratio: str | None = None
+    friends_ratio: str | None = None
 
 
 class CafeImage(BaseModel):
