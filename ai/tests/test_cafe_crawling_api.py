@@ -21,6 +21,7 @@ def build_item(cafe_id: str, name: str, review_count: int) -> dict:
             {
                 "user_id": f"{cafe_id}-user-{index}",
                 "user_review": f"{name} review {index}",
+                "rating": 3,
             }
             for index in range(review_count)
         ]
@@ -46,7 +47,7 @@ def build_item(cafe_id: str, name: str, review_count: int) -> dict:
         "cafe_rating_stats": {
             "cafe_id": cafe_id,
             "review_count": review_count,
-            "rating_sum": review_count * 4,
+            "rating_sum": review_count * 3,
             "solo_ratio": "0.500",
             "date_ratio": "0.250",
             "friends_ratio": "0.250",
@@ -122,6 +123,7 @@ class CafeCrawlingAPITest(unittest.TestCase):
         self.assertEqual([item["cafe_id"] for item in payload["items"]], [CAFE_ID_2, CAFE_ID_1])
         self.assertEqual(payload["items"][0]["cafe_reviews"], [])
         self.assertEqual(len(payload["items"][1]["cafe_reviews"]), 2)
+        self.assertEqual(payload["items"][1]["cafe_reviews"][0]["rating"], 3)
         self.assertIn("cafes", payload["items"][0])
         self.assertIn("cafe_rating_stats", payload["items"][0])
         self.assertIn("cafe_business_hours", payload["items"][0])

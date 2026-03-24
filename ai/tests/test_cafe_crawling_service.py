@@ -6,8 +6,13 @@ from app.services import cafe_crawling_service
 from app.services.cafe_crawling_service import (
     CafeCrawlingSourceError,
     CafeSeed,
+    MAX_REVIEWS,
     RuntimeSettings,
     SequenceState,
+    build_cafe_reviews,
+    parse_review_metrics,
+    parse_structured_visitor_reviews,
+    parse_total_review_count,
     resolve_runtime_settings,
     upload_cafe_images,
 )
@@ -116,3 +121,103 @@ class CafeCrawlingServiceRuntimeTest(unittest.TestCase):
             image_rows[0]["image_url"],
             "cafes/46537625-27db-4bd0-b9f4-d87c112183ff/images/01.jpg",
         )
+
+
+class CafeCrawlingReviewMetricsTest(unittest.TestCase):
+    def build_review(
+        self,
+        index: int,
+        *,
+        rating: int | None,
+        companion_type: str = "친구",
+        visit_purpose: str = "일상",
+    ) -> dict[str, object]:
+        return {
+            "reviewer_name": f"reviewer-{index}",
+            "rating": rating,
+            "review_text": f"테스트 리뷰 {index}",
+            "visit_purpose": visit_purpose,
+            "companion_type": companion_type,
+        }
+
+    def test_parse_total_review_count_caps_reviews_at_max(self) -> None:
+        self.assertEqual(parse_total_review_count(12), MAX_REVIEWS)
+        self.assertEqual(parse_total_review_count([self.build_review(index, rating=5) for index in range(8)]), 8)
+
+    def test_parse_structured_visitor_reviews_reads_rating_from_accessibility_label(self) -> None:
+        reviews = parse_structured_visitor_reviews(
+            [
+                {
+                    "lines": [
+                        "리뷰어",
+                        "리뷰 12",
+                        "일상 친구",
+                        "별점 텍스트 없이도 리뷰를 저장합니다.",
+                    ],
+                    "rating_text": "별점 4.0점",
+                }
+            ]
+        )
+
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0]["rating"], 4)
+        self.assertEqual(reviews[0]["review_text"], "별점 텍스트 없이도 리뷰를 저장합니다.")
+
+    def test_parse_review_metrics_uses_collected_review_count_for_rating_sum(self) -> None:
+        collected_reviews = [self.build_review(index, rating=5) for index in range(MAX_REVIEWS + 2)]
+
+        metrics = parse_review_metrics("방문자 리뷰 132", visitor_reviews=collected_reviews)
+
+        self.assertEqual(metrics["review_count"], MAX_REVIEWS)
+        self.assertEqual(metrics["rating_sum"], MAX_REVIEWS * 3)
+        self.assertEqual(len(metrics["reviews"]), MAX_REVIEWS)
+
+    def test_parse_review_metrics_preserves_collected_count_below_max(self) -> None:
+        collected_reviews = [self.build_review(index, rating=4) for index in range(8)]
+
+        metrics = parse_review_metrics("방문자 리뷰 132", visitor_reviews=collected_reviews)
+
+        self.assertEqual(metrics["review_count"], 8)
+        self.assertEqual(metrics["rating_sum"], 24)
+        self.assertEqual(len(metrics["reviews"]), 8)
+
+    def test_parse_review_metrics_falls_back_to_text_parser_when_structured_reviews_are_missing(self) -> None:
+        fallback_reviews = [
+            self.build_review(0, rating=None, companion_type="친구"),
+            self.build_review(1, rating=None, companion_type="친구"),
+        ]
+
+        with patch.object(cafe_crawling_service, "parse_visitor_reviews", return_value=fallback_reviews):
+            metrics = parse_review_metrics("방문자 리뷰 132", visitor_reviews=[])
+
+        self.assertEqual(metrics["review_count"], 2)
+        self.assertEqual(metrics["rating_sum"], 6)
+        self.assertEqual(metrics["friends_ratio"], "1.000")
+
+    def test_build_cafe_reviews_adds_fixed_rating_field(self) -> None:
+        seed = CafeSeed(
+            cafe_id="46537625-27db-4bd0-b9f4-d87c112183ff",
+            bizes_id="BIZ123",
+            name="테스트카페",
+            status="OPEN",
+            address=None,
+            road_address=None,
+            lon=None,
+            lat=None,
+            thumbnail_url=None,
+            kakao_place_id=None,
+            kakao_map_url=None,
+        )
+
+        cafe_reviews = build_cafe_reviews(
+            seed,
+            [
+                {
+                    "reviewer_name": "reviewer-1",
+                    "review_text": "테스트 리뷰 본문",
+                }
+            ],
+        )
+
+        self.assertEqual(len(cafe_reviews), 1)
+        self.assertEqual(cafe_reviews[0]["rating"], 3)

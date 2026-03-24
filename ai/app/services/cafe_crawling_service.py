@@ -319,19 +319,33 @@ def parse_menu_text(menu_text: str) -> list[dict[str, Any]]:
     return menus
 
 
-def parse_total_review_count(text: str) -> int:
-    match = re.search(r"방문자 리뷰\s*([0-9,]+)", text)
-    return int(match.group(1).replace(",", "")) if match else 0
+def parse_total_review_count(visitor_reviews: list[dict[str, Any]] | int | None) -> int:
+    if isinstance(visitor_reviews, int):
+        count = visitor_reviews
+    elif visitor_reviews is None:
+        count = 0
+    else:
+        count = len(visitor_reviews)
+    return max(0, min(count, MAX_REVIEWS))
 
 
-def parse_rating_from_block(block: list[str]) -> int | None:
+def parse_rating_text(text: str) -> int | None:
+    inline = re.search(r"(?:별점|평점)\s*([1-5](?:\.\d+)?)", text)
+    if inline:
+        return int(round(float(inline.group(1))))
+    point = re.search(r"([1-5](?:\.\d+)?)\s*점", text)
+    if point:
+        return int(round(float(point.group(1))))
+    return None
+
+
+def parse_rating_from_block(block: list[str], *, rating_hint: int | None = None) -> int | None:
+    if rating_hint is not None:
+        return rating_hint
     for idx, line in enumerate(block):
-        inline = re.search(r"별점\s*([1-5](?:\.\d+)?)", line)
-        if inline:
-            return int(round(float(inline.group(1))))
-        point = re.search(r"([1-5](?:\.\d+)?)점", line)
-        if point:
-            return int(round(float(point.group(1))))
+        parsed = parse_rating_text(line)
+        if parsed is not None:
+            return parsed
         if line in {"별점", "평점"} and idx + 1 < len(block):
             next_line = block[idx + 1].strip()
             if re.fullmatch(r"[1-5](?:\.\d+)?", next_line):
@@ -352,31 +366,64 @@ def parse_context(line: str) -> dict[str, Any]:
     return result
 
 
-def parse_single_review(block: list[str]) -> dict[str, Any] | None:
-    if len(block) < 4:
+def parse_context_from_lines(lines: list[str]) -> dict[str, Any]:
+    result = {"visit_purpose": None, "companion_type": None}
+    for line in lines:
+        context = parse_context(line)
+        if result["visit_purpose"] is None and context["visit_purpose"] is not None:
+            result["visit_purpose"] = context["visit_purpose"]
+        if result["companion_type"] is None and context["companion_type"] is not None:
+            result["companion_type"] = context["companion_type"]
+        if result["visit_purpose"] is not None and result["companion_type"] is not None:
+            break
+    return result
+
+
+def is_review_context_line(line: str) -> bool:
+    compact = re.sub(r"\s+", " ", line).strip()
+    return (
+        len(compact) <= 30
+        and any(purpose in compact for purpose in PURPOSE_WORDS)
+        and any(companion in compact for companion in COMPANION_WORDS)
+    )
+
+
+def is_review_metadata_line(line: str) -> bool:
+    if line in {"더보기", "펼쳐보기", "반응 남기기", "팔로우", "방문일", "인증 수단"}:
+        return True
+    if REVIEWER_STATS_RE.match(line) or re.match(r"^\d+$", line):
+        return True
+    if line.startswith("방문일") or re.fullmatch(r"사진\s+\d+", line):
+        return True
+    if parse_rating_text(line) is not None or is_review_context_line(line):
+        return True
+    return False
+
+
+def parse_single_review(block: list[str], *, rating_hint: int | None = None) -> dict[str, Any] | None:
+    lines = [line.strip() for line in block if line and line.strip()]
+    if not lines:
         return None
 
     result = {
-        "reviewer_name": block[0].strip() or None,
-        "rating": parse_rating_from_block(block),
+        "reviewer_name": lines[0].strip() or None,
+        "rating": parse_rating_from_block(lines, rating_hint=rating_hint),
         "review_text": None,
         "visit_purpose": None,
         "companion_type": None,
     }
-    result.update(parse_context(block[3]))
+    result.update(parse_context_from_lines(lines))
 
     reaction_idx: int | None = None
-    for idx, line in enumerate(block):
+    for idx, line in enumerate(lines):
         if line == "반응 남기기":
             reaction_idx = idx
             break
 
-    end = reaction_idx if reaction_idx is not None else len(block)
+    end = reaction_idx if reaction_idx is not None else len(lines)
     text_lines: list[str] = []
-    for line in block[4:end]:
-        if not line or line in {"더보기", "펼쳐보기", "반응 남기기", "팔로우", "방문일", "인증 수단"}:
-            continue
-        if re.match(r"^\d+$", line):
+    for line in lines[1:end]:
+        if not line or is_review_metadata_line(line):
             continue
         if line == "개의 리뷰가 더 있습니다":
             continue
@@ -389,6 +436,24 @@ def parse_single_review(block: list[str]) -> dict[str, Any] | None:
 
     result["review_text"] = " ".join(text_lines).strip() or None
     return result
+
+
+def parse_structured_visitor_reviews(raw_reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    reviews: list[dict[str, Any]] = []
+    for raw_review in raw_reviews:
+        lines = raw_review.get("lines")
+        if not isinstance(lines, list):
+            continue
+        block = [str(line).strip() for line in lines if str(line).strip()]
+        if not block:
+            continue
+        rating_hint = parse_rating_text(str(raw_review.get("rating_text") or ""))
+        parsed = parse_single_review(block, rating_hint=rating_hint)
+        if parsed:
+            reviews.append(parsed)
+        if len(reviews) >= MAX_REVIEWS:
+            break
+    return reviews
 
 
 def parse_visitor_reviews(review_text: str) -> list[dict[str, Any]]:
@@ -430,10 +495,10 @@ def parse_ratio_from_summary(text: str, keywords: list[str]) -> float | None:
     return None
 
 
-def parse_review_metrics(review_text: str) -> dict[str, Any]:
-    total_review_count = parse_total_review_count(review_text)
-    reviews = parse_visitor_reviews(review_text)[:MAX_REVIEWS]
-    rating_sum = sum(review["rating"] or 0 for review in reviews)
+def parse_review_metrics(review_text: str, visitor_reviews: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    reviews = (visitor_reviews or parse_visitor_reviews(review_text))[:MAX_REVIEWS]
+    total_review_count = parse_total_review_count(reviews)
+    rating_sum = total_review_count * 3
 
     joined = " ".join(read_lines(review_text))
     solo_ratio = parse_ratio_from_summary(joined, ["혼자"])
@@ -803,6 +868,105 @@ async def fetch_tab_text(page: Page, tab_url: str, scroll_steps: int = 0) -> str
     return (await page.evaluate("() => document.body.innerText")).strip()
 
 
+async def extract_review_card_payloads(page: Page) -> list[dict[str, Any]]:
+    return await page.evaluate(
+        """({ purposeWords, companionWords }) => {
+            const normalize = (value) => value.replace(/\\s+/g, ' ').trim();
+            const isVisible = (element) => {
+                const style = window.getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            };
+            const hasAny = (line, words) => words.some((word) => line.includes(word));
+            const elements = Array.from(document.querySelectorAll('li, article, div'));
+            const payloads = [];
+            const seen = new Set();
+
+            for (const element of elements) {
+                if (!isVisible(element)) {
+                    continue;
+                }
+
+                const rawText = (element.innerText || '').trim();
+                if (!rawText) {
+                    continue;
+                }
+
+                const lines = rawText
+                    .split('\\n')
+                    .map((line) => normalize(line))
+                    .filter(Boolean);
+                if (lines.length < 2 || lines.length > 40) {
+                    continue;
+                }
+
+                const statsCount = lines.filter((line) => /^리뷰\\s+[\\d,]+/.test(line)).length;
+                if (statsCount > 1) {
+                    continue;
+                }
+
+                const ratingNode = element.querySelector('[aria-label*="별점"], [aria-label*="평점"]');
+                const ratingText = normalize(ratingNode?.getAttribute('aria-label') || ratingNode?.textContent || '');
+                const hasContextLine = lines.some(
+                    (line) => hasAny(line, purposeWords) && hasAny(line, companionWords),
+                );
+                const hasReviewTextSignal = lines.some((line) => line.length >= 8);
+
+                if (!hasReviewTextSignal) {
+                    continue;
+                }
+                if (statsCount === 0 && !ratingText && !hasContextLine) {
+                    continue;
+                }
+
+                const signature = JSON.stringify({ lines, ratingText });
+                if (seen.has(signature)) {
+                    continue;
+                }
+                seen.add(signature);
+                payloads.push({ lines, rating_text: ratingText || null });
+            }
+
+            return payloads;
+        }""",
+        {"purposeWords": PURPOSE_WORDS, "companionWords": COMPANION_WORDS},
+    )
+
+
+async def fetch_review_tab_data(page: Page, tab_url: str) -> tuple[str, list[dict[str, Any]]]:
+    await page.goto(tab_url, wait_until="domcontentloaded", timeout=30000)
+    await asyncio.sleep(3)
+
+    raw_reviews: list[dict[str, Any]] = []
+    seen_signatures: set[str] = set()
+    stale_rounds = 0
+
+    while len(raw_reviews) < MAX_REVIEWS and stale_rounds < 2:
+        previous_count = len(raw_reviews)
+        for payload in await extract_review_card_payloads(page):
+            signature = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            raw_reviews.append(payload)
+            if len(raw_reviews) >= MAX_REVIEWS:
+                break
+
+        if len(raw_reviews) == previous_count:
+            stale_rounds += 1
+        else:
+            stale_rounds = 0
+
+        if len(raw_reviews) >= MAX_REVIEWS or stale_rounds >= 2:
+            break
+
+        await page.evaluate("window.scrollBy(0, 900)")
+        await asyncio.sleep(0.8)
+
+    review_text = (await page.evaluate("() => document.body.innerText")).strip()
+    return review_text, parse_structured_visitor_reviews(raw_reviews)
+
+
 async def collect_cdn_images(page: Page, scroll_steps: int = 4) -> list[str]:
     collected: set[str] = set()
 
@@ -869,6 +1033,7 @@ async def crawl_place(seed: CafeSeed) -> dict[str, Any]:
     search_url = NAVER_MAP_BASE_URL + urllib.parse.quote(seed.name)
     texts: dict[str, str] = {}
     photo_urls: list[str] = []
+    visitor_reviews: list[dict[str, Any]] = []
     place_base_url: str | None = None
 
     try:
@@ -939,18 +1104,23 @@ async def crawl_place(seed: CafeSeed) -> dict[str, Any]:
             await configure_page(tab_page, search_mode=False)
 
             for tab_name, slug in TAB_CONFIG.items():
-                scroll_steps = 0
                 if tab_name == "리뷰":
-                    scroll_steps = 6
-                elif tab_name == "사진":
-                    scroll_steps = 4
-                elif tab_name == "메뉴":
-                    scroll_steps = 2
+                    texts[tab_name], visitor_reviews = await fetch_review_tab_data(
+                        tab_page,
+                        f"{place_base_url}/{slug}",
+                    )
+                else:
+                    scroll_steps = 0
+                    if tab_name == "사진":
+                        scroll_steps = 4
+                    elif tab_name == "메뉴":
+                        scroll_steps = 2
 
-                tab_url = f"{place_base_url}/{slug}"
-                texts[tab_name] = await fetch_tab_text(tab_page, tab_url, scroll_steps=scroll_steps)
-                if tab_name == "사진":
-                    photo_urls = collect_unique_urls(await collect_cdn_images(tab_page, scroll_steps=4))[:MAX_PHOTOS]
+                    tab_url = f"{place_base_url}/{slug}"
+                    texts[tab_name] = await fetch_tab_text(tab_page, tab_url, scroll_steps=scroll_steps)
+                    if tab_name == "사진":
+                        photo_urls = collect_unique_urls(await collect_cdn_images(tab_page, scroll_steps=4))[:MAX_PHOTOS]
+
                 await asyncio.sleep(random.uniform(1.5, 3.5))
 
             await tab_page.close()
@@ -967,7 +1137,12 @@ async def crawl_place(seed: CafeSeed) -> dict[str, Any]:
             ) from exc
         raise CafeCrawlingItemError(f"Failed to crawl cafe_id={seed.cafe_id}") from exc
 
-    return {"texts": texts, "photo_urls": photo_urls, "place_base_url": place_base_url}
+    return {
+        "texts": texts,
+        "photo_urls": photo_urls,
+        "place_base_url": place_base_url,
+        "visitor_reviews": visitor_reviews,
+    }
 
 
 async def download_image_bytes(url: str) -> tuple[bytes, str]:
@@ -1030,8 +1205,8 @@ def build_location(lon: float | None, lat: float | None) -> str | None:
     return None if lon is None or lat is None else f"SRID=4326;POINT({lon} {lat})"
 
 
-def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[dict[str, str]]:
-    cafe_reviews: list[dict[str, str]] = []
+def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cafe_reviews: list[dict[str, Any]] = []
     for index, review in enumerate(reviews):
         review_text = review.get("review_text")
         if not review_text:
@@ -1042,6 +1217,7 @@ def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[di
             {
                 "user_id": str(uuid5(NAMESPACE_URL, review_identity)),
                 "user_review": review_text,
+                "rating": 3,
             }
         )
     return cafe_reviews
@@ -1056,7 +1232,7 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
 
     intro = parse_intro(texts["정보"])
     summarized_intro = await gms_client.summarize_intro(intro) if intro and len(intro) > 40 else intro
-    review_metrics = parse_review_metrics(texts["리뷰"])
+    review_metrics = parse_review_metrics(texts["리뷰"], crawl_result.get("visitor_reviews"))
     business_hours = parse_business_hours(texts["홈"], texts["정보"])
 
     menus: list[dict[str, Any]] = []
