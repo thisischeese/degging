@@ -9,7 +9,6 @@ import { SignupStepProps } from "../types";
 export default function StepPassword({ next, updateData }: SignupStepProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
 
   // 규칙: 영어 + 숫자 + 특수문자 조합, 8~16자
   const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/;
@@ -19,17 +18,14 @@ export default function StepPassword({ next, updateData }: SignupStepProps) {
   const isPasswordMatch = confirmPassword.length > 0 && password === confirmPassword;
 
   // 에러 메시지 처리 
+  const currentPasswordError = 
+    password.length > 0 && !isPasswordValid ? "8~16자 이내의 영어 + 특수문자 + 숫자 조합으로 해주세요." : "";
   const confirmErrorMessage = 
     confirmPassword.length > 0 && !isPasswordMatch ? "비밀번호가 일치하지 않습니다." : "";
 
   const handleNext = () => {
     // 1. 규칙 검사
-    if (!isPasswordValid) {
-      setPasswordError("8~16자 이내의 영어 + 특수문자 + 숫자 조합으로 해주세요.");
-      return;
-    }
-    // 2. 일치 검사
-    if (!isPasswordMatch) return;
+    if (!isPasswordValid || !isPasswordMatch) return;
 
     // 성공 시 데이터 업데이트 및 다음 이동
     updateData({ password });
@@ -59,11 +55,8 @@ export default function StepPassword({ next, updateData }: SignupStepProps) {
             type="password"
             placeholder="비밀번호를 입력해 주세요."
             value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setPasswordError(""); // 입력 시작하면 에러 지움
-            }}
-            error={passwordError}
+            onChange={(e) => setPassword(e.target.value)}
+            error={currentPasswordError}
           />
         </div>
 
