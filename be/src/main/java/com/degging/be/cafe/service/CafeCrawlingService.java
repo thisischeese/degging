@@ -1,6 +1,6 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.dto.request.CafeCrawlingDto;
+import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -19,10 +19,10 @@ public class CafeCrawlingService {
      * 전달받은 크롤링 데이터 DB에 반영 (비동기 수행)
      */
     @Async
-    public void processCrawlingData(List<CafeCrawlingDto> dataList) {
+    public void processCrawlingData(List<AiCrawlerItemResponse> dataList) {
         log.info("Starting bulk update for {} crawled cafes...", dataList.size());
 
-        for (CafeCrawlingDto dto : dataList) {
+        for (AiCrawlerItemResponse dto : dataList) {
             try {
                 cafeCrawlingUpdateService.updateSingleCafe(dto);
             } catch (Exception e) {

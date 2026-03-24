@@ -4,7 +4,7 @@ import com.degging.be.cafe.service.CafeCollectService;
 import com.degging.be.cafe.service.CafeDuplicateService;
 import com.degging.be.cafe.service.CafeStatusService;
 import com.degging.be.global.dto.BaseResponse;
-import com.degging.be.cafe.dto.request.CafeCrawlingDto;
+import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -58,7 +58,7 @@ public class CafeManageController {
      * @return 데이터 수집 실행 성공 응답
      */
     @PostMapping("/crawling")
-    public BaseResponse<Void> saveCrawledCafeData(@RequestBody List<CafeCrawlingDto> crawledData) {
+    public BaseResponse<Void> saveCrawledCafeData(@RequestBody List<AiCrawlerItemResponse> crawledData) {
         log.info("크롤링 데이터 수신 및 일괄 갱신 시작 ({}건)", crawledData.size());
         cafeCrawlingService.processCrawlingData(crawledData);
         log.info("크롤링 데이터 DB 갱신 완료");

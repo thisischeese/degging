@@ -1,4 +1,4 @@
-package com.degging.be.cafe.dto.request;
+package com.degging.be.cafe.dto.response.external;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -8,11 +8,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * AI 크롤링 파이프라인에서 전송하는 대규모 카페 상세 정보 JSON 매핑용 최상단 DTO
+ * AI 크롤러로부터 수신하는 카페 개별 크롤링 결과 DTO (AiCrawlerResponse.items 항목)
  */
 @Data
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public class CafeCrawlingDto {
+public class AiCrawlerItemResponse {
 
     private UUID cafeId; // 카페 식별자
     private CafeInnerDto cafes; // 카페 기본 정보 (이름, 썸네일, 소개글 등)
