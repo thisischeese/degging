@@ -26,6 +26,12 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     boolean existsByKakaoPlaceId(String kakaoPlaceId);
 
     /**
+     * 여러 카카오 플레이스 ID 중 이미 DB에 존재하는 ID 리스트 조회
+     */
+    @Query("SELECT c.kakaoPlaceId FROM CafeEntity c WHERE c.kakaoPlaceId IN :kakaoPlaceIds")
+    List<String> findAllExistingKakaoPlaceIds(@Param("kakaoPlaceIds") List<String> kakaoPlaceIds);
+
+    /**
      * 이름을 기반으로 카페 목록 조회
      */
     List<CafeEntity> findAllByName(String name);
