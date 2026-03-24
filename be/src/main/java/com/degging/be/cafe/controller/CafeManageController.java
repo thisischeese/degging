@@ -1,7 +1,6 @@
 package com.degging.be.cafe.controller;
 
 import com.degging.be.cafe.service.CafeCollectService;
-import com.degging.be.cafe.service.CafeDuplicateService;
 import com.degging.be.cafe.service.CafeStatusService;
 import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
@@ -23,7 +22,6 @@ import java.util.List;
 public class CafeManageController {
 
     private final CafeCollectService cafeCollectService;
-    private final CafeDuplicateService cafeDuplicateService;
     private final CafeStatusService cafeStatusService;
     private final CafeCrawlingService cafeCrawlingService;
 
@@ -62,6 +60,19 @@ public class CafeManageController {
         log.info("크롤링 데이터 수신 및 일괄 갱신 시작 ({}건)", crawledData.size());
         cafeCrawlingService.processCrawlingData(crawledData);
         log.info("크롤링 데이터 DB 갱신 완료");
+        return BaseResponse.success();
+    }
+
+    /**
+     * AI 크롤링 서비스 실행 트리거
+     * 아직 상세 정보(썸네일 등)가 없는 카페들을 대상으로 AI 크롤링
+     *
+     * @return 실행 성공 응답 (비동기로 동작)
+     */
+    @PostMapping("/crawling/trigger")
+    public BaseResponse<Void> triggerCrawling() {
+        log.info("AI 크롤링 실행 트리거 요청 수신");
+        cafeCrawlingService.triggerFullCrawling();
         return BaseResponse.success();
     }
 }
