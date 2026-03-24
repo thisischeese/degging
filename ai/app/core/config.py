@@ -19,6 +19,10 @@ def find_env_file() -> str | None:
     return None
 
 
+def find_project_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=find_env_file(),
@@ -48,6 +52,12 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: PortInt = 8000
+
+    s3_secret_key: str | None = None
+    s3_access_key: str | None = None
+    s3_bucket_name: str | None = None
+    s3_region: str | None = None
+    gms_api_key: str | None = None
 
     # Discovery
     discovery_top_k: int = 100
