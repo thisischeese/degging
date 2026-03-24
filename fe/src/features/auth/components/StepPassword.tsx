@@ -53,7 +53,7 @@ export default function StepPassword({ next, updateData }: SignupStepProps) {
           <Input
             label="비밀번호"
             type="password"
-            placeholder="비밀번호를 입력해 주세요."
+            placeholder="8~16자 영문, 숫자, 특수문자 조합"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             error={currentPasswordError}
