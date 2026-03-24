@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,8 +32,9 @@ public class CafeCrawlingService {
     private static final int BATCH_SIZE = 100;
 
     /**
-     * 전달받은 크롤링 데이터 DB에 반영 (동기 수행 - 루프 내에서 저장이 끝날 때까지 대기)
+     * 수집된 데이터를 DB에 저장 (배치 단위로 트랜잭션 처리)
      */
+    @Transactional
     public void saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
         log.info("크롤링된 카페: {}개, 업데이트 진행 중...", dataList.size());
 
