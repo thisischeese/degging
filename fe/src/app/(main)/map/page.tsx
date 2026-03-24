@@ -6,14 +6,14 @@ import Image from 'next/image';
 import { StaticImageData } from 'next/image';
 import { Search, LocateFixed } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
 import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
 import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
-import { getCafeMarkers } from '@/features/map/api/mapApi';
-import { CafeMarker } from '@/features/map/types';
+import { getCafeMarkers, getCafeBottomSheetList } from '@/features/map/api/mapApi';
+import { CafeMarker, CafeBottomSheetItem } from '@/features/map/types';
 
 const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
 
@@ -82,6 +82,54 @@ function MapContent() {
       includeFranchise: isFranchiseIncluded
     }),
   });
+
+  // [추가] 바텀시트 리스트 무한 스크롤 쿼리
+  const {
+    data: bottomSheetData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isBottomSheetLoading
+  } = useInfiniteQuery({
+    queryKey: ['map', 'bottom-sheet', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, sortBy],
+    queryFn: ({ pageParam = 0 }) => getCafeBottomSheetList({
+      latitude: mapCenter.lat,
+      longitude: mapCenter.lng,
+      includeFranchise: isFranchiseIncluded,
+      sort: sortBy.toUpperCase(),
+      page: pageParam,
+      size: 10
+    }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.last ? undefined : allPages.length;
+    }
+  });
+
+  const bottomSheetItems = bottomSheetData ? bottomSheetData.pages.flatMap(page => page.content) : [];
+
+  // [추가] 바텀시트 끝에 닿으면 다음 페이지 호출하는 스크롤 핸들러
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      if (scrollTop + clientHeight >= scrollHeight - 50) {
+        if (hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      }
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // 0. 초기 진입 시 자동 현 위치 추적
   useEffect(() => {
@@ -269,7 +317,7 @@ function MapContent() {
   };
 
   // 카페 카드 클릭 핸들러
-  const handleCafeClick = (cafe: CafeMarker) => {
+  const handleCafeClick = (cafe: { cafeId: string }) => {
     router.push(`/cafes/${cafe.cafeId}`);
   };
 
@@ -362,20 +410,29 @@ function MapContent() {
         </div>
 
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 no-scrollbar relative">
-          {cafes.map((cafe) => (
-            <div key={cafe.cafeId} ref={(el) => { cardRefs.current[cafe.cafeId] = el; }}>
-              <CafeCard
-                id={cafe.cafeId}
-                name={`카페 (ID: ${cafe.cafeId.slice(0, 6)})`} // 임시 이름 처리 (API에 이름이 없음)
-                description=""
-                address="주소 정보 없음"
-                distance=""
-                imageUrl=""
-                isActive={activeCafeId === cafe.cafeId}
-                onClick={() => handleCafeClick(cafe)}
-              />
-            </div>
-          ))}
+          {isBottomSheetLoading ? (
+            <div className="text-center py-10 font-medium text-gray-500 text-sm">로딩 중...</div>
+          ) : bottomSheetItems.length === 0 ? (
+            <div className="text-center py-10 font-medium text-gray-500 text-sm">해당 조건의 카페가 없습니다.</div>
+          ) : (
+            bottomSheetItems.map((cafe) => (
+              <div key={cafe.cafeId} ref={(el) => { cardRefs.current[cafe.cafeId] = el; }}>
+                <CafeCard
+                  id={cafe.cafeId}
+                  name={cafe.name}
+                  description={cafe.cafeIntro || ''}
+                  address={cafe.roadAddress || ''}
+                  distance=""
+                  imageUrl={cafe.thumbnailUrl || ''}
+                  isActive={activeCafeId === cafe.cafeId}
+                  onClick={() => handleCafeClick(cafe)}
+                />
+              </div>
+            ))
+          )}
+          {isFetchingNextPage && (
+            <div className="text-center py-4 text-gray-400 text-sm">더 불러오는 중...</div>
+          )}
         </div>
       </motion.div>
 
