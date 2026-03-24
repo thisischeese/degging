@@ -72,12 +72,36 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
     if (value.length <= 8) setBirthDate(formattedValue);
   };
 
+  // 생년월일 유효성 검사 로직
+  const isValidDate = (dateString: string) => {
+    if (dateString.length !== 10) return false;
+    
+    const year = parseInt(dateString.substring(0, 4), 10);
+    const month = parseInt(dateString.substring(5, 7), 10);
+    const day = parseInt(dateString.substring(8, 10), 10);
+
+    // 1. 월 검사 (1~12)
+    if (month < 1 || month > 12) return false;
+
+    // 2. 일 검사 (1~31) 및 해당 월의 마지막 날짜(윤년 포함) 계산
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
+    if (day < 1 || day > lastDayOfMonth) return false;
+
+    // 3. 연도 검사 (미래 날짜, 너무 옛날 방지)
+    const currentYear = new Date().getFullYear();
+    if (year < 1900 || year > currentYear) return false;
+
+    return true;
+  };
+
+  const birthDateError = 
+    birthDate.length === 10 && !isValidDate(birthDate) ? "유효한 날짜를 입력해주세요." : "";
+
   const handleNext = () => {
     // 모든 조건 충족 시 다음 단계
-    if (isCheck && birthDate.length === 10 && gender) {
-      // API 명세서에 맞춰 birthDate로 전달 (YYYY-MM-DD 형식으로 변환이 필요할 수 있음)
-      // 백엔드 요청에 따라 YYYY.MM.DD 형식 유지
-      const formattedBirthDate = birthDate;
+    if (isCheck && birthDate.length === 10 && isValidDate(birthDate) && gender) {
+      // 마침표(.)를 하이픈(-)으로 변환하여 백엔드 표준에 맞춥니다.
+      const formattedBirthDate = birthDate.replace(/\./g, "-"); 
       const stepData = { nickname, birthDate: formattedBirthDate, gender };
       updateData(stepData);
       next(stepData);
@@ -132,6 +156,7 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
               value={birthDate}
               onChange={handleBirthChange}
               inputMode="numeric"
+              error={birthDateError}
             />
           </div>
           
