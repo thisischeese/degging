@@ -55,5 +55,11 @@ public class UserProfileEntity extends BaseEntity {
      */
     public void setUser(UserEntity user) {this.user = user;}
 
+    /**
+     * 유저 온보딩 여부를 갱신하는 메서드
+     */
+    public void updateIsOnboarding(){
+        this.isOnboarded = true;
+    }
 
 }
