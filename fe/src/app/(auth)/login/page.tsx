@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { postLogin } from "@/features/auth/api/loginApi";
+import Cookies from "js-cookie";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -19,8 +20,7 @@ export default function LoginPage() {
       // 2. 성공 시
       console.log("로그인 성공!", loginData);
       
-      sessionStorage.setItem("access_token", loginData.accessToken);
-      sessionStorage.setItem("refresh_token", loginData.refreshToken);
+      Cookies.set("refresh_token", loginData.refreshToken, { path: "/" });
 
       window.location.href = "/"; // 메인으로 이동
     } catch (error) {
