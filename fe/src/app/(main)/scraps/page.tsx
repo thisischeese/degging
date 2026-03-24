@@ -292,6 +292,7 @@ export default function ScrapsPage() {
     // 모든 스크랩 썸네일 모아서 표시
     const allThumbnails = categories.flatMap((cat) => cat.thumbnailUrl);
 
+    // 카테고리 생성
     const handleAddCategory = async (name: string, color: StarColor) => {
         try {
             await postCreateScrap({ name, color });
@@ -302,6 +303,7 @@ export default function ScrapsPage() {
         }
     };
 
+    // 카테고리 삭제
     const handleDeleteCategory = async (scrapId: string) => {
         try {
             await deleteScrap(scrapId);
@@ -313,6 +315,7 @@ export default function ScrapsPage() {
         }
     };
 
+    // 카테고리 수정
     const handleEditCategory = async (scrapId: string, name: string, color: StarColor) => {
         try {
             await patchUpdateScrap(scrapId, { name, color });

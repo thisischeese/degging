@@ -8,7 +8,7 @@ import Header from "@/common/components/Header";
 import Modal from "@/common/components/Modal";
 import Button from "@/common/components/Button";
 import { ScrapCafeItem, ScrapDetail } from "@/features/scraps/types";
-import { getScrapDetail, deleteScrapCafe } from "@/features/scraps/api/scrapApi";
+import { getScrapDetail, deleteScrapCafe, postShareLink } from "@/features/scraps/api/scrapApi";
 
 
 // ─────────────────────────────────────────────────────────
@@ -194,9 +194,18 @@ export default function ScrapDetailPage() {
                             <div className="w-[140px] bg-white border border-gray-200 rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden flex flex-col">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        // TODO: 추천(링크 공유) 기능 연동
-                                        setIsMenuOpen(false);
+                                    onClick={async () => {
+                                        if (!categoryId) return;
+                                        try {
+                                            const { shareLink } = await postShareLink(categoryId);
+                                            await navigator.clipboard.writeText(shareLink);
+                                            alert("공유 링크가 클립보드에 복사되었습니다.");
+                                        } catch (err) {
+                                            console.error("공유 링크 생성 실패:", err);
+                                            alert("링크 생성에 실패했습니다.");
+                                        } finally {
+                                            setIsMenuOpen(false);
+                                        }
                                     }}
                                     className="w-full text-center px-4 py-3 text-[14px] font-medium text-gray-800 transition-colors active:bg-gray-50 border-b border-gray-100"
                                 >
