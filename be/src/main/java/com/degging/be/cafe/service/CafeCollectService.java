@@ -82,25 +82,25 @@ public class CafeCollectService {
 
                         for (StoreListInUpjongItem item : items) {
 
-                            // 1. 서울 데이터만 저장
+                            // 서울 데이터만 저장
                             if (!isTargetRegion(item)) {
                                 totalFilteredCount++;
                                 continue;
                             }
 
-                            // 2. 실제 카페만 저장 (필터링 로격 통과 시에만)
+                            // 실제 카페만 저장
                             if (!cafeFilterService.isCafe(item)) {
                                 totalFilteredCount++;
                                 continue;
                             }
 
-                            // 3. 좌표가 없으면 저장하지 않음
+                            // 좌표가 없으면 저장하지 않음
                             if (item.getLon() == null || item.getLat() == null) {
                                 totalFilteredCount++;
                                 continue;
                             }
 
-                            // 4. 상가업소번호 기준 중복 저장 방지
+                            // 상가업소번호 기준 중복 저장 방지
                             if (cafeRepository.existsByBizesId(item.getBizesId())) {
                                 totalDuplicateCount++;
                                 continue;
