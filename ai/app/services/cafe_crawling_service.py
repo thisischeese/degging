@@ -251,16 +251,16 @@ def coerce_float(value: Any) -> float | None:
 def normalize_request_item(item: CafeCrawlingRequestItem) -> CafeSeed:
     return CafeSeed(
         cafe_id=item.cafeId,
-        bizes_id=(item.bizesId or "").strip(),
+        bizes_id="",
         name=item.name.strip(),
-        status=(item.status or "OPEN").strip() or "OPEN",
-        address=normalize_nullable_text(item.address),
-        road_address=normalize_nullable_text(item.roadAddress),
-        lon=coerce_float(item.lon),
-        lat=coerce_float(item.lat),
-        thumbnail_url=normalize_nullable_text(item.thumbnailUrl),
-        kakao_place_id=normalize_nullable_text(item.kakaoPlaceId),
-        kakao_map_url=normalize_nullable_text(item.kakaoMapUrl),
+        status="OPEN",
+        address=None,
+        road_address=None,
+        lon=None,
+        lat=None,
+        thumbnail_url=None,
+        kakao_place_id=None,
+        kakao_map_url=None,
     )
 
 

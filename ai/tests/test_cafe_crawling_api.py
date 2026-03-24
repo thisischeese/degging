@@ -29,7 +29,7 @@ def build_item(cafe_id: str, name: str, review_count: int) -> dict:
         "cafe_id": cafe_id,
         "cafes": {
             "cafe_id": cafe_id,
-            "bizes_id": f"BIZ-{cafe_id[-4:]}",
+            "bizes_id": "",
             "kakao_place_id": "",
             "name": name,
             "address": None,
@@ -38,7 +38,7 @@ def build_item(cafe_id: str, name: str, review_count: int) -> dict:
             "thumbnail_url": None,
             "status": "OPEN",
             "location": None,
-            "cafe_intro": f"{name} 소개",
+            "cafe_intro": f"{name} intro",
             "franchise": False,
             "brandName": None,
             "branchName": None,
@@ -104,38 +104,14 @@ class CafeCrawlingAPITest(unittest.TestCase):
         )
         return ASGITestClient(app)
 
-    def test_cafe_crawling_merges_sources_and_preserves_order(self) -> None:
+    def test_cafe_crawling_preserves_order_with_minimal_request_shape(self) -> None:
         client = self.build_client()
 
         response = client.post(
             "/ai/cafes/crawling",
             [
-                {
-                    "cafeId": CAFE_ID_2,
-                    "bizesId": "BIZ999",
-                    "name": "에고ego",
-                    "status": "OPEN",
-                    "address": None,
-                    "roadAddress": None,
-                    "lon": 126.9,
-                    "lat": 37.5,
-                    "thumbnailUrl": None,
-                    "kakaoPlaceId": None,
-                    "kakaoMapUrl": None,
-                },
-                {
-                    "cafeId": CAFE_ID_1,
-                    "bizesId": "BIZ123",
-                    "name": "테스트카페",
-                    "status": "OPEN",
-                    "address": None,
-                    "roadAddress": None,
-                    "lon": 127.0,
-                    "lat": 37.5,
-                    "thumbnailUrl": None,
-                    "kakaoPlaceId": None,
-                    "kakaoMapUrl": None,
-                },
+                {"cafeId": CAFE_ID_2, "name": "감성카페"},
+                {"cafeId": CAFE_ID_1, "name": "테스트카페"},
             ],
         )
 
@@ -157,8 +133,8 @@ class CafeCrawlingAPITest(unittest.TestCase):
             "/ai/cafes/crawling",
             [
                 {"cafeId": CAFE_ID_1, "name": "테스트카페"},
-                {"cafeId": MISSING_CAFE_ID, "name": "누락카페"},
-                {"cafeId": CAFE_ID_2, "name": "에고ego"},
+                {"cafeId": MISSING_CAFE_ID, "name": "유실카페"},
+                {"cafeId": CAFE_ID_2, "name": "감성카페"},
             ],
         )
 
@@ -195,6 +171,18 @@ class CafeCrawlingAPITest(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         detail = response.json()["detail"]
         self.assertEqual(detail[0]["loc"], ["body", 0, "name"])
+
+    def test_cafe_crawling_rejects_legacy_extra_fields(self) -> None:
+        client = self.build_client()
+
+        response = client.post(
+            "/ai/cafes/crawling",
+            [{"cafeId": CAFE_ID_1, "name": "테스트카페", "bizesId": "BIZ123"}],
+        )
+
+        self.assertEqual(response.status_code, 422)
+        detail = response.json()["detail"]
+        self.assertEqual(detail[0]["loc"], ["body", 0, "bizesId"])
 
     def test_cafe_crawling_returns_500_when_crawler_runtime_fails(self) -> None:
         client = self.build_client(should_raise=True)

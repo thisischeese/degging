@@ -16,10 +16,10 @@ def get_cafe_crawling_service() -> CafeCrawlingService:
 @router.post(
     "/crawling",
     response_model=CafeCrawlingResponse,
-    summary="Merge cafe crawling sources",
+    summary="Crawl cafes on demand",
     description=(
-        "cafe.json 형태의 배열 body를 받아 데이터 크롤링 후,"
-        "S3에 이미지 업로드하고 데이터 정제해 cafe_id 기준으로 병합해 반환합니다."
+        "Accepts a top-level JSON array of `{cafeId, name}` items, crawls each cafe live, "
+        "uploads images to S3, and returns the refined response."
     ),
 )
 async def cafe_crawling(

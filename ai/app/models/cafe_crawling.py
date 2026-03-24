@@ -2,19 +2,10 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 
 
 class CafeCrawlingRequestItem(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
-    cafeId: str = Field(..., description="조회 대상 카페 ID")
-    bizesId: str | None = Field(default=None)
-    name: str = Field(..., description="네이버 플레이스 검색에 사용할 카페명")
-    status: str | None = Field(default=None)
-    address: str | None = Field(default=None)
-    roadAddress: str | None = Field(default=None)
-    lon: float | None = Field(default=None)
-    lat: float | None = Field(default=None)
-    thumbnailUrl: str | None = Field(default=None)
-    kakaoPlaceId: str | None = Field(default=None)
-    kakaoMapUrl: str | None = Field(default=None)
+    cafeId: str = Field(..., description="Target cafe ID")
+    name: str = Field(..., description="Cafe name used for Naver Place search")
 
     @field_validator("cafeId")
     @classmethod
