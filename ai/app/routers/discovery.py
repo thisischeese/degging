@@ -19,8 +19,8 @@ def get_discovery_service(
     response_model=DiscoveryResponse,
     summary="사용자 취향 기반 카페 추천",
     description=(
-        "메인 서버로부터 user_id를 받아 MongoDB에서 취향 벡터를 조회하고, "
-        "PostgreSQL pgvector ANN 인덱스로 유사 카페 최대 100개를 반환합니다."
+        "메인 서비스에서 전달받은 `user_id`를 기준으로 MongoDB에서 취향 벡터를 조회하고, "
+        "PostgreSQL pgvector ANN 인덱스를 사용해 유사한 카페를 최대 100개까지 반환합니다."
     ),
 )
 async def discover(

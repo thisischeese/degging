@@ -4,8 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 class CafeCrawlingRequestItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    cafeId: str = Field(..., description="Target cafe ID")
-    name: str = Field(..., description="Cafe name used for Naver Place search")
+    cafeId: str = Field(..., description="크롤링 대상 카페 ID")
+    name: str = Field(..., description="네이버 플레이스 검색에 사용할 카페명")
 
     @field_validator("cafeId")
     @classmethod
