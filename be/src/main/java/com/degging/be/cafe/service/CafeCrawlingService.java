@@ -31,24 +31,27 @@ public class CafeCrawlingService {
     private static final int BATCH_SIZE = 100;
 
     /**
-     * 전달받은 크롤링 데이터 DB에 반영 (비동기 수행)
+     * 전달받은 크롤링 데이터 DB에 반영 (동기 수행 - 루프 내에서 저장이 끝날 때까지 대기)
      */
-    @Async
     public void saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
-        log.info("크롤링된 카페: {}개, 업데이트 시작...", dataList.size());
+        log.info("크롤링된 카페: {}개, 업데이트 진행 중...", dataList.size());
 
+        int count = 0;
         for (AiCrawlerItemResponse dto : dataList) {
             try {
                 cafeCrawlingUpdateService.updateSingleCafe(dto);
+                count++;
+
+                // 10건마다 진행 상황 로그 출력
+                if (count % 10 == 0) {
+                    log.info("저장 중... ({}/{})", count, dataList.size());
+                }
             } catch (Exception e) {
-                log.error("카페 데이터 업데이트 실패 (cafeId: {}). 에러: {}",
+                log.error("저장 실패 (cafeId: {}): {}",
                         (dto.getCafes() != null ? dto.getCafes().getCafeId() : "unknown"), e.getMessage());
             }
         }
-        log.info("크롤링 데이터 배치 처리 완료. 다음 배치 요청...");
-
-        // 다음 배치를 수집하기 위해 crawling() 다시 호출
-        this.crawling();
+        log.info("배치 저장 완료! (성공: {}/전체: {})", count, dataList.size());
     }
 
     /**
@@ -57,42 +60,55 @@ public class CafeCrawlingService {
      */
     @Async
     public void crawling() {
-        log.info("AI 크롤링 배치 요청을 시작합니다 (대상: 썸네일 없는 카페)...");
+        // 전체 데이터 개수 확인
+        long totalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
+        log.info("AI 크롤링 프로세스 시작 (전체 대상: {}개)", totalToCrawl);
 
-        // DB에서 크롤링이 필요한(썸네일 없는) 카페 목록 100개 조회
-        Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, BATCH_SIZE));
-        List<CafeEntity> cafes = cafePage.getContent();
-
-        if (cafes.isEmpty()) {
-            log.info("썸네일 수집할 카페가 없음. 프로세스 종료.");
+        if (totalToCrawl == 0) {
+            log.info("수집할 카페가 없습니다.");
             return;
         }
 
-        // AI 서버 요청 DTO로 변환
-        List<AiCrawlerRequestDto> requestBatch = cafes.stream()
-                .map(AiCrawlerRequestDto::from)
-                .collect(Collectors.toList());
+        // 전체 배치 수 계산 후 루프 실행
+        int totalBatches = (int) Math.ceil((double) totalToCrawl / BATCH_SIZE);
 
-        // AI 서버 호출
-        log.info("AI 서버로 배치 전송 중 (크기: {})", requestBatch.size());
+        for (int i = 0; i < totalBatches; i++) {
+            log.info("[배치 {}/{}] 데이터 조회 중...", i + 1, totalBatches);
 
-        try {
-            AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
+            // 잔여 대상 중 상위 100개 조회
+            Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, BATCH_SIZE));
+            List<CafeEntity> cafes = cafePage.getContent();
 
-            // 수집된 데이터 저장 (성공 시 saveCrawlingData 호출)
-            if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
-                log.info("{}개 수신", response.getItems().size());
-                this.saveCrawlingData(response.getItems());
-
-                if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
-                    log.warn("미수집 카페: {}개",
-                            response.getMissingCafeIds().size());
-                }
-            } else {
-                log.warn("AI 서버 비어있거나 올바르지 않은 응답");
+            if (cafes.isEmpty()) {
+                log.info("더 이상 수집할 데이터 없음.");
+                break;
             }
-        } catch (Exception e) {
-            log.error("AI 크롤러 API 호출 중 오류 발생: {}", e.getMessage());
+
+            // AI 서버 요청 전송
+            List<AiCrawlerRequestDto> requestBatch = cafes.stream()
+                    .map(AiCrawlerRequestDto::from)
+                    .collect(Collectors.toList());
+
+            log.info("[배치 {}/{}] AI 서버 요청 전송... ({}건)", i + 1, totalBatches, requestBatch.size());
+
+            try {
+                AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
+
+                if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                    log.info("[배치 {}/{}] {}건 수신 성공, DB 저장을 시작합니다.", i + 1, totalBatches, response.getItems().size());
+
+                    // 저장이 끝날 때까지 대기 (순차 처리)
+                    this.saveCrawlingData(response.getItems());
+                } else {
+                    log.warn("[배치 {}/{}] AI 서버 응답이 없음. 작업 중단.", i + 1, totalBatches);
+                    break;
+                }
+            } catch (Exception e) {
+                log.error("[배치 {}/{}] 크롤링 실패: {}. 작업 중단.", i + 1, totalBatches, e.getMessage());
+                break;
+            }
         }
+
+        log.info("모든 AI 크롤링 작업이 종료되었습니다.");
     }
 }
