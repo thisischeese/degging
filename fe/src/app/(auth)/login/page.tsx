@@ -22,8 +22,8 @@ export default function LoginPage() {
       // 2. 성공 시
       console.log("로그인 성공!", loginData);
       
-      localStorage.setItem("access_token", loginData.accessToken);
-      localStorage.setItem("refresh_token", loginData.refreshToken);
+      sessionStorage.setItem("access_token", loginData.accessToken);
+      sessionStorage.setItem("refresh_token", loginData.refreshToken);
 
       router.push("/"); // 메인으로 이동
     } catch (error) {

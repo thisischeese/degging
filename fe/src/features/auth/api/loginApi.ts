@@ -12,7 +12,7 @@ export const postLogin = async (formData: LoginFormData): Promise<LoginResponseD
   // 로그인 성공 시 쿠키에도 저장 (미들웨어용)
   if (baseResponse.data?.accessToken) {
     Cookies.set("access_token", baseResponse.data.accessToken, { 
-      expires: 7, // 7일간 유지
+      // expires: 7, // 7일간 유지
       path: "/",
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax"
@@ -28,8 +28,11 @@ export const postLogout = async () => {
     await axios_instance.post('/api/auth/logout');
   } finally {
     // 성공 여부와 상관없이 클라이언트 데이터는 비워야 합니다.
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    // localStorage.removeItem('access_token');
+    // localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+   
     Cookies.remove("access_token", { path: "/" });
     if (typeof window !== 'undefined') {
       window.location.href = '/onboarding';
