@@ -9,6 +9,7 @@ declare global {
     // 1. 지도 인스턴스 관련
     class Map {
       constructor(container: HTMLElement, options: MapOptions);
+      getCenter(): LatLng;
       setCenter(latlng: LatLng): void;
       panTo(latlng: LatLng): void;
       getLevel(): number;
