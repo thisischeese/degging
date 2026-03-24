@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.cafe_crawling import CafeCrawlingRequest, CafeCrawlingResponse
@@ -7,6 +9,7 @@ from app.services.cafe_crawling_service import (
 )
 
 router = APIRouter(prefix="/cafes", tags=["cafes"])
+logger = logging.getLogger("uvicorn.error")
 
 
 def get_cafe_crawling_service() -> CafeCrawlingService:
@@ -26,10 +29,35 @@ async def cafe_crawling(
     request: CafeCrawlingRequest,
     service: CafeCrawlingService = Depends(get_cafe_crawling_service),
 ) -> CafeCrawlingResponse:
+    request_items = request.root
+    logger.info(
+        "Cafe crawling request received: count=%s items=%s",
+        len(request_items),
+        [{"cafeId": item.cafeId, "name": item.name} for item in request_items[:3]],
+    )
     try:
-        return await service.crawl_cafes(request.root)
+        response = await service.crawl_cafes(request_items)
+        logger.info(
+            "Cafe crawling request completed: requested=%s returned=%s missing=%s",
+            len(request_items),
+            response.total,
+            len(response.missing_cafe_ids),
+        )
+        return response
     except CafeCrawlingSourceError as exc:
+        logger.exception(
+            "Cafe crawling source error: requested=%s items=%s",
+            len(request_items),
+            [{"cafeId": item.cafeId, "name": item.name} for item in request_items[:3]],
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         ) from exc
+    except Exception:
+        logger.exception(
+            "Cafe crawling unexpected error: requested=%s items=%s",
+            len(request_items),
+            [{"cafeId": item.cafeId, "name": item.name} for item in request_items[:3]],
+        )
+        raise
