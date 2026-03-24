@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Cookies from "js-cookie";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -15,7 +16,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     // 클라이언트 사이드에서만 실행
     const checkAuth = () => {
-      const accessToken = sessionStorage.getItem("access_token");
+      const accessToken = Cookies.get("access_token");
       const publicPaths = ["/login", "/signup", "/password", "/onboarding"];
       const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 

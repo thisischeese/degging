@@ -28,12 +28,9 @@ export const postLogout = async () => {
     await axios_instance.post('/api/auth/logout');
   } finally {
     // 성공 여부와 상관없이 클라이언트 데이터는 비워야 합니다.
-    // localStorage.removeItem('access_token');
-    // localStorage.removeItem('refresh_token');
-    sessionStorage.removeItem('access_token');
-    sessionStorage.removeItem('refresh_token');
-   
     Cookies.remove("access_token", { path: "/" });
+    Cookies.remove("refresh_token", { path: "/" });
+    
     if (typeof window !== 'undefined') {
       window.location.href = '/onboarding';
     }
