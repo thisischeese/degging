@@ -41,7 +41,7 @@ export const deleteUsers = async (): Promise<BaseResponse<null>> => {
     return axios_instance.delete<BaseResponse<null>>('/api/users') as unknown as Promise<BaseResponse<null>>;
 };
 
-/** 6. A/B 테스트 전환 */
-export const getAbTestJoin = async (): Promise<BaseResponse<null>> => {
-    return axios_instance.get<BaseResponse<null>>('/api/ab-tests/join') as unknown as Promise<BaseResponse<null>>;
+/** 6. A/B 테스트 배정 정보 조회 */
+export const getAbTestJoin = async (): Promise<BaseResponse<{ group: 'A' | 'B' }>> => {
+    return axios_instance.get<BaseResponse<{ group: 'A' | 'B' }>>('/api/ab-tests/join') as unknown as Promise<BaseResponse<{ group: 'A' | 'B' }>>;
 };
