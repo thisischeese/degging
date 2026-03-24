@@ -8,7 +8,8 @@ import { X, Check, Info } from 'lucide-react';
 import Modal from '@/common/components/Modal';
 import Button from '@/common/components/Button';
 import { Input } from '@/common/components/Input';
-import { StarColor } from '@/features/scraps/types';
+import { StarColor, ScrapList } from '@/features/scraps/types';
+import { getScraps, postCreateScrap, postScrapCafe, deleteScrapCafe } from '@/features/scraps/api/scrapApi';
 
 interface CafeDetail {
   id: string;
@@ -23,19 +24,7 @@ interface CafeDetail {
   menuList: { name: string; price: string; imageUrl: string }[];
 }
 
-// 스크랩 카테고리 (오버레이용)
-interface ScrapCategoryOption {
-  scrapId: string;
-  name: string;
-}
 
-const MOCK_SCRAP_CATEGORIES: ScrapCategoryOption[] = [
-  { scrapId: "0", name: "기본 스크랩" },
-  { scrapId: "1", name: "연남 분좋카 투어" },
-  { scrapId: "2", name: "내 사랑 소금빵" },
-  { scrapId: "3", name: "세계 챔피언 바리스타" },
-  { scrapId: "4", name: "2026년도 신상 서울 카페" },
-];
 
 const STAR_COLORS: { value: StarColor; hex: string }[] = [
   { value: 'RED', hex: '#E54B4B' },
@@ -212,7 +201,7 @@ function ScrapCategoryOverlay({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  categories: ScrapCategoryOption[];
+  categories: ScrapList[];
   initialSelectedIds: string[];
   onSave: (selectedIds: string[]) => void;
   onCreateCategory: (name: string, color: StarColor) => void;
@@ -268,12 +257,12 @@ function ScrapCategoryOverlay({
           <div className="flex-1 overflow-y-auto px-6">
             <div className="flex flex-col">
               {categories.map((cat) => {
-                const isSelected = selectedIds.includes(cat.scrapId);
+                const isSelected = selectedIds.includes(cat.scrapId as string);
                 return (
                   <button
                     key={cat.scrapId}
                     type="button"
-                    onClick={() => toggleCategory(cat.scrapId)}
+                    onClick={() => toggleCategory(cat.scrapId as string)}
                     className="flex items-center justify-center py-4 border-t border-white/30 active:bg-white/5 transition-colors relative"
                   >
                     <span className="text-[16px] font-medium text-white">{cat.name}</span>
@@ -326,7 +315,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   const [isScrapped, setIsScrapped] = useState(false);
   const [savedCategoryIds, setSavedCategoryIds] = useState<string[]>([]);
   const [showSavedToast, setShowSavedToast] = useState(false);
-  const [scrapCategories, setScrapCategories] = useState<ScrapCategoryOption[]>(MOCK_SCRAP_CATEGORIES);
+  const [scrapCategories, setScrapCategories] = useState<ScrapList[]>([]);
 
   // Slider State
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -341,25 +330,46 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
     }
   }, [cafeid]);
 
-  const handleScrapSave = (selectedIds: string[]) => {
-    setSavedCategoryIds(selectedIds);
-    if (selectedIds.length > 0) {
-      setIsScrapped(true);
-      setShowSavedToast(true);
-      setTimeout(() => setShowSavedToast(false), 3000);
-    } else {
-      setIsScrapped(false);
+  useEffect(() => {
+    // 모든 카테고리 목록 불러오기 (모든 스크랩 등 null ID 제외)
+    getScraps()
+      .then((data) => setScrapCategories(data.filter((c) => c.scrapId !== null)))
+      .catch((err) => console.error("스크랩 목록 조회 실패", err));
+  }, []);
+
+  const handleScrapSave = async (selectedIds: string[]) => {
+    try {
+      const toAdd = selectedIds.filter(id => !savedCategoryIds.includes(id));
+      const toRemove = savedCategoryIds.filter(id => !selectedIds.includes(id));
+
+      await Promise.all([
+        ...toAdd.map(id => postScrapCafe(id, cafeid)),
+        ...toRemove.map(id => deleteScrapCafe(id, cafeid))
+      ]);
+
+      setSavedCategoryIds(selectedIds);
+      if (selectedIds.length > 0) {
+        setIsScrapped(true);
+        setShowSavedToast(true);
+        setTimeout(() => setShowSavedToast(false), 3000);
+      } else {
+        setIsScrapped(false);
+      }
+    } catch (err) {
+      console.error('카테고리 저장/삭제 실패:', err);
+      alert('저장 중 오류가 발생했습니다.');
     }
-    console.log('Saved to categories:', selectedIds);
   };
 
-  const handleCreateCategory = (name: string) => {
-    const newCat: ScrapCategoryOption = {
-      scrapId: String(Date.now()),
-      name,
-    };
-    setScrapCategories((prev) => [...prev, newCat]);
-    // Optionally automatically select the newly created category if needed later
+  const handleCreateCategory = async (name: string, color: StarColor) => {
+    try {
+      await postCreateScrap({ name, color });
+      const updated = await getScraps();
+      setScrapCategories(updated.filter((c) => c.scrapId !== null));
+    } catch (err) {
+      console.error('카테고리 추가 실패:', err);
+      alert('카테고리 생성에 실패했습니다.');
+    }
   };
 
   if (!cafe) {

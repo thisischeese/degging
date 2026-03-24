@@ -1,54 +1,15 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { MapPin, MoreVertical, X } from "lucide-react";
 import Header from "@/common/components/Header";
 import Modal from "@/common/components/Modal";
 import Button from "@/common/components/Button";
-import { ScrapCafeItem } from "@/features/scraps/types";
+import { ScrapCafeItem, ScrapDetail } from "@/features/scraps/types";
+import { getScrapDetail, deleteScrapCafe, postShareLink } from "@/features/scraps/api/scrapApi";
 
-// ─────────────────────────────────────────────────────────
-// Mock 데이터 (API 연동 전 임시)
-// ─────────────────────────────────────────────────────────
-const MOCK_CAFES: ScrapCafeItem[] = [
-    {
-        cafeId: "1",
-        name: "아우어베이커리 역삼점",
-        cafeIntro: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
-        address: "서울 강남구 언주로85길 29 1층",
-        imageUrl: "/images/curation/mangoBingsu.png",
-    },
-    {
-        cafeId: "2",
-        name: "리파인 망원 (REFINE)",
-        cafeIntro: "망리단길에 위치한 캐주얼 다이닝",
-        address: "서울특별시 마포구 망원동",
-        imageUrl: "/images/curation/mangoBingsu.png",
-    },
-    {
-        cafeId: "3",
-        name: "아우어베이커리 역삼점",
-        cafeIntro: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
-        address: "서울 강남구 언주로85길 29 1층",
-        imageUrl: "/images/curation/mangoBingsu.png",
-    },
-    {
-        cafeId: "4",
-        name: "아우어베이커리 역삼점",
-        cafeIntro: "조용하고 넓은 공간에서 즐기는 시그니처 빵",
-        address: "서울 강남구 언주로85길 29 1층",
-        imageUrl: "/images/curation/mangoBingsu.png",
-    },
-    {
-        cafeId: "5",
-        name: "서울 신라 호텔",
-        cafeIntro: "호텔에 걸맞는 망고 빙수의 정수",
-        address: "서울 중구 동호로 249",
-        imageUrl: "/images/curation/mangoBingsu.png",
-    },
-];
 
 // ─────────────────────────────────────────────────────────
 // 카페 삭제 확인 모달
@@ -112,9 +73,9 @@ function ScrapCafeCard({
         >
             {/* 썸네일 */}
             <div className="relative w-[76px] h-[76px] shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                {cafe.imageUrl && (
+                {cafe.thumbnailUrl && (
                     <Image
-                        src={cafe.imageUrl}
+                        src={cafe.thumbnailUrl}
                         alt={cafe.name}
                         fill
                         className="object-cover"
@@ -156,18 +117,42 @@ function ScrapCafeCard({
 // ─────────────────────────────────────────────────────────
 export default function ScrapDetailPage() {
     const router = useRouter();
-    const categoryName = "역삼역 근처"; // TODO: params.categoryId로 API 조회
+    const params = useParams<{ categoryId: string }>();
+    const categoryId = params?.categoryId;
 
-    const [cafes, setCafes] = useState<ScrapCafeItem[]>(MOCK_CAFES);
+    const [detail, setDetail] = useState<ScrapDetail | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDeleteMode, setIsDeleteMode] = useState(false);
     const [deletingCafeId, setDeletingCafeId] = useState<string | null>(null);
 
-    const handleDeleteCafe = () => {
-        if (deletingCafeId === null) return;
-        setCafes((prev) => prev.filter((c) => c.cafeId !== deletingCafeId));
-        setDeletingCafeId(null);
+    useEffect(() => {
+        if (!categoryId) return;
+        getScrapDetail(categoryId)
+            .then(setDetail)
+            .catch((err) => console.error("스크랩 상세 조회 실패:", err));
+    }, [categoryId]);
+
+    const handleDeleteCafe = async () => {
+        if (!deletingCafeId || !categoryId) return;
+        try {
+            await deleteScrapCafe(categoryId, deletingCafeId);
+            setDetail((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    cafes: prev.cafes.filter((c) => c.cafeId !== deletingCafeId),
+                };
+            });
+        } catch (err) {
+            console.error('카페 삭제 실패:', err);
+            alert('삭제에 실패했습니다.');
+        } finally {
+            setDeletingCafeId(null);
+        }
     };
+
+    const categoryName = detail?.name || "스크랩 리스트";
+    const cafes = detail?.cafes || [];
 
     return (
         <div className="flex flex-col min-h-full bg-bg_white font-pretendard overflow-x-hidden">
@@ -209,9 +194,18 @@ export default function ScrapDetailPage() {
                             <div className="w-[140px] bg-white border border-gray-200 rounded-[12px] shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden flex flex-col">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        // TODO: 추천(링크 공유) 기능 연동
-                                        setIsMenuOpen(false);
+                                    onClick={async () => {
+                                        if (!categoryId) return;
+                                        try {
+                                            const { shareLink } = await postShareLink(categoryId);
+                                            await navigator.clipboard.writeText(shareLink);
+                                            alert("공유 링크가 클립보드에 복사되었습니다.");
+                                        } catch (err) {
+                                            console.error("공유 링크 생성 실패:", err);
+                                            alert("링크 생성에 실패했습니다.");
+                                        } finally {
+                                            setIsMenuOpen(false);
+                                        }
                                     }}
                                     className="w-full text-center px-4 py-3 text-[14px] font-medium text-gray-800 transition-colors active:bg-gray-50 border-b border-gray-100"
                                 >
