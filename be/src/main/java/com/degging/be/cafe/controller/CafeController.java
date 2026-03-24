@@ -2,9 +2,6 @@ package com.degging.be.cafe.controller;
 
 import com.degging.be.cafe.dto.request.CafeBottomSheetRequest;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
-import com.degging.be.cafe.dto.request.CafeSearchRequest;
-import jakarta.validation.Valid;
-import java.util.Map;
 import com.degging.be.cafe.dto.response.internal.CafeBottomSheetResponse;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
