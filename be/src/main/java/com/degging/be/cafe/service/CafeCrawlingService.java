@@ -34,7 +34,7 @@ public class CafeCrawlingService {
      * 전달받은 크롤링 데이터 DB에 반영 (비동기 수행)
      */
     @Async
-    public void processCrawlingData(List<AiCrawlerItemResponse> dataList) {
+    public void saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
         log.info("Starting bulk update for {} crawled cafes...", dataList.size());
 
         for (AiCrawlerItemResponse dto : dataList) {
@@ -49,12 +49,12 @@ public class CafeCrawlingService {
     }
 
     /**
-     * 전체 카페에 대한 AI 크롤링 트리거 (비동기)
-     * DB에서 썸네일이 없는 카페 목록을 100개씩 읽어와 AI 서버에 크롤링 요청
+     * 전체 카페에 대한 AI 크롤링 실행 (비동기)
+     * DB에서 썸네일이 없는 카페 목록을 100개씩 읽어와 AI 서버에 크롤링 요청을 보냅니다.
      */
     @Async
-    public void triggerFullCrawling() {
-        log.info("Starting full AI crawling trigger (Target: cafes without thumbnails)...");
+    public void crawling() {
+        log.info("Starting full AI crawling process (Target: cafes without thumbnails)...");
 
         int pageNum = 0;
         long totalProcessed = 0;
@@ -76,9 +76,9 @@ public class CafeCrawlingService {
             log.info("Crawling batch {} (size: {})", pageNum + 1, requestBatch.size());
             AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
 
-            // 수집된 데이터 저장 (processCrawlingData 호출)
+            // 수집된 데이터 저장 (saveCrawlingData 호출)
             if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
-                this.processCrawlingData(response.getItems());
+                this.saveCrawlingData(response.getItems());
                 
                 if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
                     log.warn("AI server could not find data for {} cafes in batch {}", 
@@ -96,6 +96,6 @@ public class CafeCrawlingService {
 
         } while (cafePage.hasNext() && pageNum < 500); // 무한 루프 방지 안전장치
 
-        log.info("Full AI crawling trigger finished. Total cafes sent: {}", totalProcessed);
+        log.info("Full AI crawling process finished. Total cafes sent: {}", totalProcessed);
     }
 }

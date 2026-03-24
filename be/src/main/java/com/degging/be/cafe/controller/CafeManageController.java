@@ -3,14 +3,11 @@ package com.degging.be.cafe.controller;
 import com.degging.be.cafe.service.CafeCollectService;
 import com.degging.be.cafe.service.CafeStatusService;
 import com.degging.be.global.dto.BaseResponse;
-import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import com.degging.be.cafe.service.CafeCrawlingService;
-
-import java.util.List;
 
 /**
  * 카페 데이터 관리 및 외부 수집 전용 컨트롤러
@@ -50,29 +47,15 @@ public class CafeManageController {
     }
 
     /**
-     * 크롤러가 수집한 카페 데이터를 일괄 수신하여 DB 갱신
-     *
-     * @param crawledData 크롤러가 수집한 카페 데이터 리스트
-     * @return 데이터 수집 실행 성공 응답
-     */
-    @PostMapping("/crawling")
-    public BaseResponse<Void> saveCrawledCafeData(@RequestBody List<AiCrawlerItemResponse> crawledData) {
-        log.info("크롤링 데이터 수신 및 일괄 갱신 시작 ({}건)", crawledData.size());
-        cafeCrawlingService.processCrawlingData(crawledData);
-        log.info("크롤링 데이터 DB 갱신 완료");
-        return BaseResponse.success();
-    }
-
-    /**
-     * AI 크롤링 서비스 실행 트리거
-     * 아직 상세 정보(썸네일 등)가 없는 카페들을 대상으로 AI 크롤링
+     * AI 크롤링 서비스 실행
+     * 아직 상세 정보(썸네일 등)가 없는 카페들을 대상으로 AI 크롤링을 수행합니다.
      *
      * @return 실행 성공 응답 (비동기로 동작)
      */
-    @PostMapping("/crawling/trigger")
-    public BaseResponse<Void> triggerCrawling() {
-        log.info("AI 크롤링 실행 트리거 요청 수신");
-        cafeCrawlingService.triggerFullCrawling();
+    @PostMapping("/crawling")
+    public BaseResponse<Void> crawling() {
+        log.info("AI 크롤링 실행 요청 수신");
+        cafeCrawlingService.crawling();
         return BaseResponse.success();
     }
 }
