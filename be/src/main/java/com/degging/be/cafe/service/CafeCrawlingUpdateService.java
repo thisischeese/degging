@@ -18,8 +18,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -120,66 +120,94 @@ public class CafeCrawlingUpdateService {
         }
 
         // 카페 분위기 태그 업데이트 (기존 데이터 일괄 삭제 후 추가)
-        if (dto.getCafeVibeTags() != null) {
+        if (dto.getCafeVibeTags() != null && !dto.getCafeVibeTags().isEmpty()) {
             cafe.getVibeTags().clear();
-            for (AiCrawlerItemResponse.CafeVibeTagDto tagDto : dto.getCafeVibeTags()) {
-                if (tagDto.getTagId() != null) {
-                    VibeEntity vibe = vibeRepository.findById(tagDto.getTagId()).orElse(null);
-                    if (vibe != null) {
-                        CafeVibeTagEntity vibeTag = CafeVibeTagEntity.builder()
-                                .cafe(cafe)
-                                .vibe(vibe)
-                                .build();
-                        cafe.getVibeTags().add(vibeTag);
-                    }
-                }
+            
+            // 이번 카페에서 필요한 태그 ID 목록 수집
+            Set<UUID> targetVibeIds = dto.getCafeVibeTags().stream()
+                    .map(AiCrawlerItemResponse.CafeVibeTagDto::getTagId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            
+            // 태그 정보 한꺼번에 조회
+            List<VibeEntity> vibes = vibeRepository.findAllById(targetVibeIds);
+            
+            for (VibeEntity vibe : vibes) {
+                CafeVibeTagEntity vibeTag = CafeVibeTagEntity.builder()
+                        .cafe(cafe)
+                        .vibe(vibe)
+                        .build();
+                cafe.getVibeTags().add(vibeTag);
             }
         }
 
-        // 콜드스타트용 리뷰 데이터 업데이트
+        // 콜드스타트용 리뷰 데이터 업데이트 (벌크 처리)
         if (dto.getCafeReviews() != null && !dto.getCafeReviews().isEmpty()) {
 
-            // 기존 크롤링된 리뷰 삭제 (내부 회원 리뷰 보호) - email prefix로 식별
-            List<ReviewEntity> oldReviews = em.createQuery(
-                    "SELECT r FROM ReviewEntity r WHERE r.cafe = :cafe AND r.user.email LIKE 'crawler_%'",
-                    ReviewEntity.class)
-                    .setParameter("cafe", cafe)
-                    .getResultList();
-            reviewRepository.deleteAll(oldReviews);
+            // 1. 기존 크롤링된 리뷰 벌크 삭제 (내부 회원 리뷰 보호)
+            reviewRepository.deleteAllByCafeIdAndUserEmailLike(cafe.getCafeId());
 
-            // 새 크롤링 리뷰 저장
+            // 2. 이번 카페의 모든 리뷰어 정보 수집 (이메일 맵핑)
+            Map<String, AiCrawlerItemResponse.CafeReviewDto> reviewDtoMap = new HashMap<>();
             for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
-                if (reviewDto.getUserId() == null || reviewDto.getUserReview() == null)
-                    continue;
+                if (reviewDto.getUserId() != null && reviewDto.getUserReview() != null) {
+                    String dummyEmail = "crawler_" + reviewDto.getUserId() + "@degging.com";
+                    reviewDtoMap.put(dummyEmail, reviewDto);
+                }
+            }
 
-                String dummyEmail = "crawler_" + reviewDto.getUserId().toString() + "@degging.com";
+            if (reviewDtoMap.isEmpty()) return;
 
-                UserEntity dummyUser = userRepository.findByEmail(dummyEmail).orElseGet(() -> {
-                    // 유저 엔티티 생성
-                    UserEntity newUser = UserEntity.of(dummyEmail, "dummy_crawler_password", 'A');
+            // 3. 이미 존재하는 유저들을 한꺼번에 조회 (N+1 방지)
+            List<UserEntity> existingUsers = userRepository.findAllByEmailIn(reviewDtoMap.keySet());
+            Map<String, UserEntity> userCache = existingUsers.stream()
+                    .collect(Collectors.toMap(UserEntity::getEmail, u -> u));
 
-                    // 유저 프로필 생성 (닉네임 중복 및 NULL 방지 위해 랜덤 8자리 부여)
+            // 4. DB에 없는 유저들을 미리 생성하여 한꺼번에 저장
+            List<UserEntity> newUsersToSave = new ArrayList<>();
+            for (String email : reviewDtoMap.keySet()) {
+                if (!userCache.containsKey(email)) {
+                    AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
+                    
+                    UserEntity newUser = UserEntity.of(email, "dummy_crawler_password", 'A');
                     String shortUuid = reviewDto.getUserId().toString().substring(0, 8);
+                    
                     UserProfileEntity profile = UserProfileEntity.builder()
                             .user(newUser)
                             .nickname("크롤러_" + shortUuid)
-                            .gender(Gender.MALE) // 더미 성별
-                            .birthDate(LocalDate.of(2000, 1, 1)) // 더미 생년월일
+                            .gender(Gender.MALE)
+                            .birthDate(LocalDate.of(2000, 1, 1))
                             .build();
-
+                            
                     newUser.setProfile(profile);
-                    return userRepository.save(newUser); // 연관된 프로필도 Cascade 처리됨
-                });
+                    newUsersToSave.add(newUser);
+                }
+            }
 
+            if (!newUsersToSave.isEmpty()) {
+                List<UserEntity> savedNewUsers = userRepository.saveAll(newUsersToSave);
+                for (UserEntity u : savedNewUsers) {
+                    userCache.put(u.getEmail(), u);
+                }
+            }
+
+            // 5. 모든 리뷰 엔티티를 생성하여 한꺼번에 저장
+            List<ReviewEntity> reviewsToSave = new ArrayList<>();
+            for (String email : reviewDtoMap.keySet()) {
+                UserEntity user = userCache.get(email);
+                AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
+                
                 ReviewEntity newReview = ReviewEntity.builder()
                         .cafe(cafe)
-                        .user(dummyUser)
-                        .rating(reviewDto.getRating() != null ? reviewDto.getRating() : (short) 5) // 크롤링된 평점 적용 (없으면 기본값 5)
+                        .user(user)
+                        .rating(reviewDto.getRating() != null ? reviewDto.getRating() : (short) 5)
                         .content(reviewDto.getUserReview())
                         .build();
-
-                reviewRepository.save(newReview);
+                
+                reviewsToSave.add(newReview);
             }
+            
+            reviewRepository.saveAll(reviewsToSave);
         }
 
         // 현재 처리중인 카페의 영속성 컨텍스트를 DB에 쏘고 비워 OOM 방지
