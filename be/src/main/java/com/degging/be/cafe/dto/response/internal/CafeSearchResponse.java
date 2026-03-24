@@ -28,6 +28,7 @@ public class CafeSearchResponse {
         private Double longitude;
         private Long distance; // 현재 위치와의 거리 (m)
         private String cafeIntro; // 카페 한줄소개
+        private String thumbnailUrl;
 
 
         // DTO 변환 및 거리 계산 로직을 내부로 이동
@@ -46,6 +47,7 @@ public class CafeSearchResponse {
                     .longitude(cafeLon)
                     .cafeIntro(cafe.getCafeIntro())
                     .distance(Math.round(distInMeters)) // 반올림하여 정수로 저장
+                    .thumbnailUrl(cafe.getThumbnailUrl())
                     .build();
         }
 

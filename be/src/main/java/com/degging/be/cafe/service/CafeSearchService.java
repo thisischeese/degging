@@ -7,15 +7,18 @@ import com.degging.be.cafe.dto.response.internal.CafeSearchResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.cafe.repository.VibeRepository;
+import com.degging.be.global.event.KafkaProducer;
 import com.degging.be.global.event.SearchEvent;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -34,6 +37,12 @@ public class CafeSearchService {
     private final ApplicationEventPublisher eventPublisher; // 이벤트 발행자
     private final CafeRepository cafeRepository;
     private final VibeRepository vibeRepository;
+    private final KafkaProducer kafkaProducer;
+
+    private final String TOPIC_NAME = "degging.cafe.search.events"; // kafka topic 명
+
+    @Value("${ai.server.url}")
+    private String aiServerUrl;
 
     /**
      * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
@@ -46,9 +55,8 @@ public class CafeSearchService {
         AiSearchRequest aiSearchRequest = AiSearchRequest.of(userId, request, tagIds);
 
         // AI 서버 호출
-        /* AI 서버 연동 전 주석 처리
         AiSearchResponse res = aiWebClient.post()
-                .uri("/ai/map/search")
+                .uri(aiServerUrl  + "/ai/map/search")
                 .bodyValue(aiSearchRequest)
                 .retrieve()
                 .bodyToMono(AiSearchResponse.class)// 응답 형식
@@ -58,23 +66,7 @@ public class CafeSearchService {
                     return Mono.just(AiSearchResponse.empty());
                 })
                 .block(Duration.ofSeconds(5)); // 결과 나올 때까지 동기 방식으로 대기, 5초까지만 대기
-        */
 
-        // 테스트를 위한 mock 응답 데이터
-//        AiSearchResponse res = AiSearchResponse.builder()
-//                .cafes(Map.of(UUID.fromString("c5383afd-48e0-48f1-863b-33ccd638b410"), 1))
-//                .extractedMenus(Map.of("1234", 3, "5678", 1))
-//                .menuCount(2)
-//                .build();
-
-        // Mock 데이터의 순서를 바꿔서 테스트!
-        AiSearchResponse res = AiSearchResponse.builder()
-                .cafes(Map.of(
-                        UUID.fromString("bd297883-2f0e-4f5d-bea0-813af23aacd9"), 3, // 3등
-                        UUID.fromString("46537625-27db-4bd0-b9f4-d87c112183ff"), 1, // 1등
-                        UUID.fromString("baa57837-bee2-4c46-9d9f-e21d3191d966"), 2  // 2등
-                ))
-                .build();
         // AI 응답 검증
         if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
             log.warn("AI 응답이 비어있습니다. 빈 결과를 반환합니다. User: {}", userId);
@@ -86,25 +78,30 @@ public class CafeSearchService {
         // DB 에서 추천 카페 상세정보 조회
         List<CafeEntity> cafeList = cafeRepository.findAllById(res.getCafeIds());
 
+        if (cafeList.isEmpty()) {
+            return CafeSearchResponse.builder().cafes(Collections.emptyList()).build();
+        }
+
         // DTO 로 변환 및 추천 순서대로 정렬
         List<CafeSearchResponse.CafeSearchItem> items = cafeList.stream()
                 .map(cafe -> CafeSearchResponse.CafeSearchItem.from(
                         cafe, request.getLatitude(),
                         request.getLongitude()
                 ))
-                // AI 응답에 있는 sortNum 에 따라 정렬
-                .sorted(Comparator.comparingInt(item -> res.getCafes().get(item.getCafeId())))
+                // AI 응답에 있는 sortNum 에 따라 정렬하는데,
+                /* NPE 방어: AI 결과 맵에 ID가 없으면 가장 뒤 순위(999)로 밀어냄
+               res.getCafes()가 Map<UUID, Integer> 형태라고 가정할 때 안전함
+                */
+                .sorted(Comparator.comparingInt(item ->
+                        res.getCafes().getOrDefault(item.getCafeId(), 999)))
                 .toList();
 
-        // 추천 결과 캐싱, 10분 저장
-        redisTemplate.opsForValue().set("cache:search:" + userId, items, Duration.ofMinutes(10));
-
-        // 비동기로 추천 결과 캐싱
+        // 비동기로 추천 결과 캐싱  10분 저장
         saveRecommendCache(userId, items);
 
         // 검색 이벤트 발행 -> 랭크 도메인에서 받아 실시간 트랜드 반영
         if (res.getExtractedMenus() != null && !res.getExtractedMenus().isEmpty()) {
-            eventPublisher.publishEvent(new SearchEvent(res.getExtractedMenus()));
+            kafkaProducer.send(TOPIC_NAME, SearchEvent.of(res.getExtractedMenus(), userId));
         }
 
         // 개인 검색 로그 저장 호출

@@ -50,6 +50,14 @@ public class ScrapEntity extends BaseEntity {
     @OneToMany(mappedBy = "scrap", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ScrapItemEntity> scrapItems = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "scrap", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ScrapShareLinkEntity> shareLinks = new ArrayList<>();
+
+    public void addShareLink(ScrapShareLinkEntity link) {
+        this.shareLinks.add(link);
+    }
+
     // 아이템 추가 시 사용
     public void addScrapItem(ScrapItemEntity item) {
         this.scrapItems.add(item);
