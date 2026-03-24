@@ -6,12 +6,48 @@ from app.services import cafe_crawling_service
 from app.services.cafe_crawling_service import (
     CafeCrawlingSourceError,
     CafeSeed,
+    RuntimeSettings,
     SequenceState,
+    resolve_runtime_settings,
     upload_cafe_images,
 )
 
 
 class CafeCrawlingServiceRuntimeTest(unittest.TestCase):
+    def test_runtime_settings_are_resolved_from_app_settings(self) -> None:
+        with (
+            patch.object(cafe_crawling_service.settings, "s3_secret_key", "secret"),
+            patch.object(cafe_crawling_service.settings, "s3_access_key", "access"),
+            patch.object(cafe_crawling_service.settings, "s3_bucket_name", "bucket"),
+            patch.object(cafe_crawling_service.settings, "s3_region", "ap-northeast-2"),
+            patch.object(cafe_crawling_service.settings, "gms_api_key", "gms-key"),
+        ):
+            runtime_settings = resolve_runtime_settings()
+
+        self.assertEqual(
+            runtime_settings,
+            RuntimeSettings(
+                s3_secret_key="secret",
+                s3_access_key="access",
+                s3_bucket_name="bucket",
+                s3_region="ap-northeast-2",
+                gms_api_key="gms-key",
+            ),
+        )
+
+    def test_runtime_settings_raise_when_required_env_values_are_missing(self) -> None:
+        with (
+            patch.object(cafe_crawling_service.settings, "s3_secret_key", None),
+            patch.object(cafe_crawling_service.settings, "s3_access_key", "access"),
+            patch.object(cafe_crawling_service.settings, "s3_bucket_name", "bucket"),
+            patch.object(cafe_crawling_service.settings, "s3_region", "ap-northeast-2"),
+            patch.object(cafe_crawling_service.settings, "gms_api_key", "gms-key"),
+        ):
+            with self.assertRaises(CafeCrawlingSourceError) as exc_info:
+                resolve_runtime_settings()
+
+        self.assertIn("S3_SECRET_KEY", str(exc_info.exception))
+
     def test_windows_selector_loop_is_rejected_before_playwright_starts(self) -> None:
         selector_loop = type("_WindowsSelectorEventLoop", (), {})()
 

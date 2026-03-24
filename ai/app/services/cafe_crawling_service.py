@@ -189,33 +189,13 @@ def random_ua() -> str:
     return random.choice(_UA_POOL)
 
 
-def load_dotenv_file(path: Path) -> dict[str, str]:
-    if not path.exists():
-        return {}
-
-    env: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        key, sep, value = stripped.partition("=")
-        if not sep:
-            continue
-        value = value.strip()
-        if value and value[0] == value[-1] and value[0] in {"'", '"'}:
-            value = value[1:-1]
-        env[key.strip()] = value
-    return env
-
-
 def resolve_runtime_settings() -> RuntimeSettings:
-    env_values = load_dotenv_file(settings.crawler_env_path)
     values = {
-        "S3_SECRET_KEY": settings.s3_secret_key or env_values.get("S3_SECRET_KEY"),
-        "S3_ACCESS_KEY": settings.s3_access_key or env_values.get("S3_ACCESS_KEY"),
-        "S3_BUCKET_NAME": settings.s3_bucket_name or env_values.get("S3_BUCKET_NAME"),
-        "S3_REGION": settings.s3_region or env_values.get("S3_REGION"),
-        "GMS_API_KEY": settings.gms_api_key or env_values.get("GMS_API_KEY"),
+        "S3_SECRET_KEY": settings.s3_secret_key,
+        "S3_ACCESS_KEY": settings.s3_access_key,
+        "S3_BUCKET_NAME": settings.s3_bucket_name,
+        "S3_REGION": settings.s3_region,
+        "GMS_API_KEY": settings.gms_api_key,
     }
     missing = [key for key, value in values.items() if not value]
     if missing:

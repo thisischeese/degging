@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: PortInt = 8000
-    crawler_env_path: Path = find_project_root() / "crawler" / ".env"
+
     s3_secret_key: str | None = None
     s3_access_key: str | None = None
     s3_bucket_name: str | None = None
