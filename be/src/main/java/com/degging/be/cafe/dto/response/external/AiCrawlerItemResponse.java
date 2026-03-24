@@ -100,5 +100,6 @@ public class AiCrawlerItemResponse {
     public static class CafeReviewDto {
         private String userId; // 리뷰를 작성한 사용자 고유 식별자 (또는 이름)
         private String userReview; // 사용자가 남긴 텍스트 리뷰 내용
+        private Short rating; // 사용자가 남긴 평점 (별점)
     }
 }

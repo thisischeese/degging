@@ -23,8 +23,6 @@ public class AiCrawlerRequestDto {
 
     private String name;
 
-    private String address;
-
     /**
      * CafeEntity에서 크롤러 요청 DTO 생성
      *
@@ -35,7 +33,6 @@ public class AiCrawlerRequestDto {
         return AiCrawlerRequestDto.builder()
                 .cafeId(cafe.getCafeId())
                 .name(cafe.getName())
-                .address(cafe.getAddress())
                 .build();
     }
 }
