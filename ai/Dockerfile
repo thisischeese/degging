@@ -3,18 +3,18 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# uv 설치
+# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# AI 관련 라이브러리 컴파일용 도구 설치
+# Build dependencies for Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# 의존성 파일만 먼저 복사 (캐시 활용)
+# Copy dependency manifests first for better layer caching
 COPY pyproject.toml uv.lock ./
 
-# 의존성 설치 (운영 환경만, --frozen으로 lock 파일 그대로 사용)
+# Install runtime dependencies into the virtual environment
 RUN uv sync --frozen --no-dev --no-install-project
 
 # 2. Run Stage
@@ -22,22 +22,26 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# uv 설치
+# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# 빌드 스테이지에서 설치된 가상환경 복사
+# Copy the prebuilt virtual environment from the builder stage
 COPY --from=builder /app/.venv /app/.venv
 
-# 소스 코드 복사
-COPY . .
-
-# 가상환경 PATH 등록
+# Make the virtualenv and Playwright browser bundle available at runtime
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# 환경 변수 설정
+# Runtime environment settings
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV TZ=Asia/Seoul
+
+# Install Chromium and its OS dependencies into the runtime image
+RUN playwright install --with-deps chromium
+
+# Copy the application source after dependency installation for better caching
+COPY . .
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
