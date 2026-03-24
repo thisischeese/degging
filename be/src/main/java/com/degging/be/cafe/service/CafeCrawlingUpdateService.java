@@ -32,7 +32,7 @@ public class CafeCrawlingUpdateService {
     private final ReviewRepository reviewRepository;
     private final EntityManager em;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void updateSingleCafe(AiCrawlerItemResponse dto) {
         if (dto.getCafes() == null || dto.getCafes().getCafeId() == null) {
             log.warn("CafeId is missing. Skipping...");
@@ -122,16 +122,16 @@ public class CafeCrawlingUpdateService {
         // 카페 분위기 태그 업데이트 (기존 데이터 일괄 삭제 후 추가)
         if (dto.getCafeVibeTags() != null && !dto.getCafeVibeTags().isEmpty()) {
             cafe.getVibeTags().clear();
-            
+
             // 이번 카페에서 필요한 태그 ID 목록 수집
             Set<UUID> targetVibeIds = dto.getCafeVibeTags().stream()
                     .map(AiCrawlerItemResponse.CafeVibeTagDto::getTagId)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
-            
+
             // 태그 정보 한꺼번에 조회
             List<VibeEntity> vibes = vibeRepository.findAllById(targetVibeIds);
-            
+
             for (VibeEntity vibe : vibes) {
                 CafeVibeTagEntity vibeTag = CafeVibeTagEntity.builder()
                         .cafe(cafe)
@@ -144,10 +144,10 @@ public class CafeCrawlingUpdateService {
         // 콜드스타트용 리뷰 데이터 업데이트 (벌크 처리)
         if (dto.getCafeReviews() != null && !dto.getCafeReviews().isEmpty()) {
 
-            // 1. 기존 크롤링된 리뷰 벌크 삭제 (내부 회원 리뷰 보호)
+            // 기존 크롤링된 리뷰 벌크 삭제 (내부 회원 리뷰 보호)
             reviewRepository.deleteAllByCafeIdAndUserEmailLike(cafe.getCafeId());
 
-            // 2. 이번 카페의 모든 리뷰어 정보 수집 (이메일 맵핑)
+            // 이번 카페의 모든 리뷰어 정보 수집 (이메일 맵핑)
             Map<String, AiCrawlerItemResponse.CafeReviewDto> reviewDtoMap = new HashMap<>();
             for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
                 if (reviewDto.getUserId() != null && reviewDto.getUserReview() != null) {
@@ -156,29 +156,30 @@ public class CafeCrawlingUpdateService {
                 }
             }
 
-            if (reviewDtoMap.isEmpty()) return;
+            if (reviewDtoMap.isEmpty())
+                return;
 
-            // 3. 이미 존재하는 유저들을 한꺼번에 조회 (N+1 방지)
+            // 이미 존재하는 유저들을 한꺼번에 조회 (N+1 방지)
             List<UserEntity> existingUsers = userRepository.findAllByEmailIn(reviewDtoMap.keySet());
             Map<String, UserEntity> userCache = existingUsers.stream()
                     .collect(Collectors.toMap(UserEntity::getEmail, u -> u));
 
-            // 4. DB에 없는 유저들을 미리 생성하여 한꺼번에 저장
+            // DB에 없는 유저들을 미리 생성하여 한꺼번에 저장
             List<UserEntity> newUsersToSave = new ArrayList<>();
             for (String email : reviewDtoMap.keySet()) {
                 if (!userCache.containsKey(email)) {
                     AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
-                    
+
                     UserEntity newUser = UserEntity.of(email, "dummy_crawler_password", 'A');
                     String shortUuid = reviewDto.getUserId().toString().substring(0, 8);
-                    
+
                     UserProfileEntity profile = UserProfileEntity.builder()
                             .user(newUser)
                             .nickname("크롤러_" + shortUuid)
                             .gender(Gender.MALE)
                             .birthDate(LocalDate.of(2000, 1, 1))
                             .build();
-                            
+
                     newUser.setProfile(profile);
                     newUsersToSave.add(newUser);
                 }
@@ -196,17 +197,17 @@ public class CafeCrawlingUpdateService {
             for (String email : reviewDtoMap.keySet()) {
                 UserEntity user = userCache.get(email);
                 AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
-                
+
                 ReviewEntity newReview = ReviewEntity.builder()
                         .cafe(cafe)
                         .user(user)
                         .rating(reviewDto.getRating() != null ? reviewDto.getRating() : (short) 5)
                         .content(reviewDto.getUserReview())
                         .build();
-                
+
                 reviewsToSave.add(newReview);
             }
-            
+
             reviewRepository.saveAll(reviewsToSave);
         }
 
