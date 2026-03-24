@@ -1,6 +1,6 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.dto.request.CafeCrawlingDto;
+import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
 import com.degging.be.cafe.entity.*;
 import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.cafe.repository.VibeRepository;
@@ -33,7 +33,7 @@ public class CafeCrawlingUpdateService {
     private final EntityManager em;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateSingleCafe(CafeCrawlingDto dto) {
+    public void updateSingleCafe(AiCrawlerItemResponse dto) {
         if (dto.getCafes() == null || dto.getCafes().getCafeId() == null) {
             log.warn("CafeId is missing. Skipping...");
             return;
@@ -95,7 +95,7 @@ public class CafeCrawlingUpdateService {
         // 카페 이미지 업데이트 (기존 데이터 일괄 삭제 후 추가 - OrphanRemoval 작동)
         if (dto.getCafeImages() != null) {
             cafe.getImages().clear();
-            for (CafeCrawlingDto.CafeImageDto imgDto : dto.getCafeImages()) {
+            for (AiCrawlerItemResponse.CafeImageDto imgDto : dto.getCafeImages()) {
                 CafeImageEntity img = CafeImageEntity.builder()
                         .cafe(cafe)
                         .imageUrl(imgDto.getImageUrl())
@@ -108,7 +108,7 @@ public class CafeCrawlingUpdateService {
         // 카페 메뉴 업데이트 (기존 데이터 일괄 삭제 후 추가)
         if (dto.getCafeMenus() != null) {
             cafe.getMenus().clear();
-            for (CafeCrawlingDto.CafeMenuDto menuDto : dto.getCafeMenus()) {
+            for (AiCrawlerItemResponse.CafeMenuDto menuDto : dto.getCafeMenus()) {
                 CafeMenuEntity menu = CafeMenuEntity.builder()
                         .cafe(cafe)
                         .menuName(menuDto.getMenuName())
@@ -122,7 +122,7 @@ public class CafeCrawlingUpdateService {
         // 카페 분위기 태그 업데이트 (기존 데이터 일괄 삭제 후 추가)
         if (dto.getCafeVibeTags() != null) {
             cafe.getVibeTags().clear();
-            for (CafeCrawlingDto.CafeVibeTagDto tagDto : dto.getCafeVibeTags()) {
+            for (AiCrawlerItemResponse.CafeVibeTagDto tagDto : dto.getCafeVibeTags()) {
                 if (tagDto.getTagId() != null) {
                     VibeEntity vibe = vibeRepository.findById(tagDto.getTagId()).orElse(null);
                     if (vibe != null) {
@@ -148,7 +148,7 @@ public class CafeCrawlingUpdateService {
             reviewRepository.deleteAll(oldReviews);
 
             // 새 크롤링 리뷰 저장
-            for (CafeCrawlingDto.CafeReviewDto reviewDto : dto.getCafeReviews()) {
+            for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
                 if (reviewDto.getUserId() == null || reviewDto.getUserReview() == null)
                     continue;
 
