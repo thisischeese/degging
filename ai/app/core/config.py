@@ -53,16 +53,16 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: PortInt = 8000
 
-    s3_secret_key: str | None = None
-    s3_access_key: str | None = None
-    s3_bucket_name: str | None = None
-    s3_region: str | None = None
-    gms_api_key: str | None = None
+    s3_secret_key: RequiredStr
+    s3_access_key: RequiredStr
+    s3_bucket_name: RequiredStr
+    s3_region: RequiredStr
+    gms_api_key: RequiredStr
 
     # Discovery
     discovery_top_k: int = 100
     
-    hf_token: str | None = None
+    hf_token: RequiredStr
 
     @computed_field
     @property
