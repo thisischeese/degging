@@ -15,6 +15,7 @@ import { getUserInfo, getMyReviews, patchUsers, patchPasswordReset, deleteUsers 
 import { postLogout } from "@/features/auth/api/loginApi";
 import { AxiosError } from "axios";
 import { BaseResponse } from "@/features/auth/types";
+import { getImageUrl } from "@/common/utils/image";
 
 import gearWheelIcon from "@/assets/icons/gearWheelIcon.png";
 
@@ -45,7 +46,8 @@ function ProfileEditModal({
   const queryClient = useQueryClient();
   const [nickname, setNickname] = useState(profile.nickname);
   const [nicknameError, setNicknameError] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(profile.profileImageUrl || DEFAULT_PROFILE_IMAGE);
+  const initialPreviewUrl = profile.profileImageUrl ? getImageUrl(profile.profileImageUrl) : DEFAULT_PROFILE_IMAGE;
+  const [previewUrl, setPreviewUrl] = useState<string>(initialPreviewUrl);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -430,7 +432,7 @@ export default function UserPage() {
         <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-4 mb-5">
             <div className="relative w-[68px] h-[68px] rounded-full overflow-hidden bg-[#F5F0E8] shrink-0">
-              <Image src={profileData.profileImageUrl || DEFAULT_PROFILE_IMAGE} alt="프로필" fill className="object-cover" />
+              <Image src={profileData.profileImageUrl ? getImageUrl(profileData.profileImageUrl) : DEFAULT_PROFILE_IMAGE} alt="프로필" fill className="object-cover" />
             </div>
             <div className="flex flex-col gap-1 min-w-0">
               <p className="text-[17px] font-bold text-gray-900 truncate">{profileData.nickname}님</p>
