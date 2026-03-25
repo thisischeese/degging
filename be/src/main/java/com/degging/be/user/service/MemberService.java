@@ -115,11 +115,15 @@ public class MemberService {
         UserEntity entity = userRepository.findById(userId)
                 .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
+        // 프로필 조회
+        UserProfileEntity profileEntity = userProfileRepository.findById(userId)
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
         // 회원 취향 태그 조회 (MongoDB + PostgreSQL 조회)
         List<String> tags = getUserPreferred(userId);
 
         // password 를 제외하고 dto 로 변환하여 응답
-        return UserDetailResponse.of(entity, tags);
+        return UserDetailResponse.of(entity, profileEntity,tags);
     }
 
     /**
