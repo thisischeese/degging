@@ -8,11 +8,19 @@ import { Input } from '@/common/components/Input';
 import Button from '@/common/components/Button';
 import Image from 'next/image';
 import { postCafeReview, PostCafeReviewPayload } from "@/features/reviews/api/reviewApi";
+import { useQuery } from '@tanstack/react-query';
+import { getCafeDetail } from '@/features/cafes/api/cafeApi';
 
 export default function ReviewCreatePage() {
     const params = useParams();
     const router = useRouter();
     const cafeid = params.cafeid as string;
+
+    const { data: cafe, isLoading: isCafeLoading } = useQuery({
+        queryKey: ['cafeDetail', cafeid],
+        queryFn: () => getCafeDetail(cafeid),
+        enabled: !!cafeid,
+    });
 
     const [rating, setRating] = useState<number>(0);
     const [content, setContent] = useState<string>('');
@@ -185,7 +193,11 @@ export default function ReviewCreatePage() {
                 <div className="w-full flex-1 flex flex-col justify-between">
                     <div className="w-full">
                         {/* 카페 이름 */}
-                        <h2 className="text-[18px] font-bold text-gray-900 mb-4 tracking-tight">아우어베이커리 역삼점</h2>
+                        {isCafeLoading ? (
+                            <div className="h-[27px] w-48 bg-gray-200 animate-pulse rounded-md mb-4" />
+                        ) : (
+                            <h2 className="text-[18px] font-bold text-gray-900 mb-4 tracking-tight">{cafe?.name || "카페 이름 없음"}</h2>
+                        )}
 
                         {/* 이미지 슬라이더 */}
                         {previewUrls.length > 0 && (
