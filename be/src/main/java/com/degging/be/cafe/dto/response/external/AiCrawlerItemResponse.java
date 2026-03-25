@@ -42,6 +42,7 @@ public class AiCrawlerItemResponse {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class CafeRatingStatsDto {
         private Integer reviewCount; // 크롤링된 총 리뷰 수
+        private Integer ratingSum; // 평점 총합 (추가)
         private String soloRatio; // 혼자 방문한 비율
         private String dateRatio; // 데이트 목적으로 방문한 비율
         private String friendsRatio; // 친구와 방문한 비율

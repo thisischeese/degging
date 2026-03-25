@@ -45,8 +45,9 @@ public class CafeRatingStatsEntity extends BaseEntity {
     }
 
     // 크롤링된 통계 데이터 덮어쓰기 메서드
-    public void updateCrawledStats(int reviewCount, String soloRatio, String dateRatio, String friendsRatio) {
+    public void updateCrawledStats(int reviewCount, int ratingSum, String soloRatio, String dateRatio, String friendsRatio) {
         this.reviewCount = reviewCount;
+        this.ratingSum = ratingSum;
         this.soloRatio = soloRatio;
         this.dateRatio = dateRatio;
         this.friendsRatio = friendsRatio;

@@ -14,6 +14,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -31,7 +32,7 @@ public class CafeCrawlingUpdateService {
     private final ReviewRepository reviewRepository;
     private final EntityManager em;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateSingleCafe(AiCrawlerItemResponse dto) {
         if (dto.getCafes() == null || dto.getCafes().getCafeId() == null) {
             log.warn("CafeId is missing. Skipping...");
@@ -69,6 +70,7 @@ public class CafeCrawlingUpdateService {
             }
             stats.updateCrawledStats(
                     dto.getCafeRatingStats().getReviewCount() != null ? dto.getCafeRatingStats().getReviewCount() : 0,
+                    dto.getCafeRatingStats().getRatingSum() != null ? dto.getCafeRatingStats().getRatingSum() : 0,
                     dto.getCafeRatingStats().getSoloRatio(),
                     dto.getCafeRatingStats().getDateRatio(),
                     dto.getCafeRatingStats().getFriendsRatio());
@@ -145,7 +147,7 @@ public class CafeCrawlingUpdateService {
             }
         }
 
-        // 콜드스타트용 리뷰 데이터 업데이트 (벌크 처리)
+        // 콜드스타트용 리뷰 데이터 업데이트
         if (dto.getCafeReviews() != null && !dto.getCafeReviews().isEmpty()) {
 
             // 이번 카페의 모든 리뷰어 정보 수집 (이메일 맵핑)
