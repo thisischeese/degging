@@ -5,12 +5,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import { RankingItem } from "@/features/ranks/types";
-import { pushGtmEvent, getAbGroup } from "@/lib/abTest";
+import { pushGtmEvent, getAbGroup, setAbGroup } from "@/lib/abTest";
 import searchIcon from "@/assets/icons/searchIcon.png";
 import SurveyModal from "@/features/ranks/components/SurveyModal";
 import { useQuery } from "@tanstack/react-query";
 import { getRealTimeRankings } from "@/features/ranks/api/rankingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
+import { getUserInfo } from "@/features/users/api/userApi";
 
 export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,15 +32,35 @@ export default function MainPage() {
     };
   }, []);
 
-  const [activeGroup, setActiveGroup] = useState<'A' | 'B'>('A');
+  const [activeGroup, setActiveGroup] = useState<'A' | 'B' | null>(null);
 
+  // 1. 초기 렌더링 시 로컬스토리지 값 사용 (깜빡임 최소화)
   useEffect(() => {
-    // 백엔드 API 호출 없이 순수 프론트엔드 로직으로 A/B 그룹 배정 및 GA4(GTM) 전송
     const timer = setTimeout(() => {
       setActiveGroup(getAbGroup());
     }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+  // 2. 백엔드 사용자 정보 조회 (DB에 저장된 abGroup 가져오기)
+  const { data: profileData } = useQuery({
+    queryKey: ["user", "me"],
+    queryFn: getUserInfo,
+    ...QUERY_OPTIONS.SENSITIVE,
+  });
+
+  // 3. 백엔드 응답이 오면 DB 값으로 로컬스토리지 덮어쓰기 및 화면 동기화
+  useEffect(() => {
+    if (profileData?.data?.abGroup) {
+      const dbGroup = profileData.data.abGroup;
+      setAbGroup(dbGroup);
+      
+      const timer = setTimeout(() => {
+        setActiveGroup(dbGroup);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [profileData]);
 
   // PC 환경 마우스 드래그 스크롤을 위한 상태
 

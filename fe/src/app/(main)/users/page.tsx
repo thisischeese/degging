@@ -54,7 +54,7 @@ function ProfileEditModal({
   const updateMutation = useMutation({
     mutationFn: patchUsers,
     onSuccess: (res) => {
-      // 서버 응답이 문자열 "200" 또는 숫자 200으로 올 수 있으므로 모두 처리
+      // 서버 응답이 문자열 "200" 또는 숫자 200으로 올 수 있으므로 모두 처리함
       if (res.code === 200 || res.code === "200") {
         queryClient.invalidateQueries({ queryKey: ["user", "me"] });
         onAlert("수정 완료", "회원 정보가 성공적으로 수정되었습니다.");

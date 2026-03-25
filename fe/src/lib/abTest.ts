@@ -5,11 +5,11 @@ declare global {
 }
 
 /**
- * A/B 테스트 로컬 그룹을 확인하고 배정합니다. (1주일 단기 테스트용)
- * 최초 배정 시 랜덤(50:50)으로 'A' 또는 'B'를 설정하고 GTM으로 전송합니다.
- * @returns 'A' | 'B'
+ * A/B 테스트 로컬 그룹을 확인합니다.
+ * 배정된 그룹이 없으면 프론트엔드에서 무작위 배정하지 않고 null을 반환하여 백엔드 응답을 기다립니다.
+ * @returns 'A' | 'B' | null
  */
-export const getAbGroup = (): 'A' | 'B' => {
+export const getAbGroup = (): 'A' | 'B' | null => {
   if (typeof window === 'undefined') return 'A'; // SSR 환경 안전장치
 
   const STORAGE_KEY = 'degging_ab_group';
@@ -19,14 +19,9 @@ export const getAbGroup = (): 'A' | 'B' => {
     return storedGroup;
   }
 
-  // 그룹이 없으면 랜덤(50:50) 배정
-  const newGroup = Math.random() < 0.5 ? 'A' : 'B';
-  localStorage.setItem(STORAGE_KEY, newGroup);
-  
-  // 최초 배정 시 GTM으로 이벤트 전송
-  pushGtmEvent('ab_group_assigned', { group: newGroup });
-
-  return newGroup;
+  // 이제 프론트엔드에서 무작위 배정을 하지 않습니다.
+  // 백엔드 DB 값이 최우선이며, 로컬에 저장된 값이 없다면 null을 반환하여 백엔드 응답을 기다립니다.
+  return null;
 };
 
 /**
@@ -43,7 +38,7 @@ export const setAbGroup = (group: 'A' | 'B') => {
   if (currentGroup !== group) {
     localStorage.setItem(STORAGE_KEY, group);
     // 그룹이 변경되었을 때만 새롭게 이벤트 전송
-    pushGtmEvent('ab_group_assigned', { group });
+    pushGtmEvent('ab_group_assigned', { ab_group: group });
   }
 };
 
