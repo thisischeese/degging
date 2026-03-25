@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import Modal from "@/common/components/Modal";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { postLogin } from "@/features/auth/api/loginApi";
@@ -11,6 +12,14 @@ import Cookies from "js-cookie";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [dialog, setDialog] = useState<{ isOpen: boolean; title: string; message?: string }>({
+    isOpen: false,
+    title: "",
+  });
+
+  const showAlert = (title: string, message?: string) => {
+    setDialog({ isOpen: true, title, message });
+  };
 
   const handleLogin = async () => {
     try {
@@ -25,7 +34,7 @@ export default function LoginPage() {
       window.location.href = "/"; // 메인으로 이동
     } catch (error) {
       console.error("로그인 실패:", error);
-      alert("이메일 또는 비밀번호가 올바르지 않습니다.");
+      showAlert("이메일 또는 비밀번호가\n올바르지 않습니다.");
     }
   };
 
@@ -38,10 +47,10 @@ export default function LoginPage() {
 
       {/* 소셜 로그인 섹션 (Button 컴포넌트 활용) */}
       <div className="flex flex-col gap-3 mb-8">
-        <Button variant="kakao" size="full" onClick={() => alert("준비 중")}>
+        <Button variant="kakao" size="full" onClick={() => showAlert("카카오 로그인은 현재 준비 중입니다.")}>
           카카오로 계속하기
         </Button>
-        <Button variant="black" size="full" onClick={() => alert("준비 중")}>
+        <Button variant="black" size="full" onClick={() => showAlert("구글 로그인은 현재 준비 중입니다.")}>
           구글로 계속하기
         </Button>
       </div>
@@ -90,6 +99,20 @@ export default function LoginPage() {
           비밀번호를 잊으셨나요?
         </Link>
       </div>
+      <Modal isOpen={dialog.isOpen} onClose={() => setDialog(prev => ({ ...prev, isOpen: false }))} size="sm">
+        <div className="flex flex-col items-center gap-6 py-2">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <span className="text-4xl mb-2">💡</span>
+            <h2 className="text-[16px] font-bold text-gray-900 leading-snug whitespace-pre-wrap break-keep">{dialog.title}</h2>
+            {dialog.message && (
+              <p className="text-[13px] text-gray-500 font-medium">{dialog.message}</p>
+            )}
+          </div>
+          <Button variant="primary" size="full" onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))} className="h-[52px] rounded-xl!">
+            확인
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -111,7 +111,9 @@ axios_instance.interceptors.response.use(
 
     // 403: 권한 없음 (예: 일반 유저가 관리자 페이지 접근)
     if (error.response?.status === 403) {
-      alert('접근 권한이 없습니다.');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'; 
+      }
     }
 
     return Promise.reject(error);

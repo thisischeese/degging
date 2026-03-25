@@ -10,6 +10,9 @@ import StepTrend from "@/features/auth/components/StepTrend";
 import StepMood from "@/features/auth/components/StepMood";
 import StepLoading from "@/features/auth/components/StepLoading";
 import StepWelcome from "@/features/auth/components/StepWelcome";
+import Modal from "@/common/components/Modal";
+import Button from "@/common/components/Button";
+
 
 // API 호출 함수 추가
 import { postSignup } from "@/features/auth/api/signupApi";
@@ -27,6 +30,15 @@ export default function SignupPage() {
     trends: [],
     moods: [],
   });
+
+  const [dialog, setDialog] = useState<{ isOpen: boolean; title: string; message?: string }>({
+    isOpen: false,
+    title: "",
+  });
+
+  const showAlert = (title: string, message?: string) => {
+    setDialog({ isOpen: true, title, message });
+  };
   
   const updateFormData = (newData: Partial<SignupFormData>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
@@ -72,12 +84,12 @@ export default function SignupPage() {
 
         return true;
       } else {
-        alert(result.message || "회원가입에 실패했습니다.");
+        showAlert(result.message || "회원가입에 실패했습니다.");
         return false;
       }
     } catch (error) {
       console.error("회원가입 실패:", error);
-      alert("회원가입 중 오류가 발생했습니다.");
+      showAlert("회원가입 중 오류가 발생했습니다.");
       return false;
     }
   };
@@ -135,11 +147,11 @@ export default function SignupPage() {
             transition={{ duration: 0.3 }}
             className="flex-1 min-h-0 flex flex-col"
           >
-            {step === 1 && <StepEmail next={nextStep} updateData={updateFormData} formData={formData} />}
-            {step === 2 && <StepPassword next={nextStep} updateData={updateFormData} formData={formData} />}
-            {step === 3 && <StepNickname next={nextStep} updateData={updateFormData} formData={formData} />}
-            {step === 4 && <StepTrend next={nextStep} updateData={updateFormData} formData={formData} />}
-            {step === 5 && <StepMood next={nextStep} updateData={updateFormData} formData={formData} />}
+            {step === 1 && <StepEmail next={nextStep} updateData={updateFormData} formData={formData} onAlert={showAlert} />}
+            {step === 2 && <StepPassword next={nextStep} updateData={updateFormData} formData={formData} onAlert={showAlert} />}
+            {step === 3 && <StepNickname next={nextStep} updateData={updateFormData} formData={formData} onAlert={showAlert} />}
+            {step === 4 && <StepTrend next={nextStep} updateData={updateFormData} formData={formData} onAlert={showAlert} />}
+            {step === 5 && <StepMood next={nextStep} updateData={updateFormData} formData={formData} onAlert={showAlert} />}
             {step === 6 && (
               <StepLoading 
                 next={nextStep} 
@@ -150,6 +162,22 @@ export default function SignupPage() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* 알럿용 모달 */}
+      <Modal isOpen={dialog.isOpen} onClose={() => setDialog(prev => ({ ...prev, isOpen: false }))} size="sm">
+        <div className="flex flex-col items-center gap-6 py-2">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <span className="text-4xl mb-2">💡</span>
+            <h2 className="text-[16px] font-bold text-gray-900 leading-snug whitespace-pre-wrap break-keep">{dialog.title}</h2>
+            {dialog.message && (
+              <p className="text-[13px] text-gray-500 font-medium leading-relaxed">{dialog.message}</p>
+            )}
+          </div>
+          <Button variant="primary" size="full" onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))} className="h-[52px] rounded-xl!">
+            확인
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
