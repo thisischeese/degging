@@ -463,7 +463,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
             </div>
             <div className="flex items-center gap-2.5">
               <Image src="/images/map/locationIcon.png" alt="주소" width={20} height={20} className="w-5 h-5 object-contain" />
-              <span className="text-gray-900 text-[14px] font-medium">{cafe.address || "주소 미등록"}</span>
+              <span className="text-gray-900 text-[14px] font-medium">{cafe.roadAddress || cafe.address || "주소 미등록"}</span>
             </div>
             <div className="flex items-center gap-2.5">
               <Image src="/images/map/phoneIcon.png" alt="전화번호" width={20} height={20} className="w-5 h-5 object-contain" />
