@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Image, { StaticImageData } from 'next/image';
-import { MapPin } from 'lucide-react';
+import { MapPin, Star } from 'lucide-react';
 
 export interface CafeCardProps {
   id: string;
@@ -9,8 +9,8 @@ export interface CafeCardProps {
   address: string;
   distance?: string;
   imageUrl: string | StaticImageData;
-  // isScrapped?: boolean;
-  // onScrapClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  isScrapped?: boolean;
+  onScrapClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onClick?: () => void;
   isActive?: boolean;
 }
@@ -27,12 +27,14 @@ export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
   imageUrl,
   onClick,
   isActive,
+  isScrapped,
+  onScrapClick,
 }, ref) => {
   // 스크랩 버튼 클릭 시 부모(카드) 클릭 이벤트 전달 차단
-  // const handleScrapClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-  //   e.stopPropagation();
-  //   onScrapClick?.(e);
-  // };
+  const handleScrapClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onScrapClick?.(e);
+  };
   // 카페 카드에서 실패한 원격 이미지 URL을 기억합니다.
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
@@ -71,7 +73,7 @@ export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
       <div className="flex min-w-0 flex-1 flex-col justify-center">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate text-[14px] font-bold text-gray-900">{name}</h3>
-          {/* {onScrapClick && (
+          {onScrapClick && (
             <button
               type="button"
               onClick={handleScrapClick}
@@ -85,7 +87,7 @@ export const CafeCard = React.forwardRef<HTMLDivElement, CafeCardProps>(({
                 }`}
               />
             </button>
-          )} */}
+          )}
         </div>
 
         {/* 한 줄 설명: 크기 12px, 말줄임 */}

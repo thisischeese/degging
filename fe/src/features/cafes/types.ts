@@ -30,3 +30,33 @@ export interface CafeDetailResponse {
   message: string;
   data: CafeDetailData;
 }
+
+// 통합 카페 검색 요청 모델
+export interface SearchCafesRequest {
+  keyword: string;
+  latitude: number;
+  longitude: number;
+  mood?: string[]; // 복합 검색일 경우 추가됨
+}
+
+// 통합 카페 검색 응답 아이템 (마커 및 리스트 공통)
+export interface SearchCafeItem {
+  cafeId: string;
+  name: string;
+  address?: string;
+  latitude: number;
+  longitude: number;
+  distance: number;
+  cafeIntro?: string;
+  thumbnailUrl?: string;
+}
+
+// 통합 카페 검색 전체 응답 모델
+export interface SearchCafesResponse {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  data: {
+    cafes: SearchCafeItem[];
+  };
+}
