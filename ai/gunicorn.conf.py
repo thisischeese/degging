@@ -8,7 +8,7 @@ except ImportError:  # pragma: no cover - local environments may not have the pa
     multiprocess = None
 
 
-bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
+bind = f"{os.getenv('APP_HOST', '0.0.0.0')}:{os.getenv('APP_PORT', '8000')}"
 workers = int(os.getenv("WEB_CONCURRENCY", "4"))
 worker_class = "uvicorn_worker.UvicornWorker"
 threads = 1
