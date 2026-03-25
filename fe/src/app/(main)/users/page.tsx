@@ -52,8 +52,10 @@ function ProfileEditModal({
   const updateMutation = useMutation({
     mutationFn: patchUsers,
     onSuccess: (res) => {
-      if (res.code === 200) {
+      // 서버 응답이 문자열 "200" 또는 숫자 200으로 올 수 있으므로 모두 처리
+      if (res.code === 200 || res.code === "200") {
         queryClient.invalidateQueries({ queryKey: ["user", "me"] });
+        onAlert("수정 완료", "회원 정보가 성공적으로 수정되었습니다.");
         onClose();
       } else {
         onAlert("수정 실패", res.message || "정보 수정에 실패했습니다.");
@@ -100,10 +102,13 @@ function ProfileEditModal({
 
   const handleSave = () => {
     if (!validateNickname(nickname)) return;
+    
+    const isDefaultImage = previewUrl === DEFAULT_PROFILE_IMAGE;
+
     updateMutation.mutate({
       nickname,
-      profileImage: selectedFile || undefined,
-      profileImageUrl: !selectedFile ? (previewUrl || undefined) : undefined
+      profileImage: selectedFile || null,
+      defaultImage: isDefaultImage
     });
   };
 
@@ -142,9 +147,14 @@ function ProfileEditModal({
           </div>
         </div>
 
-        <Button variant="primary" size="full" onClick={handleSave} disabled={updateMutation.isPending || nicknameError !== "" || nickname.length < 2} className="mt-1 h-[52px] rounded-xl!">
-          {updateMutation.isPending ? "저장 중..." : "저장"}
-        </Button>
+        <div className="flex gap-3 mt-1">
+          <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">
+            돌아가기
+          </Button>
+          <Button variant="primary" size="full" onClick={handleSave} disabled={updateMutation.isPending || nicknameError !== "" || nickname.length < 2} className="h-[52px] rounded-xl!">
+            {updateMutation.isPending ? "수정 중..." : "확인"}
+          </Button>
+        </div>
       </div>
     </Modal>
   );
