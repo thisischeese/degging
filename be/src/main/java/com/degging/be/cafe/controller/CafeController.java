@@ -4,7 +4,7 @@ import com.degging.be.cafe.dto.request.CafeBottomSheetRequest;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
 import com.degging.be.cafe.dto.response.internal.CafeBottomSheetResponse;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
-import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
+import com.degging.be.cafe.dto.response.internal.CafeMapMarkersResponse;
 import com.degging.be.cafe.dto.response.internal.CafeOnboardingResponse;
 import com.degging.be.cafe.service.CafeService;
 import com.degging.be.global.dto.BaseResponse;
@@ -66,11 +66,12 @@ public class CafeController {
      * @return 반경 내 카페 마커 리스트를 담은 공통 응답 객체
      */
     @GetMapping("/map/markers")
-    public BaseResponse<List<CafeMapResponse>> getCafeMarkers(
+    public BaseResponse<CafeMapMarkersResponse> getCafeMarkers(
             @AuthenticationPrincipal UserDetails user,
             @ModelAttribute CafeMapRequest request) {
 
-        List<CafeMapResponse> response = cafeService.getCafeMarkers(request);
+        UUID userId = (user != null) ? UUID.fromString(user.getUsername()) : null;
+        CafeMapMarkersResponse response = cafeService.getCafeMarkers(userId, request);
 
         return BaseResponse.success(response);
     }
@@ -92,7 +93,7 @@ public class CafeController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         
-        UUID userId = getUserId(user);
+        UUID userId = (user != null) ? UUID.fromString(user.getUsername()) : null;
 
         Slice<CafeBottomSheetResponse> responses = cafeService.getBottomSheetCafes(userId, request, page, size);
 

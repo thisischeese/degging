@@ -78,6 +78,21 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             @Param("radius") Double radius,
             @Param("includeFranchise") boolean includeFranchise);
 
+    /**
+     * [마커] 반경 내 카페 조회 + 태그 필터링
+     */
+    @Query("SELECT DISTINCT c FROM CafeEntity c " +
+            "JOIN c.vibeTags vt " +
+            "JOIN vt.vibe v " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false) " +
+            "AND v.tagName IN :tags")
+    List<CafeEntity> findMarkersByRadiusAndTags(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise,
+            @Param("tags") List<String> tags);
+
 //----------------------------------------------------------------------------------------------
 
     /**
@@ -121,6 +136,23 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             Pageable pageable);
 
     /**
+     * [바텀시트] 반경 내 카페 조회 + 태그 필터링 - 거리순
+     */
+    @Query("SELECT DISTINCT c FROM CafeEntity c " +
+            "JOIN c.vibeTags vt " +
+            "JOIN vt.vibe v " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false) " +
+            "AND v.tagName IN :tags " +
+            "ORDER BY ST_Distance(c.location, ST_GeogFromText(:point)) ASC")
+    Slice<CafeEntity> findBottomSheetByDistanceAndTags(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise,
+            @Param("tags") List<String> tags,
+            Pageable pageable);
+
+    /**
      * [바텀시트] 반경 내 카페 조회 - 별점 높은 순
      *
      * ratingSum / reviewCount 기준으로 내림차순 정렬
@@ -137,6 +169,24 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             Pageable pageable);
 
     /**
+     * [바텀시트] 반경 내 카페 조회 + 태그 필터링 - 별점 높은 순
+     */
+    @Query("SELECT DISTINCT c FROM CafeEntity c " +
+            "JOIN c.vibeTags vt " +
+            "JOIN vt.vibe v " +
+            "LEFT JOIN c.ratingStats rs " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false) " +
+            "AND v.tagName IN :tags " +
+            "ORDER BY CASE WHEN rs.reviewCount > 0 THEN CAST(rs.ratingSum AS double) / rs.reviewCount ELSE 0 END DESC")
+    Slice<CafeEntity> findBottomSheetByRatingAndTags(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise,
+            @Param("tags") List<String> tags,
+            Pageable pageable);
+
+    /**
      * [바텀시트] 반경 내 카페 조회 - 리뷰 많은 순
      *
      * reviewCount 기준으로 내림차순 정렬
@@ -150,6 +200,24 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             @Param("point") String point,
             @Param("radius") Double radius,
             @Param("includeFranchise") boolean includeFranchise,
+            Pageable pageable);
+
+    /**
+     * [바텀시트] 반경 내 카페 조회 + 태그 필터링 - 리뷰 많은 순
+     */
+    @Query("SELECT DISTINCT c FROM CafeEntity c " +
+            "JOIN c.vibeTags vt " +
+            "JOIN vt.vibe v " +
+            "LEFT JOIN c.ratingStats rs " +
+            "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
+            "AND (:includeFranchise = true OR c.franchise = false) " +
+            "AND v.tagName IN :tags " +
+            "ORDER BY COALESCE(rs.reviewCount, 0) DESC")
+    Slice<CafeEntity> findBottomSheetByReviewCountAndTags(
+            @Param("point") String point,
+            @Param("radius") Double radius,
+            @Param("includeFranchise") boolean includeFranchise,
+            @Param("tags") List<String> tags,
             Pageable pageable);
 
     /**
