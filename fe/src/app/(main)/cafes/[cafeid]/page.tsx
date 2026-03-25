@@ -9,20 +9,10 @@ import Modal from '@/common/components/Modal';
 import Button from '@/common/components/Button';
 import { Input } from '@/common/components/Input';
 import { StarColor, ScrapList } from '@/features/scraps/types';
-import { getScraps, postCreateScrap, postScrapCafe, deleteScrapCafe } from '@/features/scraps/api/scrapApi';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { getCafeDetail } from '@/features/cafes/api/cafeApi';
+import { Chip } from '@/common/components/Chip';
 
-interface CafeDetail {
-  id: string;
-  name: string;
-  description: string;
-  rating: number;
-  reviewCount: number;
-  businessHours: string;
-  address: string;
-  phone: string;
-  imageUrls: string[];
-  menuList: { name: string; price: string; imageUrl: string }[];
-}
 
 
 
@@ -35,32 +25,6 @@ const STAR_COLORS: { value: StarColor; hex: string }[] = [
   { value: 'SKY', hex: '#B7E3E4' },
 ];
 
-const mockFetchDetail = async (cafeid: string): Promise<CafeDetail> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id: cafeid,
-        name: "아우어베이커리 역삼점",
-        description: "더티초코, 빨미까레 등의 시그니처 메뉴와 특색 있는 경험을 파는 공간",
-        rating: 3.8,
-        reviewCount: 417,
-        businessHours: "영업 중 12:00 ~ 24:00",
-        address: "서울 마포구 포은로 63 형섭빌딩 2층",
-        phone: "0503-7152-6912",
-        imageUrls: [
-          "/images/cafe/cafe1.png",
-          "/images/cafe/cafe2.png",
-          "/images/cafe/cafe1.png",
-        ],
-        menuList: [
-          { name: "빨미까레", price: "5,500원", imageUrl: "/images/cafe/cafeMenu1.png" },
-          { name: "더티초코", price: "5,800원", imageUrl: "/images/cafe/cafeMenu2.png" },
-          { name: "빨미까레", price: "5,500원", imageUrl: "/images/cafe/cafeMenu1.png" },
-        ]
-      });
-    }, 500);
-  });
-};
 
 // ─────────────────────────────────────────────────────────
 // 스크랩 생성 모달 (오버레이 안에서 띄움)
@@ -310,9 +274,19 @@ function ScrapCategoryOverlay({
 
 export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: string }> | { cafeid: string } }) {
   const router = useRouter();
-  const [cafe, setCafe] = useState<CafeDetail | null>(null);
+  const resolvedParams = params instanceof Promise ? use(params) : params;
+  const cafeid = resolvedParams.cafeid;
+
+  // [수정] 실제 API 연동 쿼리
+  const { data: cafe } = useSuspenseQuery({
+    queryKey: ['cafeDetail', cafeid],
+    queryFn: () => getCafeDetail(cafeid),
+  });
+
   const [isScrapOpen, setIsScrapOpen] = useState(false);
-  const [isScrapped, setIsScrapped] = useState(false);
+  // [수정] API에서 받아온 초기 스크랩 상태 반영
+  const [isScrapped, setIsScrapped] = useState(cafe.isScrapped);
+  const [scrapColor, setScrapColor] = useState(cafe.scrapColor);
   const [savedCategoryIds, setSavedCategoryIds] = useState<string[]>([]);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [scrapCategories, setScrapCategories] = useState<ScrapList[]>([]);
@@ -321,64 +295,29 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  const resolvedParams = params instanceof Promise ? use(params) : params;
-  const cafeid = resolvedParams.cafeid;
-
-  useEffect(() => {
-    if (cafeid) {
-      mockFetchDetail(cafeid).then(setCafe);
+  const handleScrapSave = (selectedIds: string[]) => {
+    setSavedCategoryIds(selectedIds);
+    if (selectedIds.length > 0) {
+      setIsScrapped(true);
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 3000);
+    } else {
+      setIsScrapped(false);
     }
-  }, [cafeid]);
-
-  useEffect(() => {
-    // 모든 카테고리 목록 불러오기 (모든 스크랩 등 null ID 제외)
-    getScraps()
-      .then((data) => setScrapCategories(data.filter((c) => c.scrapId !== null)))
-      .catch((err) => console.error("스크랩 목록 조회 실패", err));
-  }, []);
-
-  const handleScrapSave = async (selectedIds: string[]) => {
-    try {
-      const toAdd = selectedIds.filter(id => !savedCategoryIds.includes(id));
-      const toRemove = savedCategoryIds.filter(id => !selectedIds.includes(id));
-
-      await Promise.all([
-        ...toAdd.map(id => postScrapCafe(id, cafeid)),
-        ...toRemove.map(id => deleteScrapCafe(id, cafeid))
-      ]);
-
-      setSavedCategoryIds(selectedIds);
-      if (selectedIds.length > 0) {
-        setIsScrapped(true);
-        setShowSavedToast(true);
-        setTimeout(() => setShowSavedToast(false), 3000);
-      } else {
-        setIsScrapped(false);
-      }
-    } catch (err) {
-      console.error('카테고리 저장/삭제 실패:', err);
-      alert('저장 중 오류가 발생했습니다.');
-    }
+    console.log('Saved to categories:', selectedIds);
   };
 
-  const handleCreateCategory = async (name: string, color: StarColor) => {
-    try {
-      await postCreateScrap({ name, color });
-      const updated = await getScraps();
-      setScrapCategories(updated.filter((c) => c.scrapId !== null));
-    } catch (err) {
-      console.error('카테고리 추가 실패:', err);
-      alert('카테고리 생성에 실패했습니다.');
-    }
+  const handleCreateCategory = (name: string, color: StarColor) => {
+    const newCat: ScrapList = {
+      scrapId: String(Date.now()),
+      name,
+      color,
+      thumbnailUrl: [],
+    };
+    setScrapCategories((prev) => [...prev, newCat]);
+    // Optionally automatically select the newly created category if needed later
   };
 
-  if (!cafe) {
-    return (
-      <div className="w-full h-[100dvh] flex items-center justify-center bg-bg_white text-gray-500 font-pretendard">
-        로딩 중...
-      </div>
-    );
-  }
 
   return (
     <motion.div
@@ -425,15 +364,15 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
               const swipe = offset.x;
               if (swipe < -50 || velocity.x < -500) {
                 setDirection(1);
-                setCurrentIndex((prev) => (prev + 1) % cafe.imageUrls.length);
+                setCurrentIndex((prev) => (prev + 1) % (cafe.images?.length || 1));
               } else if (swipe > 50 || velocity.x > 500) {
                 setDirection(-1);
-                setCurrentIndex((prev) => (prev - 1 + cafe.imageUrls.length) % cafe.imageUrls.length);
+                setCurrentIndex((prev) => (prev - 1 + (cafe.images?.length || 1)) % (cafe.images?.length || 1));
               }
             }}
           >
             <Image
-              src={cafe.imageUrls[currentIndex]}
+              src={cafe.images?.[currentIndex] || "/images/cafe/cafe1.png"}
               alt={`${cafe.name} 이미지 ${currentIndex + 1}`}
               fill
               className="object-cover pointer-events-none"
@@ -451,30 +390,44 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
           <Image src="/images/map/backIcon.png" alt="뒤로가기" width={40} height={40} className="w-10 h-10 object-contain drop-shadow-md pointer-events-none" draggable={false} />
         </button>
 
-        {/* 스크랩(별) 버튼 - 저장 여부에 따라 아이콘 변경 */}
+        {/* 스크랩(별) 버튼 - 저장 여부 및 색상에 따라 아이콘 변경 가능, 기본 스크랩 이미지를 쓰다가 추후 색상 반영 가능 */}
         <button
           onClick={() => setIsScrapOpen(true)}
           className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity pointer-events-auto"
         >
-          <Image
-            src={isScrapped ? "/images/map/scrappedIcon.png" : "/images/map/unscrappedIcon.png"}
-            alt="스크랩"
-            width={40}
-            height={40}
-            className="w-10 h-10 object-contain drop-shadow-md pointer-events-none"
-            draggable={false}
-          />
+          {isScrapped && scrapColor ? (
+            <div className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill={STAR_COLORS.find(c => c.value === scrapColor)?.hex || '#E54B4B'} stroke="none" className="drop-shadow-md">
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+              </svg>
+            </div>
+          ) : (
+            <Image
+              src={"/images/map/unscrappedIcon.png"}
+              alt="스크랩 전"
+              width={40}
+              height={40}
+              className="w-10 h-10 object-contain drop-shadow-md pointer-events-none"
+              draggable={false}
+            />
+          )}
         </button>
 
         {/* 하단 그라데이션 및 정보 오버레이 */}
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end px-5 pb-8 text-white z-10 pointer-events-none">
           <h1 className="text-[24px] font-semibold mb-2">{cafe.name}</h1>
-          <p className="text-[14px] text-gray-200 leading-snug w-[90%]">{cafe.description}</p>
+          <p className="text-[14px] text-gray-200 leading-snug w-[90%] mb-2 opacity-80">{cafe.description || "등록된 카페 소개가 없습니다."}</p>
+          {/* 바이브 태그 렌더링 */}
+          <div className="flex gap-2 flex-wrap">
+            {cafe.vibeTags?.map((tag, i) => (
+              <Chip key={i} label={`# ${tag}`} variant="map" isActive={true} />
+            ))}
+          </div>
         </div>
 
         {/* 인디케이터 */}
         <div className="absolute bottom-4 inset-x-0 flex justify-center items-center gap-1.5 z-20 pointer-events-none">
-          {cafe.imageUrls.map((_, idx) => (
+          {cafe.images?.map((_, idx) => (
             <div
               key={idx}
               className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${idx === currentIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
@@ -506,15 +459,15 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
           <div className="space-y-3.5">
             <div className="flex items-center gap-2.5">
               <Image src="/images/map/clockIcon.png" alt="영업시간" width={20} height={20} className="w-5 h-5 object-contain" />
-              <span className="text-gray-900 text-[14px] font-medium">{cafe.businessHours}</span>
+              <span className="text-gray-900 text-[14px] font-medium">{cafe.businessHours || "연중무휴"}</span>
             </div>
             <div className="flex items-center gap-2.5">
               <Image src="/images/map/locationIcon.png" alt="주소" width={20} height={20} className="w-5 h-5 object-contain" />
-              <span className="text-gray-900 text-[14px] font-medium">{cafe.address}</span>
+              <span className="text-gray-900 text-[14px] font-medium">{cafe.address || "주소 미등록"}</span>
             </div>
             <div className="flex items-center gap-2.5">
               <Image src="/images/map/phoneIcon.png" alt="전화번호" width={20} height={20} className="w-5 h-5 object-contain" />
-              <span className="text-gray-900 text-[14px] font-medium">{cafe.phone}</span>
+              <span className="text-gray-900 text-[14px] font-medium">{cafe.phone || "전화번호 미등록"}</span>
             </div>
           </div>
         </div>
@@ -523,15 +476,16 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
         <div className="px-5 py-6">
           <h2 className="text-[16px] font-bold text-gray-900 mb-5">메뉴</h2>
           <div className="space-y-5">
-            {cafe.menuList && cafe.menuList.length > 0 ? (
-              cafe.menuList.map((menu, idx) => (
-                <div key={idx} className="flex gap-4 cursor-pointer hover:bg-gray-50/50 p-1 -m-1 rounded-xl transition-colors">
-                  <div className="w-24 h-24 relative shrink-0">
-                    <Image src={menu.imageUrl} alt={menu.name} fill className="object-cover rounded-xl" />
+            {cafe.menus && cafe.menus.length > 0 ? (
+              cafe.menus.map((menu, idx) => (
+                <div key={idx} className="flex gap-4 p-1 -m-1 rounded-xl">
+                  {/* API에 메뉴 이미지가 없으므로 이미지 렌더링 부분 생략 혹은 플레이스홀더 */}
+                  <div className="w-24 h-24 relative shrink-0 bg-gray-100 rounded-xl flex items-center justify-center">
+                    <span className="text-xs text-gray-400">No Image</span>
                   </div>
                   <div className="flex flex-col justify-center">
                     <h3 className="text-[16px] font-bold text-gray-900 mb-1.5">{menu.name}</h3>
-                    <p className="text-[15px] font-medium text-gray-900">{menu.price}</p>
+                    <p className="text-[15px] font-medium text-gray-900">{typeof menu.price === 'number' ? `${menu.price.toLocaleString()}원` : menu.price}</p>
                   </div>
                 </div>
               ))
