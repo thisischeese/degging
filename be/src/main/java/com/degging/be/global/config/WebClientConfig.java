@@ -23,10 +23,10 @@ public class WebClientConfig {
         HttpClient httpClient = HttpClient.create()
                 // TCP 연결 타임아웃: 10초
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
-                // 응답 읽기 타임아웃: 10분 (AI 크롤링 배치가 오래 걸릴 수 있음)
-                .responseTimeout(Duration.ofMinutes(10))
+                // 응답 읽기 타임아웃: 60분 (AI 크롤링 배치가 오래 걸릴 수 있음)
+                .responseTimeout(Duration.ofMinutes(60))
                 .doOnConnected(conn -> conn
-                        .addHandlerLast(new ReadTimeoutHandler(10, TimeUnit.MINUTES))
+                        .addHandlerLast(new ReadTimeoutHandler(60, TimeUnit.MINUTES))
                         .addHandlerLast(new WriteTimeoutHandler(30, TimeUnit.SECONDS))
                 );
 
