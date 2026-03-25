@@ -77,7 +77,7 @@ public class AiCrawlerItemResponse {
         private String monHours; // 월요일 영업시간 정보
         private String tuesHours; // 화요일 영업시간 정보
         private String wedHours; // 수요일 영업시간 정보
-        private String thursHours; // 목요일 영업시간 정보
+        private String thurHours; // 목요일 영업시간 정보 (오타 수정: thurs -> thur)
         private String friHours; // 금요일 영업시간 정보
         private String satHours; // 토요일 영업시간 정보
         private String sunHours; // 일요일 영업시간 정보

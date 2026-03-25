@@ -88,7 +88,7 @@ public class CafeCrawlingUpdateService {
                     dto.getCafeBusinessHours().getMonHours(),
                     dto.getCafeBusinessHours().getTuesHours(),
                     dto.getCafeBusinessHours().getWedHours(),
-                    dto.getCafeBusinessHours().getThursHours(),
+                    dto.getCafeBusinessHours().getThurHours(),
                     dto.getCafeBusinessHours().getFriHours(),
                     dto.getCafeBusinessHours().getSatHours(),
                     dto.getCafeBusinessHours().getSunHours());
