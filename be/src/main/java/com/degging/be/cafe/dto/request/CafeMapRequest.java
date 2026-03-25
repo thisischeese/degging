@@ -3,6 +3,8 @@ package com.degging.be.cafe.dto.request;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * 사용자 위치 기반 반경 조회를 위한 요청 DTO
  */
@@ -12,4 +14,5 @@ public class CafeMapRequest {
     private Double latitude;                    // 현재 사용자의 위도
     private Double longitude;                   // 현재 사용자의 경도
     private boolean includeFranchise = false;   // 프랜차이즈 포함 여부
+    private List<String> tags;                  // 필터링할 태그 리스트
 }
