@@ -41,11 +41,6 @@ export const deleteUsers = async (): Promise<BaseResponse<null>> => {
     return axios_instance.delete<BaseResponse<null>>('/api/users') as unknown as Promise<BaseResponse<null>>;
 };
 
-/** 6. A/B 테스트 배정 정보 조회 */
-export const getAbTestJoin = async (): Promise<BaseResponse<{ group: 'A' | 'B' }>> => {
-    return axios_instance.get<BaseResponse<{ group: 'A' | 'B' }>>('/api/ab-tests/join') as unknown as Promise<BaseResponse<{ group: 'A' | 'B' }>>;
-};
-
 /** 7. 비밀번호 찾기 (임시 비밀번호 이메일 발송) */
 export const postFindPassword = async (data: FindPasswordData): Promise<BaseResponse<null>> => {
     return axios_instance.post<BaseResponse<null>>('/api/auth/password/find', data) as unknown as Promise<BaseResponse<null>>;
