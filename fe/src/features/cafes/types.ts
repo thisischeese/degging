@@ -1,0 +1,31 @@
+// 카페 메뉴 정보를 나타내는 타입
+export interface Menu {
+  name: string;
+  price: number | string;
+}
+
+// 카페 상세 조회 응답 데이터 모델
+export interface CafeDetailData {
+  cafeId: string;
+  name: string;
+  rating: number;
+  reviewCount: number;
+  isScrapped: boolean;
+  scrapColor: string | null;
+  images: string[];
+  vibeTags: string[];
+  menus: Menu[];
+  // 아래 필드는 명세에 없으나 UI에 필요할 수 있으므로 옵셔널로 처리
+  description?: string;
+  businessHours?: string;
+  address?: string;
+  phone?: string;
+}
+
+// 카페 상세 조회 전체 응답 모델
+export interface CafeDetailResponse {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  data: CafeDetailData;
+}
