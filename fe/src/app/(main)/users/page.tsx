@@ -149,7 +149,7 @@ function ProfileEditModal({
 
         <div className="flex gap-3 mt-1">
           <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">
-            닫기
+            돌아가기
           </Button>
           <Button variant="primary" size="full" onClick={handleSave} disabled={updateMutation.isPending || nicknameError !== "" || nickname.length < 2} className="h-[52px] rounded-xl!">
             {updateMutation.isPending ? "수정 중..." : "확인"}
