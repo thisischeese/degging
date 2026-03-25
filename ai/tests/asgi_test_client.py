@@ -23,13 +23,20 @@ class ASGITestClient:
     def post(self, path: str, json_body: Any) -> ASGIResponse:
         return asyncio.run(self._request("POST", path, json_body))
 
+    def get(self, path: str) -> ASGIResponse:
+        return asyncio.run(self._request("GET", path, None))
+
     async def _request(self, method: str, path: str, json_body: Any) -> ASGIResponse:
-        body = json.dumps(json_body).encode("utf-8")
-        headers = [
-            (b"host", b"testserver"),
-            (b"content-type", b"application/json"),
-            (b"content-length", str(len(body)).encode("ascii")),
-        ]
+        if json_body is None:
+            body = b""
+            headers = [(b"host", b"testserver"), (b"content-length", b"0")]
+        else:
+            body = json.dumps(json_body).encode("utf-8")
+            headers = [
+                (b"host", b"testserver"),
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("ascii")),
+            ]
         scope = {
             "type": "http",
             "asgi": {"version": "3.0"},

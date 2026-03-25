@@ -120,6 +120,21 @@ DAY_FIELD_MAP = {
 }
 DAY_ORDER = ["월", "화", "수", "목", "금", "토", "일"]
 DAY_FIELDS = [DAY_FIELD_MAP[day] for day in DAY_ORDER]
+TAB_SCROLL_STEPS = {"menu": 2, "photo": 4}
+TAB_READY_SELECTORS = {
+    "home": ("body",),
+    "menu": ("li", "img[src]", "body"),
+    "review": ("article", "li", "body"),
+    "photo": ("img[src]", "body"),
+    "information": ("body",),
+}
+SETTLE_WAIT_SECONDS = 0.5
+SCROLL_WAIT_SECONDS = 0.35
+SCROLL_STEP_PX = 800
+SEARCH_RESPONSE_TIMEOUT_SECONDS = 8
+SEARCH_FRAME_TIMEOUT_SECONDS = 10
+SEARCH_URL_EXTRACTION_POLL_SECONDS = 0.5
+MAX_STALE_SCROLL_ROUNDS = 2
 VIBE_TAGS = {
     "7ab663df-31be-43f8-b06a-2e8979806d89": "우드톤/따뜻함",
     "4ada6e46-3d5b-4ac8-abf9-9479abb35cfc": "식물원/플랜테리어",
@@ -1337,50 +1352,15 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
 
 class CafeCrawlingService:
     async def crawl_cafes(self, request_items: list[CafeCrawlingRequestItem]) -> CafeCrawlingResponse:
-        logger.info("Cafe crawling batch start: requested=%s", len(request_items))
-        runtime_settings = resolve_runtime_settings()
-        sequences = SequenceState()
-        items: list[CafeCrawlingMergedItem] = []
-        missing_cafe_ids: list[str] = []
+        from app.services.cafe_crawling_runtime import crawl_cafes_batch
 
-        for request_item in request_items:
-            seed = normalize_request_item(request_item)
-            logger.info("Cafe crawling item start: cafe_id=%s name=%s", seed.cafe_id, seed.name)
-            try:
-                crawled = await self.crawl_single_cafe(seed, runtime_settings, sequences)
-            except CafeCrawlingItemError:
-                logger.warning("Cafe crawling item missing: cafe_id=%s name=%s", seed.cafe_id, seed.name)
-                missing_cafe_ids.append(seed.cafe_id)
-                continue
-
-            validated = CafeCrawlingMergedItem.model_validate(crawled)
-            logger.info(
-                "Cafe crawling item completed: cafe_id=%s review_count=%s reviews=%s menus=%s images=%s",
-                seed.cafe_id,
-                validated.cafe_rating_stats.review_count,
-                len(validated.cafe_reviews),
-                len(validated.cafe_menus),
-                len(validated.cafe_images),
-            )
-            items.append(validated)
-
-        response = CafeCrawlingResponse(
-            items=items,
-            total=len(items),
-            missing_cafe_ids=missing_cafe_ids,
-        )
-        logger.info(
-            "Cafe crawling batch complete: requested=%s succeeded=%s missing=%s",
-            len(request_items),
-            response.total,
-            len(response.missing_cafe_ids),
-        )
-        return response
+        return await crawl_cafes_batch(request_items)
 
     async def crawl_single_cafe(
         self,
         seed: CafeSeed,
-        runtime_settings: RuntimeSettings,
-        sequences: SequenceState,
+        resources: Any,
     ) -> dict[str, Any]:
-        return await enrich_cafe(seed, runtime_settings, sequences)
+        from app.services.cafe_crawling_runtime import crawl_single_cafe
+
+        return await crawl_single_cafe(seed, resources)
