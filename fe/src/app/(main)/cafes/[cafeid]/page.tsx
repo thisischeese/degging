@@ -8,7 +8,7 @@ import { X, Check, Info } from 'lucide-react';
 import Modal from '@/common/components/Modal';
 import Button from '@/common/components/Button';
 import { Input } from '@/common/components/Input';
-import { StarColor } from '@/features/scraps/types';
+import { StarColor, ScrapList } from '@/features/scraps/types';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { getCafeDetail } from '@/features/cafes/api/cafeApi';
 import { Chip } from '@/common/components/Chip';
@@ -307,10 +307,12 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
     console.log('Saved to categories:', selectedIds);
   };
 
-  const handleCreateCategory = (name: string) => {
-    const newCat: ScrapCategoryOption = {
+  const handleCreateCategory = (name: string, color: StarColor) => {
+    const newCat: ScrapList = {
       scrapId: String(Date.now()),
       name,
+      color,
+      thumbnailUrl: [],
     };
     setScrapCategories((prev) => [...prev, newCat]);
     // Optionally automatically select the newly created category if needed later
