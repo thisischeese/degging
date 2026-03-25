@@ -5,6 +5,12 @@
 - Install `k6` on the load generator host.
 - Keep `/metrics` reachable from the same network.
 
+## 4-Core Docker Run
+```bash
+docker build -t cafe-ai-local .
+docker run --rm --cpus=4 -p 8000:8000 --env-file .env cafe-ai-local
+```
+
 ## Baseline / After Commands
 ```bash
 k6 run perf/k6/cafe-crawling.js -e BASE_URL=http://127.0.0.1:8000 -e PAYLOAD=1-cafe -e ITERATIONS=10

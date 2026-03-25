@@ -6,7 +6,10 @@ _client: AsyncIOMotorClient | None = None
 
 async def connect_mongodb() -> None:
     global _client
-    _client = AsyncIOMotorClient(str(settings.mongo_uri))
+    _client = AsyncIOMotorClient(
+        str(settings.mongo_uri),
+        maxPoolSize=settings.mongo_max_pool_size,
+    )
 
 
 async def close_mongodb() -> None:
