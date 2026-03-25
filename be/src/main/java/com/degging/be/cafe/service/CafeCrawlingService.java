@@ -32,6 +32,7 @@ public class CafeCrawlingService {
     private final CafeRepository cafeRepository;
     private final AiCrawlerApiClient aiCrawlerApiClient;
     private final CafeCrawlingUpdateService cafeCrawlingUpdateService;
+    private final CrawlingBackupService crawlingBackupService;
 
     // 프록시를 통한 자기 자신 호출을 위한 지연 주입
     private final ObjectProvider<CafeCrawlingService> cafeCrawlingServiceProvider;
@@ -149,6 +150,9 @@ public class CafeCrawlingService {
                         if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
                             log.info("[루프 {}/워커 {}] {}건 수신 성공, DB 저장을 시작합니다.", currentLoop, batchIdx,
                                     response.getItems().size());
+
+                            // AI 응답 즉시 JSON 백업 (DB 저장 실패 대비)
+                            crawlingBackupService.backup(response, currentLoop, batchIdx);
 
                             // 프록시 객체(self)를 통해 트랜잭션 보장하며 저장
                             self.saveCrawlingData(response.getItems());
