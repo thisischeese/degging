@@ -24,8 +24,6 @@ export interface SignupStepProps {
   formData: SignupFormData;
   /** 데이터를 업데이트하는 함수 (Partial을 사용하여 일부만 업데이트 가능) */
   updateData: (newData: Partial<SignupFormData>) => void;
-  /** 알럿 모달을 띄우는 함수 */
-  onAlert?: (title: string, message?: string) => void;
 }
 
 /** 로그인 요청 데이터 */
