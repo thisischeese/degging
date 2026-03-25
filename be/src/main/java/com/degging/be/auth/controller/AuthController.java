@@ -128,23 +128,4 @@ public class AuthController {
         memberService.findPassword(request.getEmail());
         return BaseResponse.success();
     }
-
-    /**
-     * 비밀번호 재설정
-     * 로그인한 사용자가 본인의 비밀번호를 변경
-     *
-     * @param user 현재 인증된 사용자의 정보
-     * @return 성공 응답 객체
-     */
-    @PatchMapping("/password/reset")
-    public BaseResponse<Void> resetPassword(
-            @AuthenticationPrincipal UserDetails user,
-            @Valid @RequestBody ResetPasswordRequest request) {
-
-        UUID userId = getUserId(user);
-
-        memberService.resetPassword(userId, request);
-        return BaseResponse.success();
-    }
-
 }
