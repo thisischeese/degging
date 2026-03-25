@@ -1,10 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 
+from app.core.config import settings
+from app.core.metrics import render_metrics
 from app.routers import ai_router
 from app.db.mongodb import connect_mongodb, close_mongodb
 from app.db.postgresql import connect_postgresql, close_postgresql
@@ -57,3 +59,10 @@ async def validation_exception_logging_handler(request: Request, exc: RequestVal
 @app.get("/health", tags=["health"])
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> Response:
+    if not settings.prometheus_metrics_enabled:
+        return Response(status_code=404)
+    return render_metrics()

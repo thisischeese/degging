@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PortInt = Annotated[int, Field(gt=0, le=65535)]
 RequiredStr = Annotated[str, Field(min_length=1)]
+PositiveInt = Annotated[int, Field(gt=0)]
 
 
 def find_env_file() -> str | None:
@@ -61,7 +62,16 @@ class Settings(BaseSettings):
 
     # Discovery
     discovery_top_k: int = 100
-    
+
+    # Cafe crawling
+    cafe_batch_concurrency: PositiveInt = 3
+    cafe_tab_concurrency: PositiveInt = 2
+    cafe_image_concurrency: PositiveInt = 3
+    cafe_http_max_connections: PositiveInt = 30
+
+    # Metrics
+    prometheus_metrics_enabled: bool = True
+
     hf_token: RequiredStr
 
     @computed_field

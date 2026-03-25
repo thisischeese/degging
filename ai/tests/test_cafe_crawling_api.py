@@ -2,6 +2,7 @@ import unittest
 
 from fastapi import FastAPI
 
+from app.main import app as main_app
 from app.models.cafe_crawling import CafeCrawlingResponse
 from app.routers import ai_router
 from app.routers.cafes import get_cafe_crawling_service
@@ -193,3 +194,12 @@ class CafeCrawlingAPITest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertIn("crawler runtime", response.json()["detail"])
+
+    def test_metrics_endpoint_exposes_prometheus_payload(self) -> None:
+        client = ASGITestClient(main_app)
+
+        response = client.get("/metrics")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/plain", dict(response.headers)["content-type"])
+        self.assertIn("cafe_crawling_stage_seconds", response.body.decode("utf-8"))
