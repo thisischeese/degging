@@ -69,6 +69,7 @@ public class CafeCrawlingUpdateService {
             CafeRatingStatsEntity stats = cafe.getRatingStats();
             if (stats == null) {
                 stats = CafeRatingStatsEntity.from(cafe);
+                cafe.setRatingStats(stats); // 양방향 연관관계 설정
                 em.persist(stats);
             }
             stats.updateCrawledStats(
@@ -94,6 +95,7 @@ public class CafeCrawlingUpdateService {
                     .sunHours(dto.getCafeBusinessHours().getSunHours())
                     .build();
             
+            cafe.setBusinessHoursEntity(hours); // 양방향 연관관계 설정
             cafeBusinessHoursRepository.save(hours);
             log.info("영업 시간 업데이트 완료");
         }

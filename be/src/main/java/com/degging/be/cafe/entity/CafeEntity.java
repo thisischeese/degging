@@ -166,4 +166,12 @@ public class CafeEntity extends BaseEntity {
         this.thumbnailUrl = thumbnailUrl;
         this.cafeIntro = cafeIntro;
     }
+
+    public void setBusinessHoursEntity(CafeBusinessHoursEntity businessHoursEntity) {
+        this.businessHoursEntity = businessHoursEntity;
+    }
+
+    public void setRatingStats(CafeRatingStatsEntity ratingStats) {
+        this.ratingStats = ratingStats;
+    }
 }
