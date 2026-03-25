@@ -106,9 +106,8 @@ export default function StepNickname({ next, updateData, formData }: SignupStepP
   const handleNext = () => {
     // 모든 조건 충족 시 다음 단계
     if (isCheck && birthDate.length === 10 && isValidDate(birthDate) && gender) {
-      // 마침표(.)를 하이픈(-)으로 변환하여 백엔드 표준에 맞춥니다.
-      const formattedBirthDate = birthDate.replace(/\./g, "-"); 
-      const stepData = { nickname, birthDate: formattedBirthDate, gender };
+      // 백엔드 명세서에 맞춰 마침표(.)를 포함한 YYYY.MM.DD 형태로 그대로 전송합니다.
+      const stepData = { nickname, birthDate, gender };
       updateData(stepData);
       next(stepData);
     }
