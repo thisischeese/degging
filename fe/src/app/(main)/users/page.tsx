@@ -13,6 +13,8 @@ import ReviewItem from "@/features/users/components/ReviewItem";
 import { UserProfile } from "@/features/users/types";
 import { getUserInfo, getMyReviews, patchUsers, patchPasswordReset, deleteUsers } from "@/features/users/api/userApi";
 import { postLogout } from "@/features/auth/api/loginApi";
+import { AxiosError } from "axios";
+import { BaseResponse } from "@/features/auth/types";
 
 import gearWheelIcon from "@/assets/icons/gearWheelIcon.png";
 
@@ -177,9 +179,8 @@ function WithdrawModal({ isOpen, onClose, nickname }: { isOpen: boolean; onClose
 }
 
 function PasswordChangeModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [currentPw, setCurrentPw] = useState("");
-  const [currentPwError, setCurrentPwError] = useState("");
-  const [currentPwVerified, setCurrentPwVerified] = useState(false);
+  const [oldPw, setOldPw] = useState("");
+  const [oldPwError, setOldPwError] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPwError, setNewPwError] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -190,22 +191,18 @@ function PasswordChangeModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const passwordMutation = useMutation({
     mutationFn: patchPasswordReset,
     onSuccess: (res) => {
-      if (res.code === 200) {
-        alert("비밀번호가 변경되었습니다.");
+      if (res.code === 200 || res.code === "200") {
+        alert("비밀번호가 성공적으로 변경되었습니다.");
         onClose();
       } else {
-        alert(res.message || "비밀번호 변경 실패");
+        alert(res.message || "비밀번호 변경에 실패했습니다.");
       }
     },
+    onError: (error: AxiosError<BaseResponse<null>>) => {
+      const serverMessage = error.response?.data?.message;
+      alert(serverMessage || "서버 오류가 발생했습니다. 다시 시도해주세요.");
+    },
   });
-
-  const handleVerifyCurrentPw = () => {
-    if (!currentPw) {
-      setCurrentPwError("비밀번호를 입력해주세요.");
-      return;
-    }
-    setCurrentPwVerified(true);
-  };
 
   const handleNewPwChange = (val: string) => {
     setNewPw(val);
@@ -215,22 +212,68 @@ function PasswordChangeModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   };
 
   const handleSubmit = () => {
-    if (!currentPwVerified || !newPw || !PW_REGEX.test(newPw) || newPw !== confirmPw) return;
-    passwordMutation.mutate({ currentPassword: currentPw, newPassword: newPw });
+    // 프론트엔드 기본 유효성 검사
+    if (!oldPw) {
+      setOldPwError("현재 비밀번호를 입력해주세요.");
+      return;
+    }
+    if (!newPw || !PW_REGEX.test(newPw)) {
+      setNewPwError("새 비밀번호 형식이 올바르지 않습니다.");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setConfirmPwError("비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+
+    passwordMutation.mutate({ 
+      oldPassword: oldPw, 
+      newPassword: newPw, 
+      confirmPassword: confirmPw 
+    });
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" disableBackdropClick>
       <div className="flex flex-col gap-5">
         <h2 className="text-[16px] font-bold text-gray-900 mb-1">회원 비밀번호 변경</h2>
-        <Input label="현재 비밀번호 확인" type="password" value={currentPw} onChange={(e) => { setCurrentPw(e.target.value); setCurrentPwVerified(false); }} placeholder="비밀번호를 입력하세요" error={currentPwError} disabled={currentPwVerified}
-          rightElement={<button type="button" onClick={handleVerifyCurrentPw} disabled={currentPwVerified} className={`px-4 py-2 rounded-full text-[13px] font-semibold ${currentPwVerified ? "bg-green-500 text-white" : "bg-[#C3304F] text-white"}`}>{currentPwVerified ? "확인됨" : "확인"}</button>} />
-        {currentPwVerified && <p className="text-[12px] text-green-600 px-1 -mt-3">✅ 비밀번호가 확인되었습니다.</p>}
-        <Input label="새로운 비밀번호" type="password" value={newPw} onChange={(e) => handleNewPwChange(e.target.value)} placeholder="8~16자 이내의 영문, 숫자, 특수문자" error={newPwError} disabled={!currentPwVerified} />
-        <Input label="비밀번호 확인" type="password" value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setConfirmPwError(e.target.value !== newPw ? "비밀번호가 일치하지 않습니다." : ""); }} placeholder="새로운 비밀번호를 다시 입력하세요" error={confirmPwError} disabled={!currentPwVerified} />
+        
+        <Input 
+          label="현재 비밀번호 확인" 
+          type="password" 
+          value={oldPw} 
+          onChange={(e) => { setOldPw(e.target.value); setOldPwError(""); }} 
+          placeholder="현재 비밀번호를 입력하세요" 
+          error={oldPwError} 
+        />
+        
+        <Input 
+          label="새로운 비밀번호" 
+          type="password" 
+          value={newPw} 
+          onChange={(e) => handleNewPwChange(e.target.value)} 
+          placeholder="8~16자 이내의 영문, 숫자, 특수문자" 
+          error={newPwError} 
+        />
+        
+        <Input 
+          label="비밀번호 확인" 
+          type="password" 
+          value={confirmPw} 
+          onChange={(e) => { setConfirmPw(e.target.value); setConfirmPwError(e.target.value !== newPw ? "비밀번호가 일치하지 않습니다." : ""); }} 
+          placeholder="새로운 비밀번호를 다시 입력하세요" 
+          error={confirmPwError} 
+        />
+
         <div className="flex gap-3 mt-1">
           <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">돌아가기</Button>
-          <Button variant="primary" size="full" onClick={handleSubmit} disabled={passwordMutation.isPending || !currentPwVerified} className="h-[52px] rounded-xl!">
+          <Button 
+            variant="primary" 
+            size="full" 
+            onClick={handleSubmit} 
+            disabled={passwordMutation.isPending} 
+            className="h-[52px] rounded-xl!"
+          >
             {passwordMutation.isPending ? "변경 중..." : "변경완료"}
           </Button>
         </div>
