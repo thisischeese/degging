@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import Modal from "@/common/components/Modal";
-import { postFindPassword } from "@/features/users/api/passwordApi";
+import { postFindPassword } from "@/features/users/api/userApi";
 
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("");

@@ -51,6 +51,7 @@ export interface FindPasswordData {
 
 /** 비밀번호 변경 요청 데이터 */
 export interface ResetPasswordData {
-  currentPassword?: string;
+  oldPassword?: string;
   newPassword?: string;
+  confirmPassword?: string;
 }
