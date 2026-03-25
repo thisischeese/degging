@@ -102,10 +102,13 @@ function ProfileEditModal({
 
   const handleSave = () => {
     if (!validateNickname(nickname)) return;
+    
+    const isDefaultImage = previewUrl === DEFAULT_PROFILE_IMAGE;
+
     updateMutation.mutate({
       nickname,
-      profileImage: selectedFile || undefined,
-      profileImageUrl: !selectedFile ? (previewUrl || undefined) : undefined
+      profileImage: selectedFile || null,
+      defaultImage: isDefaultImage
     });
   };
 
