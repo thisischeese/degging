@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -35,6 +37,9 @@ public class CafeCrawlingService {
 
     // 프록시를 통한 자기 자신 호출을 위한 지연 주입
     private final ObjectProvider<CafeCrawlingService> cafeCrawlingServiceProvider;
+
+    // 동시에 4개 배치를 처리하기 위한 전용 스레드 풀
+    private final Executor crawlingExecutor = Executors.newFixedThreadPool(4);
 
     private static final int BATCH_SIZE = 100;
 
@@ -70,9 +75,14 @@ public class CafeCrawlingService {
      */
     @Async
     public void crawling() {
-        // 전체 데이터 개수 확인
-        long totalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
-        log.info("크롤링 프로세스 시작 (전체 대상: {}개)", totalToCrawl);
+        // [기존 코드] 전체 데이터 개수 확인
+        // long totalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
+        // log.info("크롤링 프로세스 시작 (전체 대상: {}개)", totalToCrawl);
+
+        // [테스트용] 1000개 제한 적용
+        long actualTotalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
+        long totalToCrawl = Math.min(actualTotalToCrawl, 1000); 
+        log.info("크롤링 프로세스 시작 (테스트 모드: {}개 제한 / 실제 대상: {}개)", totalToCrawl, actualTotalToCrawl);
 
         if (totalToCrawl == 0) {
             log.info("수집할 카페가 없습니다.");
@@ -149,7 +159,7 @@ public class CafeCrawlingService {
                     } catch (Exception e) {
                         log.error("[루프 {}/워커 {}] 크롤링 작업 중 예외 발생: {}", currentLoop, batchIdx, e.getMessage());
                     }
-                }));
+                }, crawlingExecutor));
             }
 
             // 모든 워커가 이 루프의 작업을 마칠 때까지 대기
