@@ -71,19 +71,30 @@ public class S3ImageService implements ImageService{
      */
     @Override
     public void deleteImage(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
         try {
-            // '/'를 포함하고 있다면 제거해줌
-            if (imageUrl.startsWith("/")) imageUrl = imageUrl.substring(1);
+            // 전체 경로가 들어올 경우 처리
+            String key = imageUrl;
+            if (key.contains(".com/")) {
+                key = key.substring(key.lastIndexOf(".com/") + 5);
+            }
+
+            log.info("[S3] 삭제 시도하는 최종 Key: {}", key);
+
+            // 맨 앞의 '/' 제거 (S3 Key는 슬래시로 시작하면 안 됨)
+            while (key.startsWith("/")) {
+                key = key.substring(1);
+            }
 
             // 삭제 요청 객체 생성
             DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
-                    .key(imageUrl)
+                    .key(key)
                     .build();
 
             // 버킷에서 해당 파일 제거
             s3Client.deleteObject(deleteRequest);
-            log.info("[S3] 파일 삭제 성공: {}", imageUrl);
+            log.info("[S3] 파일 삭제 성공: {}", key);
 
         } catch (Exception e){
             // 메인 로직이 롤백되지 않도록 로그만 기록

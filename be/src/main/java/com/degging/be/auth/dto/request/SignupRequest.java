@@ -2,6 +2,8 @@ package com.degging.be.auth.dto.request;
 
 import com.degging.be.user.entity.Gender;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,6 +38,8 @@ public class SignupRequest {
 
     @NotNull(message = "생년월일은 필수 입력값입니다.")
     @Past(message = "생년월일은 과거 날짜여야 합니다.")
-    @JsonFormat(pattern = "yyyy.MM.dd")
+    // 역직렬화(String -> LocalDate) 도구 지정
+    @JsonDeserialize(using = LocalDateDeserializer.class)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy.MM.dd", timezone = "Asia/Seoul")
     private LocalDate birthDate;
 }

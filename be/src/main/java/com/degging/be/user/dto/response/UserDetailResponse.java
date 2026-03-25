@@ -26,6 +26,7 @@ public class UserDetailResponse {
     private LocalDate birthDate;
     private List<String> preferredTags; // mongoDB 에서 가져온 취향 태그
     private Character abGroup;
+    private String profileImageUrl; // 프로필 이미지
 
     // entity -> dto (password 제외하고 클라이언트에 응답)
     public static UserDetailResponse of(UserEntity entity, UserProfileEntity profileEntity, List<String> tags){
@@ -37,6 +38,7 @@ public class UserDetailResponse {
                 .birthDate(profileEntity.getBirthDate())
                 .preferredTags(tags)
                 .abGroup(entity.getAbGroup())
+                .profileImageUrl(profileEntity.getProfileImageUrl())
                 .build();
     }
 }

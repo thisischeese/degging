@@ -24,7 +24,10 @@ public enum UserErrorCode implements ErrorCode {
     NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "U006", "이미 사용 중인 닉네임입니다."),
 
     // 온보딩 취향 정보 조회
-    ONBOARDING_NOT_FOUND(HttpStatus.NOT_FOUND, "U007", "해당 회원의 온보딩(취향) 정보가 존재하지 않습니다.");
+    ONBOARDING_NOT_FOUND(HttpStatus.NOT_FOUND, "U007", "해당 회원의 온보딩(취향) 정보가 존재하지 않습니다."),
+
+    // 유저 프로필 수정
+    PROFILE_IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "U008", "프로필 이미지 업로드 중 오류가 발생했습니다.");
 
     // 응답으로 반환할 HTTP 상태 코드
     private final HttpStatus status;

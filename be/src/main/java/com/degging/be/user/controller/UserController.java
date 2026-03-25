@@ -12,6 +12,7 @@ import com.degging.be.user.service.UserOnboardingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -76,9 +77,9 @@ public class UserController {
      * @param user 인증 객체로 부터 추출된 유저
      * @return 200
      */
-    @PatchMapping
+    @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<?> updateUser(
-            @RequestBody @Valid UserUpdateRequest request,
+            @ModelAttribute @Valid UserUpdateRequest request,
             @AuthenticationPrincipal UserDetails user){
         UUID userId = getUserId(user);
         memberService.updateUser(userId, request);
