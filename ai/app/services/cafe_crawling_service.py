@@ -298,15 +298,6 @@ def parse_intro(info_text: str) -> str:
     return " ".join(desc_lines).strip()
 
 
-def parse_phone(home_text: str) -> str | None:
-    phone_re = re.compile(r"^(0\d{1,4}-\d{3,4}-\d{4})$")
-    for line in read_lines(home_text):
-        match = phone_re.match(line)
-        if match:
-            return match.group(1)
-    return None
-
-
 def parse_menu_text(menu_text: str) -> list[dict[str, Any]]:
     lines = read_lines(menu_text)
     body = lines[skip_nav_header(lines) :]
@@ -1262,10 +1253,6 @@ async def upload_cafe_images(
     return thumbnail_url, image_rows
 
 
-def build_location(lon: float | None, lat: float | None) -> str | None:
-    return None if lon is None or lat is None else f"SRID=4326;POINT({lon} {lat})"
-
-
 def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
     cafe_reviews: list[dict[str, Any]] = []
     for index, review in enumerate(reviews):
@@ -1323,19 +1310,9 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
 
     cafes = {
         "cafe_id": seed.cafe_id,
-        "bizes_id": seed.bizes_id,
-        "kakao_place_id": seed.kakao_place_id or "",
         "name": seed.name,
-        "address": seed.address,
-        "road_address": seed.road_address,
-        "phone": parse_phone(texts["홈"]),
         "thumbnail_url": thumbnail_url,
-        "status": seed.status or "OPEN",
-        "location": build_location(seed.lon, seed.lat),
         "cafe_intro": summarized_intro or "",
-        "franchise": False,
-        "brandName": None,
-        "branchName": None,
     }
 
     cafe_rating_stats = {

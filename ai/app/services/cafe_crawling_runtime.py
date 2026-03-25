@@ -59,7 +59,6 @@ from app.services.cafe_crawling_service import (
     parse_business_hours,
     parse_intro,
     parse_menu_text,
-    parse_phone,
     parse_review_metrics,
     parse_structured_visitor_reviews,
     place_url_from_all_search,
@@ -718,12 +717,6 @@ async def upload_images_with_metrics(
             photo_urls,
             max_concurrency=resources.image_concurrency,
         )
-
-
-def build_location(lon: float | None, lat: float | None) -> str | None:
-    return None if lon is None or lat is None else f"SRID=4326;POINT({lon} {lat})"
-
-
 def assign_sequence_ids(items: list[dict[str, Any]]) -> list[CafeCrawlingMergedItem]:
     sequences = SequenceState()
     validated_items: list[CafeCrawlingMergedItem] = []
@@ -774,19 +767,9 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
 
         cafes = {
             "cafe_id": seed.cafe_id,
-            "bizes_id": seed.bizes_id,
-            "kakao_place_id": seed.kakao_place_id or "",
             "name": seed.name,
-            "address": seed.address,
-            "road_address": seed.road_address,
-            "phone": parse_phone(home_text),
             "thumbnail_url": thumbnail_url,
-            "status": seed.status or "OPEN",
-            "location": build_location(seed.lon, seed.lat),
             "cafe_intro": summarized_intro or "",
-            "franchise": False,
-            "brandName": None,
-            "branchName": None,
         }
 
         cafe_rating_stats = {

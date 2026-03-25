@@ -30,19 +30,9 @@ class CafeCrawlingRequest(RootModel[list[CafeCrawlingRequestItem]]):
 
 class CafeInfo(BaseModel):
     cafe_id: str
-    bizes_id: str
-    kakao_place_id: str
     name: str
-    address: str | None = None
-    road_address: str | None = None
-    phone: str | None = None
     thumbnail_url: str | None = None
-    status: str
-    location: str | None = None
     cafe_intro: str
-    franchise: bool
-    brandName: str | None = None
-    branchName: str | None = None
 
 
 class CafeRatingStats(BaseModel):
