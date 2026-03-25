@@ -22,7 +22,10 @@ export const getCafeMarkers = async (params: CafeMapRequest): Promise<CafeMapRes
 // [실제 API 연동] 지도 중심(또는 사용자) 좌표를 기준으로 바텀시트에 표시될 카페 목록을 페이징하여 조회합니다.
 export const getCafeBottomSheetList = async (params: CafeBottomSheetRequest): Promise<CafeBottomSheetResponse['data']> => {
   const response = (await axios_instance.get<CafeBottomSheetResponse>('/api/cafes/map/bottom-sheet', {
-    params,
+    params: {
+      ...params,
+      tags: params.tags || [], // 빈 배열 보장
+    },
   })) as unknown as CafeBottomSheetResponse;
 
   return response.data;

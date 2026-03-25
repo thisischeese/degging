@@ -20,10 +20,10 @@ import { SearchCafeItem } from '@/features/cafes/types';
 const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
 
 const SORT_OPTIONS = [
-  { value: 'recommend', label: '추천순' },
-  { value: 'rating', label: '별점순' },
-  { value: 'review', label: '리뷰많은순' },
-  { value: 'distance', label: '거리순' },
+  { value: 'RECOMMEND', label: '추천순' },
+  { value: 'RATING', label: '별점순' },
+  { value: 'REVIEW_COUNT', label: '리뷰많은순' },
+  { value: 'DISTANCE', label: '거리순' },
 ];
 
 function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: number } }) {
@@ -43,7 +43,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isFranchiseIncluded, setIsFranchiseIncluded] = useState(false);
-  const [sortBy, setSortBy] = useState('recommend');
+  const [sortBy, setSortBy] = useState('RECOMMEND');
   const [windowHeight, setWindowHeight] = useState(800);
   const [activeCafeId, setActiveCafeId] = useState<string | null>(null);
   // [수정] 최신 ID를 리스너에서 참조하기 위한 Ref
@@ -115,12 +115,13 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     isFetchingNextPage,
     isLoading: isBottomSheetLoading
   } = useInfiniteQuery({
-    queryKey: ['map', 'bottom-sheet', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, sortBy],
+    queryKey: ['map', 'bottom-sheet', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, sortBy, selectedFilters],
     queryFn: ({ pageParam = 0 }) => getCafeBottomSheetList({
       latitude: mapCenter.lat,
       longitude: mapCenter.lng,
       includeFranchise: isFranchiseIncluded,
-      sort: sortBy.toUpperCase(),
+      sort: sortBy as 'DISTANCE' | 'RATING' | 'REVIEW_COUNT' | 'RECOMMEND',
+      tags: selectedFilters.length > 0 ? selectedFilters.map(f => f.replace('# ', '')) : undefined,
       page: pageParam,
       size: 10
     }),
@@ -505,6 +506,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
                     address={typedCafe.roadAddress || typedCafe.address || ''}
                     distance=""
                     imageUrl={typedCafe.thumbnailUrl || ''}
+                    isScrapped={'isScrapped' in typedCafe ? typedCafe.isScrapped : false} // [추가] 스크랩 여부
                     isActive={activeCafeId === typedCafe.cafeId}
                     onClick={() => handleCafeClick(typedCafe)}
                   />

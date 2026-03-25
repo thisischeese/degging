@@ -29,7 +29,8 @@ export interface CafeBottomSheetRequest {
   latitude: number;
   longitude: number;
   includeFranchise: boolean;
-  sort: string;
+  sort: 'DISTANCE' | 'RATING' | 'REVIEW_COUNT' | 'RECOMMEND';
+  tags?: string[]; // [추가] 취향 태그 필터링
   page: number;
   size: number;
 }
@@ -43,6 +44,7 @@ export interface CafeBottomSheetItem {
   roadAddress: string;
   latitude: number;
   longitude: number;
+  isScrapped: boolean; // [추가] 스크랩 여부
 }
 
 // 바텀시트 API의 페이징 응답 형태입니다.
