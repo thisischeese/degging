@@ -13,13 +13,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -38,15 +36,12 @@ public class CafeCrawlingService {
     // 프록시를 통한 자기 자신 호출을 위한 지연 주입
     private final ObjectProvider<CafeCrawlingService> cafeCrawlingServiceProvider;
 
-    // 동시에 4개 배치를 처리하기 위한 전용 스레드 풀
-    private final Executor crawlingExecutor = Executors.newFixedThreadPool(4);
-
-    private static final int BATCH_SIZE = 100;
+    private static final int BATCH_SIZE = 50;
+    private static final int BATCH_START_DELAY_SECONDS = 2; // 배치 간 요청 시작 딜레이
 
     /**
      * 수집된 데이터를 DB에 저장 (배치 단위로 트랜잭션 처리)
      */
-    @Transactional
     public void saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
         log.info("크롤링된 카페: {}개, 업데이트 진행 중...", dataList.size());
 
@@ -81,7 +76,7 @@ public class CafeCrawlingService {
 
         // [테스트용] 1000개 제한 적용
         long actualTotalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
-        long totalToCrawl = Math.min(actualTotalToCrawl, 1000); 
+        long totalToCrawl = Math.min(actualTotalToCrawl, 1000);
         log.info("크롤링 프로세스 시작 (테스트 모드: {}개 제한 / 실제 대상: {}개)", totalToCrawl, actualTotalToCrawl);
 
         if (totalToCrawl == 0) {
@@ -96,10 +91,10 @@ public class CafeCrawlingService {
             return;
         }
 
-        // 한 루프에서 처리할 양 (4개 워커 * 배치 사이즈 100)
+        // 한 루프에서 처리할 양 (4개 워커 * 배치 사이즈 50)
         final int WORKERS = 4;
         final int TOTAL_PER_LOOP = BATCH_SIZE * WORKERS;
-        
+
         int totalLoops = (int) Math.ceil((double) totalToCrawl / TOTAL_PER_LOOP);
 
         for (int loop = 0; loop < totalLoops; loop++) {
@@ -116,17 +111,30 @@ public class CafeCrawlingService {
 
             // 조회된 데이터를 100개씩 4개 배치로 분할
             List<List<CafeEntity>> batches = IntStream.range(0, (allCafesInLoop.size() + BATCH_SIZE - 1) / BATCH_SIZE)
-                    .mapToObj(i -> allCafesInLoop.subList(i * BATCH_SIZE, Math.min(allCafesInLoop.size(), (i + 1) * BATCH_SIZE)))
+                    .mapToObj(i -> allCafesInLoop.subList(i * BATCH_SIZE,
+                            Math.min(allCafesInLoop.size(), (i + 1) * BATCH_SIZE)))
                     .collect(Collectors.toList());
 
-            log.info("[루프 {}/{}] {}개의 워커로 병렬 요청 시작 (총 {}건)", loop + 1, totalLoops, batches.size(), allCafesInLoop.size());
+            log.info("[루프 {}/{}] {}개의 워커로 병렬 요청 시작 (총 {}건)", loop + 1, totalLoops, batches.size(),
+                    allCafesInLoop.size());
 
-            // 각 배치를 병렬로 처리
+            // 각 배치를 병렬로 처리 (배치 시작 전 딜레이로 AI 서버 부하 분산)
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (int i = 0; i < batches.size(); i++) {
                 final int batchIdx = i + 1;
                 final List<CafeEntity> currentBatch = batches.get(i);
                 final int currentLoop = loop + 1;
+
+                // 배치 시작 간격 (첫 배치 제외)
+                if (i > 0) {
+                    try {
+                        log.info("[루프 {}/워커 {}] {}초 후 요청 시작...", currentLoop, batchIdx, BATCH_START_DELAY_SECONDS);
+                        TimeUnit.SECONDS.sleep(BATCH_START_DELAY_SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("배치 딜레이 중 인터럽트 발생: {}", e.getMessage());
+                    }
+                }
 
                 futures.add(CompletableFuture.runAsync(() -> {
                     // AI 서버 요청용 DTO 변환
@@ -139,18 +147,20 @@ public class CafeCrawlingService {
                         AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
 
                         if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
-                            log.info("[루프 {}/워커 {}] {}건 수신 성공, DB 저장을 시작합니다.", currentLoop, batchIdx, response.getItems().size());
-                            
+                            log.info("[루프 {}/워커 {}] {}건 수신 성공, DB 저장을 시작합니다.", currentLoop, batchIdx,
+                                    response.getItems().size());
+
                             // 프록시 객체(self)를 통해 트랜잭션 보장하며 저장
                             self.saveCrawlingData(response.getItems());
 
                             // 누락된 카페 ID 로깅 (카페명 포함)
                             if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
-                                List<CafeEntity> missingCafes = cafeRepository.findAllById(response.getMissingCafeIds());
+                                List<CafeEntity> missingCafes = cafeRepository
+                                        .findAllById(response.getMissingCafeIds());
                                 List<String> missingCafeInfo = missingCafes.stream()
                                         .map(c -> c.getName() + "(" + c.getCafeId() + ")")
                                         .collect(Collectors.toList());
-                                log.warn("[루프 {}/워커 {}] AI 크롤링 누락 대상 ({}건): {}", 
+                                log.warn("[루프 {}/워커 {}] AI 크롤링 누락 대상 ({}건): {}",
                                         currentLoop, batchIdx, missingCafeInfo.size(), missingCafeInfo);
                             }
                         } else {
@@ -159,12 +169,12 @@ public class CafeCrawlingService {
                     } catch (Exception e) {
                         log.error("[루프 {}/워커 {}] 크롤링 작업 중 예외 발생: {}", currentLoop, batchIdx, e.getMessage());
                     }
-                }, crawlingExecutor));
+                }));
             }
 
             // 모든 워커가 이 루프의 작업을 마칠 때까지 대기
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            
+
             log.info("[루프 {}/{}] 모든 워커 작업 완료", loop + 1, totalLoops);
 
             // 다음 루프 시작 전 지연 시간 추가 (AI 서버 부하 방지)
