@@ -99,7 +99,7 @@ axios_instance.interceptors.response.use(
         processQueue(refreshError as AxiosError, null);
         isRefreshing = false;
 
-        alert('세션이 완전히 만료되었습니다. 다시 로그인해주세요.');
+        // alert('세션이 완전히 만료되었습니다. 다시 로그인해주세요.');
         if (typeof window !== 'undefined') {
           Cookies.remove("access_token", { path: "/" }); // 쿠키 제거
           Cookies.remove("refresh_token", { path: "/" });
@@ -111,7 +111,9 @@ axios_instance.interceptors.response.use(
 
     // 403: 권한 없음 (예: 일반 유저가 관리자 페이지 접근)
     if (error.response?.status === 403) {
-      alert('접근 권한이 없습니다.');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'; 
+      }
     }
 
     return Promise.reject(error);

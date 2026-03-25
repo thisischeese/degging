@@ -6,17 +6,19 @@ import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 
-export default function StepNickname({ next, updateData }: SignupStepProps) {
+export default function StepNickname({ next, updateData, formData }: SignupStepProps) {
   const [nickname, setNickname] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<"MALE" | "FEMALE" | null>(null);
   const [isCheck, setIsCheck] = useState(false);
   const [nicknameError, setNicknameError] = useState("");
+  const [nicknameSuccess, setNicknameSuccess] = useState(""); // 추가: 성공 메시지용 상태
 
   // 닉네임 유효성 검사 (실시간 에러 메시지용)
   const validateNickname = (value: string) => {
     if (value.length === 0) {
       setNicknameError("");
+      setNicknameSuccess("");
       return false;
     }
     
@@ -24,16 +26,19 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
     const nicknameRegex = /^[a-zA-Z0-9가-힣]+$/;
     if (!nicknameRegex.test(value)) {
       setNicknameError("공백, 특수문자, 자음/모음은 사용할 수 없습니다.");
+      setNicknameSuccess("");
       return false;
     }
 
     // 2. 글자 수 검사
     if (value.length < 2 || value.length > 10) {
       setNicknameError("닉네임은 2~10자 사이여야 합니다.");
+      setNicknameSuccess("");
       return false;
     }
 
     setNicknameError("");
+    setNicknameSuccess("");
     return true;
   };
 
@@ -44,11 +49,12 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
     // [임시] admin일 때만 중복 에러 테스트
     if (nickname === "admin") {
       setNicknameError("이미 사용 중인 닉네임입니다.");
+      setNicknameSuccess("");
       setIsCheck(false);
     } else {
       setNicknameError("");
+      setNicknameSuccess("사용 가능한 닉네임입니다."); // 성공 시 인라인 텍스트 설정
       setIsCheck(true);
-      alert("사용 가능한 닉네임입니다.");
     }
   };
 
@@ -144,6 +150,12 @@ export default function StepNickname({ next, updateData }: SignupStepProps) {
               </Button>
             }
           />
+          {/* 에러가 없고 성공 메시지가 있을 때 파란색으로 표시 */}
+          {!nicknameError && nicknameSuccess && (
+            <p className="text-xs font-pretendard text-blue-500 px-1 mt-0.5 animate-in slide-in-from-top-1 fade-in duration-200">
+              {nicknameSuccess}
+            </p>
+          )}
         </div>
 
         {/* 생년월일 & 성별 가로 배치 (mt-4 간격 유지) */}
