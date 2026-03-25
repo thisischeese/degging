@@ -144,9 +144,6 @@ public class CafeCrawlingUpdateService {
         // 콜드스타트용 리뷰 데이터 업데이트 (벌크 처리)
         if (dto.getCafeReviews() != null && !dto.getCafeReviews().isEmpty()) {
 
-            // 기존 크롤링된 리뷰 벌크 삭제 (내부 회원 리뷰 보호)
-            reviewRepository.deleteAllByCafeIdAndUserEmailLike(cafe.getCafeId());
-
             // 이번 카페의 모든 리뷰어 정보 수집 (이메일 맵핑)
             Map<String, AiCrawlerItemResponse.CafeReviewDto> reviewDtoMap = new HashMap<>();
             for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
@@ -210,9 +207,5 @@ public class CafeCrawlingUpdateService {
 
             reviewRepository.saveAll(reviewsToSave);
         }
-
-        // 현재 처리중인 카페의 영속성 컨텍스트를 DB에 쏘고 비워 OOM 방지
-        em.flush();
-        em.clear();
     }
 }
