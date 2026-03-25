@@ -11,8 +11,6 @@ import SurveyModal from "@/features/ranks/components/SurveyModal";
 import { useQuery } from "@tanstack/react-query";
 import { getRealTimeRankings } from "@/features/ranks/api/rankingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
-import { getAbTestJoin } from "@/features/users/api/userApi";
-import { setAbGroup as syncAbGroupWithBackend } from "@/lib/abTest";
 
 export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,21 +31,15 @@ export default function MainPage() {
     };
   }, []);
 
-  // 백엔드 A/B 테스트 배정 정보 동기화
-  const { data: abSyncData } = useQuery({
-    queryKey: ["ab-test", "sync"],
-    queryFn: getAbTestJoin,
-    staleTime: Infinity, // 앱 세션 동안 한 번만 동기화
-  });
-
-  // 현재 활성 그룹 결정 (백엔드 응답 우선 -> 로컬 스토리지 -> 랜덤)
-  const activeGroup = abSyncData?.data?.group || getAbGroup();
+  const [activeGroup, setActiveGroup] = useState<'A' | 'B'>('A');
 
   useEffect(() => {
-    if (abSyncData?.data?.group) {
-      syncAbGroupWithBackend(abSyncData.data.group);
-    }
-  }, [abSyncData]);
+    // 백엔드 API 호출 없이 순수 프론트엔드 로직으로 A/B 그룹 배정 및 GA4(GTM) 전송
+    const timer = setTimeout(() => {
+      setActiveGroup(getAbGroup());
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // PC 환경 마우스 드래그 스크롤을 위한 상태
 
