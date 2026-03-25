@@ -7,6 +7,9 @@ import com.degging.be.cafe.repository.VibeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.AuthErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
+import com.degging.be.global.util.ImageUtils;
+import com.degging.be.infra.storage.s3.ImageService;
+import com.degging.be.infra.storage.s3.ImageUploadResult;
 import com.degging.be.user.dto.request.UserUpdateRequest;
 import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.entity.UserEntity;
@@ -16,20 +19,21 @@ import com.degging.be.user.repository.UserProfileRepository;
 import com.degging.be.user.repository.UserRepository;
 import com.degging.be.user.repository.mongodb.UserOnboardingRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * 회원가입, 닉네임 중복 검사, 비밀번호 찾기 및 재설정 관리 클래스
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -41,6 +45,7 @@ public class MemberService {
     private final UserOnboardingRepository userOnboardingRepository;
     private final VibeRepository vibeRepository;
     private final UserProfileRepository userProfileRepository;
+    private final ImageService imageService;
 
     // 랜덤 생성기
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -123,7 +128,7 @@ public class MemberService {
         List<String> tags = getUserPreferred(userId);
 
         // password 를 제외하고 dto 로 변환하여 응답
-        return UserDetailResponse.of(entity, profileEntity,tags);
+        return UserDetailResponse.of(entity, profileEntity, tags);
     }
 
     /**
@@ -167,16 +172,64 @@ public class MemberService {
      * 회원 정보를 수정하는 메서드
      */
     @Transactional
-    public void updateUser(UUID userId, UserUpdateRequest request) {
-        // 닉네임 유효성 검증
-        checkNicknameDuplication(request.getNickname());
-        // dto -> entity
+    public void updateUser(UUID userId, UserUpdateRequest request){
         UserEntity entity = userRepository.findById(userId)
                 .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
+        // 현재 닉네임과 요청받은 닉네임이 다를 때만 중복 검사 실행
+        if (!entity.getProfile().getNickname().equals(request.getNickname())) {
+            checkNicknameDuplication(request.getNickname());
+        }
+
+        String originalProfileImageUrl = entity.getProfile().getProfileImageUrl();
+        String profileImageUrl = originalProfileImageUrl;
+
+        // 기본 이미지로 지정하기로 한 경우
+        if (request.isDefault()){
+            // 기본이면 profileImageUrl 은 null 로 반환
+            profileImageUrl = null;
+            // 기존 프로필 사진이 존재했다면 S3 에서 삭제해줌
+            if (originalProfileImageUrl != null){
+                imageService.deleteImage(originalProfileImageUrl);
+                log.info("기존 이미지 삭제 성공");
+            }
+        } else { // 기본 이미지가 아닐 경우
+             // 새 이미지가 올라왔다면, 기존 이미지 삭제 로직 호출
+             if (request.getProfileImage() != null && !request.getProfileImage().isEmpty()) {
+                 if (originalProfileImageUrl != null){
+                    imageService.deleteImage(originalProfileImageUrl);
+                 }
+                // S3 에 새 이미지 업로드
+                profileImageUrl = uploadReviewImages(request.getProfileImage());
+             }
+            // 새 사진이 안 올라옴 -> 아무것도 안 함, 원래 url 그대로 넘겨줌
+        }
         // 회원 정보 업데이트, 더티체킹
-        entity.getProfile().updateUser(request.getNickname(), request.getProfileImageUrl());
+        entity.getProfile().updateUser(request.getNickname(), profileImageUrl);
     }
+
+    // 회원 이미지 업로드 후 링크 반환 메서드
+    public String uploadReviewImages(MultipartFile image){
+        if (image == null) return null;
+
+        try {
+            // 리사이징한 이미지를 S3 업로드 후 KeyPath 반환 받아 DB에 저장
+            // 유저 프로필 이미지 생성 (200px) 및 업로드
+            log.info("이미지 리사이징 시작: {}", image.getOriginalFilename());
+            MultipartFile thumbnail = ImageUtils.resizeImage(image, 200);
+
+            // S3 업로드
+            ImageUploadResult thumbResult = imageService.uploadImage(thumbnail, "user/profile");
+            log.info("이미지 업로드 성공: {}", thumbResult.storedName());
+
+            return thumbResult.storedName();
+        } catch (IOException e){
+            // 파일 읽기/쓰기 실패 시 처리
+            log.error("이미지 리사이징 중 입출력 오류 발생: {}", e.getMessage(), e);
+            throw new BaseException(UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED);
+        }
+    }
+
 
     /**
      * 특정 회원을 삭제하는 메서드
