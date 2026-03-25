@@ -54,6 +54,7 @@ from app.services.cafe_crawling_service import (
     ensure_playwright_runtime_supported,
     extract_review_card_payloads as base_extract_review_card_payloads,
     extract_json_object,
+    is_allowed_image_url,
     normalize_request_item,
     parse_business_hours,
     parse_intro,
@@ -482,7 +483,7 @@ async def collect_cdn_images(page: Page, *, scroll_steps: int = 0) -> list[str]:
     collected: set[str] = set()
 
     def on_request(request) -> None:
-        if request.resource_type == "image" and any(cdn in request.url for cdn in ["pstatic.net", "naver.net"]):
+        if request.resource_type == "image" and is_allowed_image_url(request.url):
             collected.add(request.url.split("?")[0])
 
     page.on("request", on_request)
@@ -498,7 +499,7 @@ async def collect_cdn_images(page: Page, *, scroll_steps: int = 0) -> list[str]:
             """
         )
         for src in srcs:
-            if any(cdn in src for cdn in ["pstatic.net", "naver.net"]):
+            if is_allowed_image_url(src):
                 high_quality = re.sub(r"/thumbnail/\d+x\d+(?:crop)?/", "/", src)
                 collected.add(high_quality.split("?")[0])
     finally:

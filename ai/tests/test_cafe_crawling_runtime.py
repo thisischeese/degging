@@ -119,6 +119,28 @@ async def fake_resources_context(*args, **kwargs):
 
 
 class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
+    def test_is_allowed_image_url_only_accepts_real_image_hosts(self) -> None:
+        self.assertTrue(
+            cafe_crawling_runtime.is_allowed_image_url(
+                "https://pup-review-phinf.pstatic.net/sample/upload_image.jpeg"
+            )
+        )
+        self.assertTrue(
+            cafe_crawling_runtime.is_allowed_image_url(
+                "https://ldb-phinf.pstatic.net/20250325_1/1742860000000abc.jpg?type=f132_132"
+            )
+        )
+        self.assertFalse(
+            cafe_crawling_runtime.is_allowed_image_url(
+                "https://search.pstatic.net/common/?src=https%3A%2F%2Fexample.com%2Fproxy.jpg"
+            )
+        )
+        self.assertFalse(
+            cafe_crawling_runtime.is_allowed_image_url(
+                "https://pstatic.net/common/proxy.jpg"
+            )
+        )
+
     async def test_crawl_cafes_batch_preserves_order_when_tasks_finish_out_of_order(self) -> None:
         request_items = [
             CafeCrawlingRequestItem(cafeId=CAFE_ID_1, name="alpha"),
