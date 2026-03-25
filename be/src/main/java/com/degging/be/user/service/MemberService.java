@@ -185,7 +185,7 @@ public class MemberService {
         String profileImageUrl = originalProfileImageUrl;
 
         // 기본 이미지로 지정하기로 한 경우
-        if (request.isDefault()){
+        if (request.isDefaultImage()){
             // 기본이면 profileImageUrl 은 null 로 반환
             profileImageUrl = null;
             // 기존 프로필 사진이 존재했다면 S3 에서 삭제해줌
@@ -197,6 +197,7 @@ public class MemberService {
              // 새 이미지가 올라왔다면, 기존 이미지 삭제 로직 호출
              if (request.getProfileImage() != null && !request.getProfileImage().isEmpty()) {
                  if (originalProfileImageUrl != null){
+                     log.info("이미지 삭제 들어감 : {}", originalProfileImageUrl);
                     imageService.deleteImage(originalProfileImageUrl);
                  }
                 // S3 에 새 이미지 업로드

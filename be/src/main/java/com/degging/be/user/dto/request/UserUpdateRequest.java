@@ -16,5 +16,5 @@ public class UserUpdateRequest {
     @NotBlank
     private String nickname;
     private MultipartFile profileImage; // 프로필 이미지 수정 가능, [사진 선택] 시 담겨옴
-    private boolean isDefault; // [기본 이미지] 일 경우 true
+    private boolean defaultImage; // [기본 이미지] 일 경우 true
  }

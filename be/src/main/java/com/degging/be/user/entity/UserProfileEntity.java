@@ -45,9 +45,7 @@ public class UserProfileEntity extends BaseEntity {
      */
     public void updateUser(String nickname, String profileImageUrl) {
         this.nickname = nickname;
-        if (profileImageUrl != null && !profileImageUrl.isBlank()){
-            this.profileImageUrl = profileImageUrl;
-        }
+        this.profileImageUrl = profileImageUrl;
     }
 
     /**
