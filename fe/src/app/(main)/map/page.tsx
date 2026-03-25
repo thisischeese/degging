@@ -88,11 +88,24 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
         return getCafeMarkers({
           latitude: mapCenter.lat,
           longitude: mapCenter.lng,
-          includeFranchise: isFranchiseIncluded
+          includeFranchise: isFranchiseIncluded,
+          tags: selectedFilters.length > 0 ? selectedFilters.map(f => f.replace('# ', '')) : undefined
         });
       }
     },
   });
+
+  const isSearchMode = keyword.trim().length > 0;
+  
+  // 마커를 그릴 데이터 배열 파싱 (타입 가드)
+  const markerItems = isSearchMode 
+    ? (cafes as SearchCafeItem[]) 
+    : (cafes as { markers: CafeMarker[]; filterTags: string[] }).markers;
+    
+  // 서버에서 받은 추천 필터 태그 (향후 UI 렌더링을 위해 추출)
+  const serverFilterTags = !isSearchMode 
+    ? (cafes as { markers: CafeMarker[]; filterTags: string[] }).filterTags 
+    : [];
 
   // [추가] 바텀시트 리스트 무한 스크롤 쿼리
   const {
@@ -115,18 +128,18 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.last ? undefined : allPages.length;
     },
-    enabled: !keyword.trim() // 검색 모드일 때는 무한 스크롤 API 비활성화
+    enabled: !isSearchMode // 검색 모드일 때는 무한 스크롤 API 비활성화
   });
 
   // 검색 모드일 경우 검색된 cafes 자체를 바텀시트 리스트로 사용
-  const bottomSheetItems = keyword.trim() ? cafes : (bottomSheetData ? bottomSheetData.pages.flatMap(page => page.content) : []);
+  const bottomSheetItems = isSearchMode ? markerItems : (bottomSheetData ? bottomSheetData.pages.flatMap(page => page.content) : []);
 
   // [추가] 초기 검색 시 첫 번째 결과로 중심 이동시키기
   const prevKeywordRef = useRef(keyword);
   useEffect(() => {
-    if (keyword.trim() && cafes && cafes.length > 0 && mapInstance.current) {
+    if (isSearchMode && markerItems && markerItems.length > 0 && mapInstance.current) {
       if (prevKeywordRef.current !== keyword) {
-        const first = cafes[0];
+        const first = markerItems[0];
         const newPos = new window.kakao.maps.LatLng(first.latitude, first.longitude);
         mapInstance.current.setCenter(newPos);
         
@@ -141,7 +154,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     } else {
       prevKeywordRef.current = keyword; // 키워드가 지워졌거나 결과가 없을 때 동기화
     }
-  }, [cafes, keyword, controls]);
+  }, [markerItems, keyword, controls, isSearchMode]);
 
   // [추가] 바텀시트 끝에 닿으면 다음 페이지 호출하는 스크롤 핸들러
   useEffect(() => {
@@ -215,7 +228,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
   // 3. 카페 데이터가 변경될 때마다 마커 업데이트 (지도가 로드된 상태 보장)
   useEffect(() => {
-    if (!mapInstance.current || !cafes || !isMapLoaded) return;
+    if (!mapInstance.current || !markerItems || !isMapLoaded) return;
 
     // 기존 마커 제거
     markersRef.current.forEach((marker) => marker.setMap(null));
@@ -225,7 +238,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     const imageSize = new window.kakao.maps.Size(24, 24);
     const markerImage = new window.kakao.maps.MarkerImage("/images/map/recommendLogo.png", imageSize);
 
-    cafes.forEach((cafe) => {
+    markerItems.forEach((cafe) => {
       // [수정] API 응답 타입의 latitude, longitude 사용
       const markerPosition = new window.kakao.maps.LatLng(cafe.latitude, cafe.longitude);
 
@@ -262,7 +275,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
       marker.setMap(mapInstance.current);
       markersRef.current.push(marker);
     });
-  }, [cafes, router, isMapLoaded, controls]);
+  }, [markerItems, router, isMapLoaded, controls]);
 
   // 4. 위치 추적 (watchPosition) 및 UI 동기화
   useEffect(() => {

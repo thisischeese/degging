@@ -7,10 +7,13 @@ import {
   CafeBottomSheetResponse 
 } from "../types";
 
-// [실제 API 연동] 지도의 중심(또는 사용자) 좌표와 프랜차이즈 포함 여부를 넘겨 카페 마커 목록을 조회합니다.
-export const getCafeMarkers = async (params: CafeMapRequest): Promise<CafeMarker[]> => {
+// [실제 API 연동] 지도의 중심(또는 사용자) 좌표와 프랜차이즈 포함 여부, 태그를 넘겨 카페 마커 목록을 조회합니다.
+export const getCafeMarkers = async (params: CafeMapRequest): Promise<CafeMapResponse['data']> => {
   const response = (await axios_instance.get<CafeMapResponse>('/api/cafes/map/markers', {
-    params,
+    params: {
+      ...params,
+      tags: params.tags || [], // 빈 배열이 안정적으로 전달되도록 기본값 보장
+    },
   })) as unknown as CafeMapResponse;
 
   return response.data;
