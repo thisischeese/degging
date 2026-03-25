@@ -5,12 +5,10 @@ import com.degging.be.review.entity.ReviewEntity;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,13 +19,6 @@ import java.util.UUID;
 public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
     // 리뷰 작성자, 카페, 내용을 이용한 중복 체크
     boolean existsByUserUserIdAndCafeCafeIdAndContent(UUID userId, UUID cafeId, String content);
-
-    /**
-     * 특정 카페의 크롤링된 기존 리뷰들을 벌크 삭제합니다.
-     */
-    @Modifying
-    @Query("DELETE FROM ReviewEntity r WHERE r.cafe.cafeId = :cafeId AND r.user.email LIKE 'crawler_%'")
-    void deleteAllByCafeIdAndUserEmailLike(@Param("cafeId") UUID cafeId);
 
     // 카페 ID로 전체 리뷰 조회 (리뷰, 리뷰 이미지, 회원 정보), 최신순으로 가져옴
     @Query("SELECT r FROM ReviewEntity r " +
@@ -58,4 +49,5 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
             "LEFT JOIN FETCH r.reviewImages " +
             "WHERE r.user.userId = :userId " +
             "ORDER BY r.createdAt DESC")
-    Slice<ReviewEntity> findAllByUserIdWithImages(UUID userId, Pageable pageable);}
+    Slice<ReviewEntity> findAllByUserIdWithImages(UUID userId, Pageable pageable);
+}
