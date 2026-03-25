@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -128,10 +129,16 @@ public class MemberService {
      * 해당 UUID 에 맞는 tagName 을 조회해 반환함
      */
     public List<String> getUserPreferred(UUID userId){
-        System.out.println(userId);
-        // 회원 취향 태그 조회
+        // 회원 취향 태그 조회 (없을 경우 온보딩 미실행을 고려하여 null 값으로 초기화)
         UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId)
-                .orElseThrow(()-> new BaseException(UserErrorCode.ONBOARDING_NOT_FOUND));
+                .orElse(null);
+
+        // 온보딩 데이터 자체가 없거나, 있더라도 태그 Map이 비어있으면 빈 리스트 반환
+        if (onboardingData == null || onboardingData.getPreferredTags() == null || onboardingData.getPreferredTags().isEmpty()) {
+            return Collections.emptyList(); // [] 반환
+        }
+
+        // 취향 태그들 가져와서
         Map<UUID, Integer> tags = onboardingData.getPreferredTags();
 
         // 상위 3개의 태그 조회
@@ -141,8 +148,15 @@ public class MemberService {
                 .map(Map.Entry::getKey) // 상위 3개의 UUID 를 가져옴
                 .toList();
 
-        // 해당 태그 UUID 를 이용해 태그명을 조회
-        return vibeRepository.findTagNameByTagIds(top3);
+        // top3가 비어있을 경우 빈 리스트 반환
+        if (top3.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 해당 태그 UUID 를 이용해 태그명을 조회 (조회 결과가 없으면 자동으로 빈 리스트 처리)
+        List<String> tagNames = vibeRepository.findTagNameByTagIds(top3);
+
+        return (tagNames != null && !tagNames.isEmpty()) ? tagNames : Collections.emptyList();
     }
 
     /**
