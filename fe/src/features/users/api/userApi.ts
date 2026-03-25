@@ -2,7 +2,7 @@ import { axios_instance } from "@/api/axios_instance";
 import { BaseResponse } from "@/features/auth/types";
 import { UserProfile, ResetPasswordData, MyReviewResponse, FindPasswordData } from "../types";
 
-/** 1. 사용자 정보 조회 (명세서와 1:1 일치하는 데이터 반환) */
+/** 1. 사용자 정보 조회 (명세서와 일치하는 데이터 반환) */
 export const getUserInfo = async (): Promise<BaseResponse<UserProfile>> => {
     // any 없이 unknown 캐스팅으로 인터셉터가 언래핑한 데이터를 안전하게 반환합니다.
     return axios_instance.get<BaseResponse<UserProfile>>('/api/users') as unknown as Promise<BaseResponse<UserProfile>>;
