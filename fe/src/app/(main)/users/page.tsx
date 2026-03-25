@@ -150,29 +150,55 @@ function ProfileEditModal({
 
 function WithdrawModal({ isOpen, onClose, nickname }: { isOpen: boolean; onClose: () => void; nickname: string }) {
   const router = useRouter();
+  const [isSuccess, setIsSuccess] = useState(false);
+
   const withdrawMutation = useMutation({
     mutationFn: deleteUsers,
     onSuccess: (res) => {
-      if (res.code === 200) {
-        localStorage.clear();
-        router.push("/onboarding");
+      if (res.code === 200 || res.code === "200") {
+        setIsSuccess(true);
+      } else {
+        alert(res.message || "탈퇴 처리 중 오류가 발생했습니다.");
       }
     },
   });
 
+  const handleFinalConfirm = () => {
+    localStorage.clear();
+    // 쿠키도 함께 정리하여 세션 만료 알림 방지
+    document.cookie = "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    router.push("/onboarding");
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm" disableBackdropClick>
+    <Modal isOpen={isOpen} onClose={isSuccess ? handleFinalConfirm : onClose} size="sm" disableBackdropClick>
       <div className="flex flex-col items-center gap-6 py-2">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-[17px] font-bold text-gray-900">정말 탈퇴하시겠어요?</h2>
-          <p className="text-[13px] text-[#C3304F] font-medium">탈퇴 시, {nickname}님의 모든 기록이 삭제됩니다.</p>
-        </div>
-        <div className="flex gap-3 w-full">
-          <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">돌아가기</Button>
-          <Button variant="primary" size="full" onClick={() => withdrawMutation.mutate()} disabled={withdrawMutation.isPending} className="h-[52px] rounded-xl!">
-            {withdrawMutation.isPending ? "처리 중..." : "탈퇴하기"}
-          </Button>
-        </div>
+        {isSuccess ? (
+          <>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <span className="text-4xl mb-2">🎉</span>
+              <h2 className="text-[17px] font-bold text-gray-900">탈퇴가 완료되었습니다</h2>
+              <p className="text-[13px] text-gray-500 font-medium">그동안 Degging을 이용해주셔서 감사합니다.</p>
+            </div>
+            <Button variant="primary" size="full" onClick={handleFinalConfirm} className="h-[52px] rounded-xl!">
+              확인
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <h2 className="text-[17px] font-bold text-gray-900">정말 탈퇴하시겠어요?</h2>
+              <p className="text-[13px] text-[#C3304F] font-medium">탈퇴 시, {nickname}님의 모든 기록이 삭제됩니다.</p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">돌아가기</Button>
+              <Button variant="primary" size="full" onClick={() => withdrawMutation.mutate()} disabled={withdrawMutation.isPending} className="h-[52px] rounded-xl!">
+                {withdrawMutation.isPending ? "처리 중..." : "탈퇴하기"}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );

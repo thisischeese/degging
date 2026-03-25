@@ -99,7 +99,7 @@ axios_instance.interceptors.response.use(
         processQueue(refreshError as AxiosError, null);
         isRefreshing = false;
 
-        alert('세션이 완전히 만료되었습니다. 다시 로그인해주세요.');
+        // alert('세션이 완전히 만료되었습니다. 다시 로그인해주세요.');
         if (typeof window !== 'undefined') {
           Cookies.remove("access_token", { path: "/" }); // 쿠키 제거
           Cookies.remove("refresh_token", { path: "/" });
