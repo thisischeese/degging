@@ -130,7 +130,7 @@ public class RankService {
     /**
      * 기준점 대비 시간 가중치가 적용된 기본 점수 계산
      */
-    private double calculateBaseScore() {
+    public double calculateBaseScore() {
         long nowSeconds = System.currentTimeMillis() / 1000;
         long referenceTime = 1767225600L; // 2026-01-01
         double timeWeight = (nowSeconds - referenceTime) / 100000.0;
@@ -140,7 +140,7 @@ public class RankService {
     /**
      * 개별 메뉴의 ID 변환 및 Redis 점수 업데이트 처리
      */
-    private void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
+    public void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
         try {
             // String -> Integer 검증
             Integer.parseInt(menuIdStr);

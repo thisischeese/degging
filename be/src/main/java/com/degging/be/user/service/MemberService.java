@@ -181,31 +181,34 @@ public class MemberService {
             checkNicknameDuplication(request.getNickname());
         }
 
-        String originalProfileImageUrl = entity.getProfile().getProfileImageUrl();
-        String profileImageUrl = originalProfileImageUrl;
+        String originalUrl = entity.getProfile().getProfileImageUrl();
+        String newProfileImageUrl = originalUrl;
 
+        // 이미지 처리 분기
         // 기본 이미지로 지정하기로 한 경우
-        if (request.isDefault()){
-            // 기본이면 profileImageUrl 은 null 로 반환
-            profileImageUrl = null;
-            // 기존 프로필 사진이 존재했다면 S3 에서 삭제해줌
-            if (originalProfileImageUrl != null){
-                imageService.deleteImage(originalProfileImageUrl);
-                log.info("기존 이미지 삭제 성공");
+        if (request.isDefaultImage()) {
+            // [CASE 1] 기본 이미지로 변경 -> 무조건 null
+            newProfileImageUrl = null;
+            if (originalUrl != null && !originalUrl.isBlank()) {
+                imageService.deleteImage(originalUrl);
+                log.info("[S3] 기존 이미지 삭제 성공: {}", originalUrl);
             }
-        } else { // 기본 이미지가 아닐 경우
-             // 새 이미지가 올라왔다면, 기존 이미지 삭제 로직 호출
-             if (request.getProfileImage() != null && !request.getProfileImage().isEmpty()) {
-                 if (originalProfileImageUrl != null){
-                    imageService.deleteImage(originalProfileImageUrl);
-                 }
-                // S3 에 새 이미지 업로드
-                profileImageUrl = uploadReviewImages(request.getProfileImage());
-             }
-            // 새 사진이 안 올라옴 -> 아무것도 안 함, 원래 url 그대로 넘겨줌
+        } else if (request.getProfileImage() != null && !request.getProfileImage().isEmpty()) {
+            // [CASE 2] 새 이미지 업로드
+            if (originalUrl != null && !originalUrl.isBlank()) {
+                imageService.deleteImage(originalUrl);
+                log.info("[S3] 교체 전 기존 이미지 삭제: {}", originalUrl);
+            }
+            newProfileImageUrl = uploadReviewImages(request.getProfileImage());
+        } else {
+            // [CASE 3] 변경 없음 -> 만약 기존 데이터가 ""라면 여기서 null로 정제
+            if (originalUrl != null && originalUrl.isBlank()) {
+                newProfileImageUrl = null;
+            }
         }
-        // 회원 정보 업데이트, 더티체킹
-        entity.getProfile().updateUser(request.getNickname(), profileImageUrl);
+
+        // 3. 더티 체킹으로 업데이트
+        entity.getProfile().updateUser(request.getNickname(), newProfileImageUrl);
     }
 
     // 회원 이미지 업로드 후 링크 반환 메서드
