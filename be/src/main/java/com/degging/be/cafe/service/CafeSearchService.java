@@ -9,11 +9,9 @@ import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.cafe.repository.VibeRepository;
 import com.degging.be.global.event.KafkaProducer;
 import com.degging.be.global.event.SearchEvent;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -21,7 +19,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -34,7 +31,6 @@ public class CafeSearchService {
 
     private final WebClient aiWebClient; // AI 서버와 통신용
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ApplicationEventPublisher eventPublisher; // 이벤트 발행자
     private final CafeRepository cafeRepository;
     private final VibeRepository vibeRepository;
     private final KafkaProducer kafkaProducer;

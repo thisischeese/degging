@@ -20,7 +20,7 @@ public class KafkaConsumer {
     @KafkaListener(
             topics = "degging.cafe.search.events",
             groupId = "ranking-group",
-            containerFactory = "kafkaListenerContainerFactory" // 아래 설정할 Factory 이름
+            containerFactory = "kafkaListenerContainerFactory" // 아래 설정할 Factory 이름 = Bean의 이름
     )
     public void consumerSearchEvent(SearchEvent event) {
         log.info("[Kafka Consumer] 메시지 수신 - 유저 검색 이벤트 처리 시작");
