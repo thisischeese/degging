@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     postgres_db: RequiredStr
     postgres_user: RequiredStr
     postgres_password: RequiredStr
+    postgres_pool_min_size: PositiveInt = 1
+    postgres_pool_max_size: PositiveInt = 5
 
     # MongoDB — docker-compose 변수명과 동일 (MONGO_USERNAME, MONGO_PASSWORD, MONGO_DATABASE)
     # docker-compose: MONGO_HOST=mongo-container, MONGO_PORT=27017
@@ -48,6 +50,7 @@ class Settings(BaseSettings):
     mongo_username: RequiredStr
     mongo_password: RequiredStr
     mongo_database: RequiredStr
+    mongo_max_pool_size: PositiveInt = 20
 
     # App
     app_env: str = "development"
@@ -71,6 +74,7 @@ class Settings(BaseSettings):
 
     # Metrics
     prometheus_metrics_enabled: bool = True
+    prometheus_multiproc_dir: str | None = None
 
     hf_token: RequiredStr
 
