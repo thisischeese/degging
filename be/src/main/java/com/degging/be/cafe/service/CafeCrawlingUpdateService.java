@@ -14,7 +14,6 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -53,10 +52,13 @@ public class CafeCrawlingUpdateService {
             return;
         }
 
-        // 기본 정보 업데이트
+        // 기본 정보 업데이트 (전제: 현재 비어있음)
         cafe.updateCrawledData(
                 dto.getCafes().getThumbnailUrl(),
                 dto.getCafes().getCafeIntro());
+        log.info("기본 정보 업데이트 완료 (thumbnail: {}, intro: {})",
+                cafe.getThumbnailUrl() != null ? "O" : "X",
+                cafe.getCafeIntro() != null ? "O" : "X");
 
         // 평점 통계 정보 (CafeRatingStatsEntity) 업데이트
         if (dto.getCafeRatingStats() != null) {
@@ -92,9 +94,8 @@ public class CafeCrawlingUpdateService {
                     dto.getCafeBusinessHours().getSunHours());
         }
 
-        // 카페 이미지 업데이트 (기존 데이터 일괄 삭제 후 추가 - OrphanRemoval 작동)
-        if (dto.getCafeImages() != null) {
-            cafe.getImages().clear();
+        // 카페 이미지 추가 (전제: 현재 비어있음)
+        if (dto.getCafeImages() != null && !dto.getCafeImages().isEmpty()) {
             for (AiCrawlerItemResponse.CafeImageDto imgDto : dto.getCafeImages()) {
                 CafeImageEntity img = CafeImageEntity.builder()
                         .cafe(cafe)
@@ -103,11 +104,11 @@ public class CafeCrawlingUpdateService {
                         .build();
                 cafe.getImages().add(img);
             }
+            log.info("이미지 {}건 추가", dto.getCafeImages().size());
         }
 
-        // 카페 메뉴 업데이트 (기존 데이터 일괄 삭제 후 추가)
-        if (dto.getCafeMenus() != null) {
-            cafe.getMenus().clear();
+        // 카페 메뉴 추가 (전제: 현재 비어있음)
+        if (dto.getCafeMenus() != null && !dto.getCafeMenus().isEmpty()) {
             for (AiCrawlerItemResponse.CafeMenuDto menuDto : dto.getCafeMenus()) {
                 CafeMenuEntity menu = CafeMenuEntity.builder()
                         .cafe(cafe)
@@ -117,27 +118,30 @@ public class CafeCrawlingUpdateService {
                         .build();
                 cafe.getMenus().add(menu);
             }
+            log.info("메뉴 {}건 추가", dto.getCafeMenus().size());
         }
 
-        // 카페 분위기 태그 업데이트 (기존 데이터 일괄 삭제 후 추가)
+        // 카페 분위기 태그 추가 (전제: 현재 비어있음)
         if (dto.getCafeVibeTags() != null && !dto.getCafeVibeTags().isEmpty()) {
-            cafe.getVibeTags().clear();
-
+            
             // 이번 카페에서 필요한 태그 ID 목록 수집
             Set<UUID> targetVibeIds = dto.getCafeVibeTags().stream()
                     .map(AiCrawlerItemResponse.CafeVibeTagDto::getTagId)
-                    .filter(Objects::nonNull)
+                    .filter(id -> id != null)
                     .collect(Collectors.toSet());
 
-            // 태그 정보 한꺼번에 조회
-            List<VibeEntity> vibes = vibeRepository.findAllById(targetVibeIds);
+            if (!targetVibeIds.isEmpty()) {
+                // 태그 정보 한꺼번에 조회
+                List<VibeEntity> vibes = vibeRepository.findAllById(targetVibeIds);
 
-            for (VibeEntity vibe : vibes) {
-                CafeVibeTagEntity vibeTag = CafeVibeTagEntity.builder()
-                        .cafe(cafe)
-                        .vibe(vibe)
-                        .build();
-                cafe.getVibeTags().add(vibeTag);
+                for (VibeEntity vibe : vibes) {
+                    CafeVibeTagEntity vibeTag = CafeVibeTagEntity.builder()
+                            .cafe(cafe)
+                            .vibe(vibe)
+                            .build();
+                    cafe.getVibeTags().add(vibeTag);
+                }
+                log.info("분위기 태그 {}건 추가", vibes.size());
             }
         }
 
@@ -206,6 +210,11 @@ public class CafeCrawlingUpdateService {
             }
 
             reviewRepository.saveAll(reviewsToSave);
+            log.info("리뷰 {}건 저장 완료", reviewsToSave.size());
         }
+
+        // 최종 반영 (더티 체킹 보완을 위해 명시적 호출)
+        cafeRepository.save(cafe);
+        log.info("카페 ID: {} 최종 저장 완료", cafeId);
     }
 }

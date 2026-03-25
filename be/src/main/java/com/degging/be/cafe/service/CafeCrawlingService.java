@@ -8,6 +8,7 @@ import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
@@ -29,6 +30,9 @@ public class CafeCrawlingService {
     private final AiCrawlerApiClient aiCrawlerApiClient;
     private final CafeCrawlingUpdateService cafeCrawlingUpdateService;
 
+    // 프록시를 통한 자기 자신 호출을 위한 지연 주입
+    private final ObjectProvider<CafeCrawlingService> cafeCrawlingServiceProvider;
+
     private static final int BATCH_SIZE = 100;
 
     /**
@@ -41,6 +45,7 @@ public class CafeCrawlingService {
         int count = 0;
         for (AiCrawlerItemResponse dto : dataList) {
             try {
+                // 개별 업데이트가 실패하더라도 전체 배치가 롤백되지 않도록 별도 서비스 호출
                 cafeCrawlingUpdateService.updateSingleCafe(dto);
                 count++;
 
@@ -71,6 +76,9 @@ public class CafeCrawlingService {
             return;
         }
 
+        // 자기 자신을 프록시를 통해 호출하기 위해 Provider에서 가져옴
+        CafeCrawlingService self = cafeCrawlingServiceProvider.getIfAvailable();
+
         // 전체 배치 수 계산 후 루프 실행
         int totalBatches = (int) Math.ceil((double) totalToCrawl / BATCH_SIZE);
 
@@ -99,8 +107,24 @@ public class CafeCrawlingService {
                 if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
                     log.info("[배치 {}/{}] {}건 수신 성공, DB 저장을 시작합니다.", i + 1, totalBatches, response.getItems().size());
 
-                    // 저장이 끝날 때까지 대기 (순차 처리)
-                    this.saveCrawlingData(response.getItems());
+                    // 프록시 객체(self)를 통해 호출하여 @Transactional 동작 보장
+                    if (self != null) {
+                        self.saveCrawlingData(response.getItems());
+                    } else {
+                        log.error("CafeCrawlingService 빈을 찾을 수 없어 저장을 중단합니다.");
+                        break;
+                    }
+
+                    // 누락된 카페 ID 로깅 추가 (카페명 포함)
+                    if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
+                        List<CafeEntity> missingCafes = cafeRepository.findAllById(response.getMissingCafeIds());
+                        List<String> missingCafeInfo = missingCafes.stream()
+                                .map(c -> c.getName() + "(" + c.getCafeId() + ")")
+                                .collect(Collectors.toList());
+                        
+                        log.warn("[배치 {}/{}] AI 크롤링 누락 대상 ({}건): {}", 
+                                i + 1, totalBatches, missingCafeInfo.size(), missingCafeInfo);
+                    }
                 } else {
                     log.warn("[배치 {}/{}] AI 서버 응답이 없음. 작업 중단.", i + 1, totalBatches);
                     break;
