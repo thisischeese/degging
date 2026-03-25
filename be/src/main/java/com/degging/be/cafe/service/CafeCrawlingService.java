@@ -166,6 +166,17 @@ public class CafeCrawlingService {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
             
             log.info("[루프 {}/{}] 모든 워커 작업 완료", loop + 1, totalLoops);
+
+            // 다음 루프 시작 전 지연 시간 추가 (AI 서버 부하 방지)
+            if (loop < totalLoops - 1) {
+                log.info("다음 루프 시작 전 60초간 대기합니다...");
+                try {
+                    Thread.sleep(60000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("대기 중 인터럽트 발생: {}", e.getMessage());
+                }
+            }
         }
 
         log.info("모든 크롤링 병렬 작업이 종료되었습니다.");
