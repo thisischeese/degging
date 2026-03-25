@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { StaticImageData } from 'next/image';
 import { Search, LocateFixed } from 'lucide-react';
@@ -13,19 +13,24 @@ import { CafeCard } from '@/common/components/CafeCard';
 import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
 import { getCafeMarkers, getCafeBottomSheetList } from '@/features/map/api/mapApi';
+import { searchCafes } from '@/features/cafes/api/cafeApi';
 import { CafeMarker, CafeBottomSheetItem } from '@/features/map/types';
+import { SearchCafeItem } from '@/features/cafes/types';
 
 const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
 
 const SORT_OPTIONS = [
-  { value: 'recommend', label: '추천순' },
-  { value: 'rating', label: '별점순' },
-  { value: 'review', label: '리뷰많은순' },
-  { value: 'distance', label: '거리순' },
+  { value: 'RECOMMEND', label: '추천순' },
+  { value: 'RATING', label: '별점순' },
+  { value: 'REVIEW_COUNT', label: '리뷰많은순' },
+  { value: 'DISTANCE', label: '거리순' },
 ];
 
 function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: number } }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const keyword = searchParams.get('keyword') || '';
+  
   const {
     selectedFilters,
     toggleFilter,
@@ -38,7 +43,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isFranchiseIncluded, setIsFranchiseIncluded] = useState(false);
-  const [sortBy, setSortBy] = useState('recommend');
+  const [sortBy, setSortBy] = useState('RECOMMEND');
   const [windowHeight, setWindowHeight] = useState(800);
   const [activeCafeId, setActiveCafeId] = useState<string | null>(null);
   // [수정] 최신 ID를 리스너에서 참조하기 위한 Ref
@@ -68,15 +73,39 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     }
   }, []);
 
-  // [수정] 실제 API 연동 쿼리. 지도 중심 좌표와 프랜차이즈 포함 여부가 변경될 때마다 갱신
+  // [수정] 통합 마커 쿼리: 키워드가 있으면 검색 API(searchCafes), 없으면 일반 마커 API 호출
   const { data: cafes } = useSuspenseQuery({
-    queryKey: ['map', 'markers', mapCenter.lat, mapCenter.lng, isFranchiseIncluded],
-    queryFn: () => getCafeMarkers({
-      latitude: mapCenter.lat,
-      longitude: mapCenter.lng,
-      includeFranchise: isFranchiseIncluded
-    }),
+    queryKey: ['map', 'markers', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, keyword, selectedFilters],
+    queryFn: async () => {
+      if (keyword.trim()) {
+        return searchCafes({
+          keyword,
+          latitude: mapCenter.lat,
+          longitude: mapCenter.lng,
+          mood: selectedFilters.length > 0 ? selectedFilters.map(f => f.replace('# ', '')) : undefined
+        });
+      } else {
+        return getCafeMarkers({
+          latitude: mapCenter.lat,
+          longitude: mapCenter.lng,
+          includeFranchise: isFranchiseIncluded,
+          tags: selectedFilters.length > 0 ? selectedFilters.map(f => f.replace('# ', '')) : undefined
+        });
+      }
+    },
   });
+
+  const isSearchMode = keyword.trim().length > 0;
+  
+  // 마커를 그릴 데이터 배열 파싱 (타입 가드)
+  const markerItems = isSearchMode 
+    ? (cafes as SearchCafeItem[]) 
+    : (cafes as { markers: CafeMarker[]; filterTags: string[] }).markers;
+    
+  // 서버에서 받은 추천 필터 태그 (향후 UI 렌더링을 위해 추출)
+  const serverFilterTags = !isSearchMode 
+    ? (cafes as { markers: CafeMarker[]; filterTags: string[] }).filterTags 
+    : [];
 
   // [추가] 바텀시트 리스트 무한 스크롤 쿼리
   const {
@@ -86,22 +115,47 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     isFetchingNextPage,
     isLoading: isBottomSheetLoading
   } = useInfiniteQuery({
-    queryKey: ['map', 'bottom-sheet', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, sortBy],
+    queryKey: ['map', 'bottom-sheet', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, sortBy, selectedFilters],
     queryFn: ({ pageParam = 0 }) => getCafeBottomSheetList({
       latitude: mapCenter.lat,
       longitude: mapCenter.lng,
       includeFranchise: isFranchiseIncluded,
-      sort: sortBy.toUpperCase(),
+      sort: sortBy as 'DISTANCE' | 'RATING' | 'REVIEW_COUNT' | 'RECOMMEND',
+      tags: selectedFilters.length > 0 ? selectedFilters.map(f => f.replace('# ', '')) : undefined,
       page: pageParam,
       size: 10
     }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.last ? undefined : allPages.length;
-    }
+    },
+    enabled: !isSearchMode // 검색 모드일 때는 무한 스크롤 API 비활성화
   });
 
-  const bottomSheetItems = bottomSheetData ? bottomSheetData.pages.flatMap(page => page.content) : [];
+  // 검색 모드일 경우 검색된 cafes 자체를 바텀시트 리스트로 사용
+  const bottomSheetItems = isSearchMode ? markerItems : (bottomSheetData ? bottomSheetData.pages.flatMap(page => page.content) : []);
+
+  // [추가] 초기 검색 시 첫 번째 결과로 중심 이동시키기
+  const prevKeywordRef = useRef(keyword);
+  useEffect(() => {
+    if (isSearchMode && markerItems && markerItems.length > 0 && mapInstance.current) {
+      if (prevKeywordRef.current !== keyword) {
+        const first = markerItems[0];
+        const newPos = new window.kakao.maps.LatLng(first.latitude, first.longitude);
+        mapInstance.current.setCenter(newPos);
+        
+        // [수정] 렌더링 도중 상태 변경(동기적 setState 에러) 방지를 위해 비동기 처리
+        setTimeout(() => {
+          setMapCenter({ lat: first.latitude, lng: first.longitude });
+        }, 0);
+        
+        prevKeywordRef.current = keyword;
+        controls.start({ y: -180, transition: { type: "spring", stiffness: 300, damping: 30 } }); // 시트 올리기
+      }
+    } else {
+      prevKeywordRef.current = keyword; // 키워드가 지워졌거나 결과가 없을 때 동기화
+    }
+  }, [markerItems, keyword, controls, isSearchMode]);
 
   // [추가] 바텀시트 끝에 닿으면 다음 페이지 호출하는 스크롤 핸들러
   useEffect(() => {
@@ -175,7 +229,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
   // 3. 카페 데이터가 변경될 때마다 마커 업데이트 (지도가 로드된 상태 보장)
   useEffect(() => {
-    if (!mapInstance.current || !cafes || !isMapLoaded) return;
+    if (!mapInstance.current || !markerItems || !isMapLoaded) return;
 
     // 기존 마커 제거
     markersRef.current.forEach((marker) => marker.setMap(null));
@@ -185,7 +239,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     const imageSize = new window.kakao.maps.Size(24, 24);
     const markerImage = new window.kakao.maps.MarkerImage("/images/map/recommendLogo.png", imageSize);
 
-    cafes.forEach((cafe) => {
+    markerItems.forEach((cafe) => {
       // [수정] API 응답 타입의 latitude, longitude 사용
       const markerPosition = new window.kakao.maps.LatLng(cafe.latitude, cafe.longitude);
 
@@ -222,7 +276,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
       marker.setMap(mapInstance.current);
       markersRef.current.push(marker);
     });
-  }, [cafes, router, isMapLoaded, controls]);
+  }, [markerItems, router, isMapLoaded, controls]);
 
   // 4. 위치 추적 (watchPosition) 및 UI 동기화
   useEffect(() => {
@@ -355,13 +409,16 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
       <div className="absolute top-0 inset-x-0 z-20 flex flex-col pt-safe-top">
         <div className="px-4 py-3 flex items-center gap-2">
 
-          {/* 검색바 */}
+          {/* 검색바 (URL에서 키워드를 읽어와 표시) */}
           <div className="flex-1 h-10 flex items-center gap-2 px-3 bg-white/90 backdrop-blur-md border border-gray-200 rounded-[5px] shadow-sm">
             <Search className="w-5 h-5 text-gray-400" />
             <input
               type="text"
+              readOnly
+              value={keyword}
               placeholder="디저트 검색"
-              className="flex-1 bg-transparent border-none outline-none text-[15px] placeholder:text-gray-400 font-medium font-pretendard"
+              onClick={() => router.push('/')}
+              className="flex-1 bg-transparent border-none outline-none text-[15px] text-gray-900 placeholder:text-gray-400 font-medium font-pretendard cursor-pointer"
             />
           </div>
 
@@ -436,20 +493,26 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
           ) : bottomSheetItems.length === 0 ? (
             <div className="text-center py-10 font-medium text-gray-500 text-sm">해당 조건의 카페가 없습니다.</div>
           ) : (
-            bottomSheetItems.map((cafe) => (
-              <div key={cafe.cafeId} ref={(el) => { cardRefs.current[cafe.cafeId] = el; }}>
-                <CafeCard
-                  id={cafe.cafeId}
-                  name={cafe.name}
-                  description={cafe.cafeIntro || ''}
-                  address={cafe.roadAddress || ''}
-                  distance=""
-                  imageUrl={cafe.thumbnailUrl || ''}
-                  isActive={activeCafeId === cafe.cafeId}
-                  onClick={() => handleCafeClick(cafe)}
-                />
-              </div>
-            ))
+            bottomSheetItems.map((cafe) => {
+              // 타입 단언을 통해 any 키워드를 제거하고 명확한 인터페이스 활용
+              const typedCafe = cafe as (CafeBottomSheetItem & SearchCafeItem);
+              
+              return (
+                <div key={typedCafe.cafeId} ref={(el) => { cardRefs.current[typedCafe.cafeId] = el; }}>
+                  <CafeCard
+                    id={typedCafe.cafeId}
+                    name={typedCafe.name || ''}
+                    description={typedCafe.cafeIntro || ''}
+                    address={typedCafe.roadAddress || typedCafe.address || ''}
+                    distance=""
+                    imageUrl={typedCafe.thumbnailUrl || ''}
+                    isScrapped={'isScrapped' in typedCafe ? typedCafe.isScrapped : false} // [추가] 스크랩 여부
+                    isActive={activeCafeId === typedCafe.cafeId}
+                    onClick={() => handleCafeClick(typedCafe)}
+                  />
+                </div>
+              );
+            })
           )}
           {isFetchingNextPage && (
             <div className="text-center py-4 text-gray-400 text-sm">더 불러오는 중...</div>
