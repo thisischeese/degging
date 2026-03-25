@@ -52,18 +52,16 @@ def build_raw_item(seed: CafeSeed, *, menu_count: int = 1, image_count: int = 1,
             "cafe_intro": f"{seed.name} intro",
         },
         "cafe_rating_stats": {
-            "cafe_id": seed.cafe_id,
             "review_count": 1,
             "rating_sum": 3,
-            "solo_ratio": "0.500",
-            "date_ratio": "0.250",
-            "friends_ratio": "0.250",
+            "solo_ratio": "50%",
+            "date_ratio": "25%",
+            "friends_ratio": "25%",
         },
         "cafe_images": [
             {
                 "image_url": f"cafes/{seed.cafe_id}/images/{index:02d}.jpg",
                 "sort_order": index,
-                "cafe_id": seed.cafe_id,
             }
             for index in range(image_count)
         ],
@@ -72,12 +70,10 @@ def build_raw_item(seed: CafeSeed, *, menu_count: int = 1, image_count: int = 1,
                 "menu_name": f"menu-{index}",
                 "price": 5000 + index,
                 "menu_description": None,
-                "cafe_id": seed.cafe_id,
             }
             for index in range(menu_count)
         ],
         "cafe_business_hours": {
-            "cafe_id": seed.cafe_id,
             "mon_hours": None,
             "tues_hours": None,
             "wed_hours": None,
@@ -89,7 +85,6 @@ def build_raw_item(seed: CafeSeed, *, menu_count: int = 1, image_count: int = 1,
         "cafe_vibe_tags": [
             {
                 "tag_id": f"tag-{index}",
-                "cafe_id": seed.cafe_id,
             }
             for index in range(vibe_count)
         ],
@@ -214,7 +209,7 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([row["image_url"].split("/")[-1] for row in image_rows], ["01.jpg", "02.jpg"])
         self.assertEqual([row["sort_order"] for row in image_rows], [0, 1])
 
-    def test_assign_sequence_ids_is_deterministic(self) -> None:
+    def test_assign_sequence_ids_preserves_nested_payloads(self) -> None:
         raw_items = [
             build_raw_item(build_seed(CAFE_ID_1), menu_count=2, image_count=2, vibe_count=2),
             build_raw_item(build_seed(CAFE_ID_2), menu_count=1, image_count=1, vibe_count=1),
@@ -224,14 +219,14 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         second = cafe_crawling_runtime.assign_sequence_ids(copy.deepcopy(raw_items))
 
         self.assertEqual(
-            [[image.image_id for image in item.cafe_images] for item in first],
-            [[image.image_id for image in item.cafe_images] for item in second],
+            [[image.image_url for image in item.cafe_images] for item in first],
+            [[image.image_url for image in item.cafe_images] for item in second],
         )
         self.assertEqual(
-            [[menu.menu_id for menu in item.cafe_menus] for item in first],
-            [[menu.menu_id for menu in item.cafe_menus] for item in second],
+            [[menu.menu_name for menu in item.cafe_menus] for item in first],
+            [[menu.menu_name for menu in item.cafe_menus] for item in second],
         )
         self.assertEqual(
-            [[tag.cafe_vibe_tag_id for tag in item.cafe_vibe_tags] for item in first],
-            [[tag.cafe_vibe_tag_id for tag in item.cafe_vibe_tags] for item in second],
+            [[tag.tag_id for tag in item.cafe_vibe_tags] for item in first],
+            [[tag.tag_id for tag in item.cafe_vibe_tags] for item in second],
         )

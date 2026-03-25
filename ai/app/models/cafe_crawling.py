@@ -36,7 +36,6 @@ class CafeInfo(BaseModel):
 
 
 class CafeRatingStats(BaseModel):
-    cafe_id: str
     review_count: int
     rating_sum: int
     solo_ratio: str | None = None
@@ -45,22 +44,17 @@ class CafeRatingStats(BaseModel):
 
 
 class CafeImage(BaseModel):
-    image_id: int
     image_url: str
     sort_order: int
-    cafe_id: str
 
 
 class CafeMenu(BaseModel):
-    menu_id: int
     menu_name: str
     price: int | None = None
     menu_description: str | None = None
-    cafe_id: str
 
 
 class CafeBusinessHours(BaseModel):
-    cafe_id: str
     mon_hours: str | None = None
     tues_hours: str | None = None
     wed_hours: str | None = None
@@ -71,9 +65,7 @@ class CafeBusinessHours(BaseModel):
 
 
 class CafeVibeTag(BaseModel):
-    cafe_vibe_tag_id: int
     tag_id: str
-    cafe_id: str
 
 
 class CafeReview(BaseModel):
