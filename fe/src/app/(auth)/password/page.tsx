@@ -6,12 +6,16 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import Button from "@/common/components/Button";
 import Modal from "@/common/components/Modal";
-import { postFindPassword } from "@/features/users/api/passwordApi";
+import { postFindPassword } from "@/features/users/api/userApi";
 
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("");
   const [isSent, setIsSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; title: string; message?: string }>({
+    isOpen: false,
+    title: "",
+  });
   const router = useRouter();
 
   const handleSend = async () => {
@@ -21,7 +25,11 @@ export default function FindPasswordPage() {
       setIsSent(true);
     } catch (error) {
       console.error("비밀번호 찾기 요청 실패:", error);
-      alert("비밀번호 찾기 요청 중 오류가 발생했습니다.");
+      setErrorDialog({
+        isOpen: true,
+        title: "",
+        message: "비밀번호 찾기 요청 중 오류가 발생했습니다."
+      });
     } finally {
       setIsLoading(false);
     }
@@ -93,6 +101,31 @@ export default function FindPasswordPage() {
               setIsSent(false);
               router.push("/login");
             }}
+          >
+            확인
+          </Button>
+        </div>
+      </Modal>
+
+      {/* 에러용 모달 */}
+      <Modal 
+        isOpen={errorDialog.isOpen} 
+        onClose={() => setErrorDialog(prev => ({ ...prev, isOpen: false }))} 
+        size="sm"
+      >
+        <div className="flex flex-col items-center gap-6 py-2">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <span className="text-4xl mb-2">💡</span>
+            <h2 className="text-[16px] font-bold text-gray-900 leading-snug whitespace-pre-wrap break-keep">{errorDialog.title}</h2>
+            {errorDialog.message && (
+              <p className="text-[13px] text-gray-500 font-medium leading-relaxed">{errorDialog.message}</p>
+            )}
+          </div>
+          <Button 
+            variant="primary" 
+            size="full" 
+            onClick={() => setErrorDialog(prev => ({ ...prev, isOpen: false }))} 
+            className="h-[52px] rounded-xl!"
           >
             확인
           </Button>

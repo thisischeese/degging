@@ -13,6 +13,8 @@ import ReviewItem from "@/features/users/components/ReviewItem";
 import { UserProfile } from "@/features/users/types";
 import { getUserInfo, getMyReviews, patchUsers, patchPasswordReset, deleteUsers } from "@/features/users/api/userApi";
 import { postLogout } from "@/features/auth/api/loginApi";
+import { AxiosError } from "axios";
+import { BaseResponse } from "@/features/auth/types";
 
 import gearWheelIcon from "@/assets/icons/gearWheelIcon.png";
 
@@ -32,11 +34,13 @@ function ProfileEditModal({
   onClose,
   onWithdraw,
   profile,
+  onAlert,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onWithdraw: () => void;
   profile: UserProfile;
+  onAlert: (title: string, message?: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [nickname, setNickname] = useState(profile.nickname);
@@ -52,10 +56,10 @@ function ProfileEditModal({
         queryClient.invalidateQueries({ queryKey: ["user", "me"] });
         onClose();
       } else {
-        alert(res.message || "수정에 실패했습니다.");
+        onAlert("수정 실패", res.message || "정보 수정에 실패했습니다.");
       }
     },
-    onError: () => alert("서버 오류가 발생했습니다."),
+    onError: () => onAlert("오류", "서버 오류가 발생했습니다."),
   });
 
   const validateNickname = (value: string) => {
@@ -146,40 +150,65 @@ function ProfileEditModal({
   );
 }
 
-function WithdrawModal({ isOpen, onClose, nickname }: { isOpen: boolean; onClose: () => void; nickname: string }) {
+function WithdrawModal({ isOpen, onClose, nickname, onAlert }: { isOpen: boolean; onClose: () => void; nickname: string; onAlert: (title: string, message?: string) => void }) {
   const router = useRouter();
+  const [isSuccess, setIsSuccess] = useState(false);
+
   const withdrawMutation = useMutation({
     mutationFn: deleteUsers,
     onSuccess: (res) => {
-      if (res.code === 200) {
-        localStorage.clear();
-        router.push("/onboarding");
+      if (res.code === 200 || res.code === "200") {
+        setIsSuccess(true);
+      } else {
+        onAlert("탈퇴 실패", res.message || "탈퇴 처리 중 오류가 발생했습니다.");
       }
     },
   });
 
+  const handleFinalConfirm = () => {
+    localStorage.clear();
+    // 쿠키도 함께 정리하여 세션 만료 알림 방지
+    document.cookie = "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    router.push("/onboarding");
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm" disableBackdropClick>
+    <Modal isOpen={isOpen} onClose={isSuccess ? handleFinalConfirm : onClose} size="sm" disableBackdropClick>
       <div className="flex flex-col items-center gap-6 py-2">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-[17px] font-bold text-gray-900">정말 탈퇴하시겠어요?</h2>
-          <p className="text-[13px] text-[#C3304F] font-medium">탈퇴 시, {nickname}님의 모든 기록이 삭제됩니다.</p>
-        </div>
-        <div className="flex gap-3 w-full">
-          <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">돌아가기</Button>
-          <Button variant="primary" size="full" onClick={() => withdrawMutation.mutate()} disabled={withdrawMutation.isPending} className="h-[52px] rounded-xl!">
-            {withdrawMutation.isPending ? "처리 중..." : "탈퇴하기"}
-          </Button>
-        </div>
+        {isSuccess ? (
+          <>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <span className="text-4xl mb-2">🎉</span>
+              <h2 className="text-[17px] font-bold text-gray-900">탈퇴가 완료되었습니다</h2>
+              <p className="text-[13px] text-gray-500 font-medium">그동안 Degging을 이용해주셔서 감사합니다.</p>
+            </div>
+            <Button variant="primary" size="full" onClick={handleFinalConfirm} className="h-[52px] rounded-xl!">
+              확인
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <h2 className="text-[17px] font-bold text-gray-900">정말 탈퇴하시겠어요?</h2>
+              <p className="text-[13px] text-[#C3304F] font-medium">탈퇴 시, {nickname}님의 모든 기록이 삭제됩니다.</p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">돌아가기</Button>
+              <Button variant="primary" size="full" onClick={() => withdrawMutation.mutate()} disabled={withdrawMutation.isPending} className="h-[52px] rounded-xl!">
+                {withdrawMutation.isPending ? "처리 중..." : "탈퇴하기"}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );
 }
 
-function PasswordChangeModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [currentPw, setCurrentPw] = useState("");
-  const [currentPwError, setCurrentPwError] = useState("");
-  const [currentPwVerified, setCurrentPwVerified] = useState(false);
+function PasswordChangeModal({ isOpen, onClose, onAlert }: { isOpen: boolean; onClose: () => void; onAlert: (title: string, message?: string) => void }) {
+  const [oldPw, setOldPw] = useState("");
+  const [oldPwError, setOldPwError] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPwError, setNewPwError] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -190,22 +219,18 @@ function PasswordChangeModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const passwordMutation = useMutation({
     mutationFn: patchPasswordReset,
     onSuccess: (res) => {
-      if (res.code === 200) {
-        alert("비밀번호가 변경되었습니다.");
+      if (res.code === 200 || res.code === "200") {
+        onAlert("변경 완료", "비밀번호가 성공적으로 변경되었습니다.");
         onClose();
       } else {
-        alert(res.message || "비밀번호 변경 실패");
+        onAlert("변경 실패", res.message || "비밀번호 변경에 실패했습니다.");
       }
     },
+    onError: (error: AxiosError<BaseResponse<null>>) => {
+      const serverMessage = error.response?.data?.message;
+      onAlert("오류", serverMessage || "서버 오류가 발생했습니다. 다시 시도해주세요.");
+    },
   });
-
-  const handleVerifyCurrentPw = () => {
-    if (!currentPw) {
-      setCurrentPwError("비밀번호를 입력해주세요.");
-      return;
-    }
-    setCurrentPwVerified(true);
-  };
 
   const handleNewPwChange = (val: string) => {
     setNewPw(val);
@@ -215,22 +240,68 @@ function PasswordChangeModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   };
 
   const handleSubmit = () => {
-    if (!currentPwVerified || !newPw || !PW_REGEX.test(newPw) || newPw !== confirmPw) return;
-    passwordMutation.mutate({ currentPassword: currentPw, newPassword: newPw });
+    // 프론트엔드 기본 유효성 검사
+    if (!oldPw) {
+      setOldPwError("현재 비밀번호를 입력해주세요.");
+      return;
+    }
+    if (!newPw || !PW_REGEX.test(newPw)) {
+      setNewPwError("새 비밀번호 형식이 올바르지 않습니다.");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setConfirmPwError("비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+
+    passwordMutation.mutate({ 
+      oldPassword: oldPw, 
+      newPassword: newPw, 
+      confirmPassword: confirmPw 
+    });
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" disableBackdropClick>
       <div className="flex flex-col gap-5">
         <h2 className="text-[16px] font-bold text-gray-900 mb-1">회원 비밀번호 변경</h2>
-        <Input label="현재 비밀번호 확인" type="password" value={currentPw} onChange={(e) => { setCurrentPw(e.target.value); setCurrentPwVerified(false); }} placeholder="비밀번호를 입력하세요" error={currentPwError} disabled={currentPwVerified}
-          rightElement={<button type="button" onClick={handleVerifyCurrentPw} disabled={currentPwVerified} className={`px-4 py-2 rounded-full text-[13px] font-semibold ${currentPwVerified ? "bg-green-500 text-white" : "bg-[#C3304F] text-white"}`}>{currentPwVerified ? "확인됨" : "확인"}</button>} />
-        {currentPwVerified && <p className="text-[12px] text-green-600 px-1 -mt-3">✅ 비밀번호가 확인되었습니다.</p>}
-        <Input label="새로운 비밀번호" type="password" value={newPw} onChange={(e) => handleNewPwChange(e.target.value)} placeholder="8~16자 이내의 영문, 숫자, 특수문자" error={newPwError} disabled={!currentPwVerified} />
-        <Input label="비밀번호 확인" type="password" value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setConfirmPwError(e.target.value !== newPw ? "비밀번호가 일치하지 않습니다." : ""); }} placeholder="새로운 비밀번호를 다시 입력하세요" error={confirmPwError} disabled={!currentPwVerified} />
+        
+        <Input 
+          label="현재 비밀번호 확인" 
+          type="password" 
+          value={oldPw} 
+          onChange={(e) => { setOldPw(e.target.value); setOldPwError(""); }} 
+          placeholder="현재 비밀번호를 입력하세요" 
+          error={oldPwError} 
+        />
+        
+        <Input 
+          label="새로운 비밀번호" 
+          type="password" 
+          value={newPw} 
+          onChange={(e) => handleNewPwChange(e.target.value)} 
+          placeholder="8~16자 이내의 영문, 숫자, 특수문자" 
+          error={newPwError} 
+        />
+        
+        <Input 
+          label="비밀번호 확인" 
+          type="password" 
+          value={confirmPw} 
+          onChange={(e) => { setConfirmPw(e.target.value); setConfirmPwError(e.target.value !== newPw ? "비밀번호가 일치하지 않습니다." : ""); }} 
+          placeholder="새 비밀번호를 다시 입력하세요" 
+          error={confirmPwError} 
+        />
+
         <div className="flex gap-3 mt-1">
           <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">돌아가기</Button>
-          <Button variant="primary" size="full" onClick={handleSubmit} disabled={passwordMutation.isPending || !currentPwVerified} className="h-[52px] rounded-xl!">
+          <Button 
+            variant="primary" 
+            size="full" 
+            onClick={handleSubmit} 
+            disabled={passwordMutation.isPending} 
+            className="h-[52px] rounded-xl!"
+          >
             {passwordMutation.isPending ? "변경 중..." : "변경완료"}
           </Button>
         </div>
@@ -262,6 +333,24 @@ export default function UserPage() {
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
+  
+  // 알럿/컨펌용 모달 상태 (인라인 관리)
+  const [dialog, setDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+    type: "alert" | "confirm";
+    emoji?: string;
+    onConfirm?: () => void;
+  }>({ isOpen: false, title: "", type: "alert" });
+
+  const showAlert = (title: string, message?: string) => {
+    setDialog({ isOpen: true, title, message, type: "alert", emoji: "💡" });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setDialog({ isOpen: true, title, message, type: "confirm", emoji: "❓", onConfirm });
+  };
 
   const { data: profileData, isLoading: isProfileLoading, isError: isProfileError } = useQuery({
     queryKey: ["user", "me"],
@@ -275,10 +364,10 @@ export default function UserPage() {
     select: (res) => res.data?.content || []
   });
 
-  const handleLogout = async () => {
-    if (confirm("로그아웃 하시겠습니까?")) {
+  const handleLogout = () => {
+    showConfirm("로그아웃 하시겠습니까?", "", async () => {
       await postLogout();
-    }
+    });
   };
 
   if (isProfileLoading) return <div className="flex items-center justify-center h-screen text-gray-400">로딩 중...</div>;
@@ -288,7 +377,36 @@ export default function UserPage() {
     <div className="flex flex-col min-h-full bg-bg_white font-pretendard overflow-x-hidden">
       <div className="relative">
         <Header centerContent="마이페이지" rightContent={<button type="button" onClick={() => setIsSettingsOpen((prev) => !prev)} className="p-1 active:opacity-50 transition-opacity"><Image src={gearWheelIcon} alt="설정" width={22} height={22} /></button>} />
-        {isSettingsOpen && (
+      
+      {/* 팝업용 공통 모달 UI (Button과 Modal 컴포넌트 조합) */}
+      <Modal isOpen={dialog.isOpen} onClose={() => setDialog(prev => ({ ...prev, isOpen: false }))} size="sm">
+        <div className="flex flex-col items-center gap-6 py-2">
+          <div className="flex flex-col items-center gap-2 text-center">
+            {dialog.emoji && <span className="text-4xl mb-2">{dialog.emoji}</span>}
+            <h2 className="text-[16px] font-bold text-gray-900 leading-snug whitespace-pre-wrap break-keep">{dialog.title}</h2>
+            {dialog.message && (
+              <p className="text-[13px] text-gray-500 font-medium leading-relaxed">{dialog.message}</p>
+            )}
+          </div>
+          <div className="flex gap-3 w-full">
+            {dialog.type === "confirm" && (
+              <Button variant="gray" size="full" onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))} className="h-[52px] rounded-xl! text-gray-700!">
+                취소
+              </Button>
+            )}
+            <Button 
+              variant="primary" 
+              size="full" 
+              onClick={() => { dialog.onConfirm?.(); setDialog(prev => ({ ...prev, isOpen: false })); }} 
+              className="h-[52px] rounded-xl!"
+            >
+              확인
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {isSettingsOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setIsSettingsOpen(false)} />
             <div className="absolute right-4 top-14 z-50">
@@ -348,9 +466,9 @@ export default function UserPage() {
         </div>
       </div>
 
-      {isProfileEditOpen && <ProfileEditModal isOpen={isProfileEditOpen} onClose={() => setIsProfileEditOpen(false)} onWithdraw={() => { setIsProfileEditOpen(false); setIsWithdrawOpen(true); }} profile={profileData} />}
-      {isWithdrawOpen && <WithdrawModal isOpen={isWithdrawOpen} onClose={() => setIsWithdrawOpen(false)} nickname={profileData.nickname} />}
-      {isPasswordChangeOpen && <PasswordChangeModal isOpen={isPasswordChangeOpen} onClose={() => setIsPasswordChangeOpen(false)} />}
+      {isProfileEditOpen && <ProfileEditModal isOpen={isProfileEditOpen} onClose={() => setIsProfileEditOpen(false)} onWithdraw={() => { setIsProfileEditOpen(false); setIsWithdrawOpen(true); }} profile={profileData} onAlert={showAlert} />}
+      {isWithdrawOpen && <WithdrawModal isOpen={isWithdrawOpen} onClose={() => setIsWithdrawOpen(false)} nickname={profileData.nickname} onAlert={showAlert} />}
+      {isPasswordChangeOpen && <PasswordChangeModal isOpen={isPasswordChangeOpen} onClose={() => setIsPasswordChangeOpen(false)} onAlert={showAlert} />}
     </div>
   );
 }

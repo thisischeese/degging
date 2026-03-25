@@ -7,7 +7,7 @@ import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 import { postEmailVerificationRequest, postEmailVerificationConfirm } from "../api/emailApi";
 
-export default function StepEmail({ next, updateData }: SignupStepProps) {
+export default function StepEmail({ next, updateData, formData }: SignupStepProps) {
   const [email, setEmail] = useState("");
   const [authCode, setAuthCode] = useState("");
   const [isEmailSent, setIsEmailSent] = useState(false);
@@ -27,7 +27,6 @@ export default function StepEmail({ next, updateData }: SignupStepProps) {
       await postEmailVerificationRequest(email);
       setEmailError("");
       setIsEmailSent(true);
-      alert("인증번호가 발송되었습니다.");
     } catch (error) {
       console.error(error);
       setEmailError("인증번호 발송에 실패했습니다.");

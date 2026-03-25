@@ -6,14 +6,14 @@ import Image from 'next/image';
 import { StaticImageData } from 'next/image';
 import { Search, LocateFixed } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
 import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
 import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
-import { getCafeMarkers } from '@/features/map/api/mapApi';
-import { CafeMarker } from '@/features/map/types';
+import { getCafeMarkers, getCafeBottomSheetList } from '@/features/map/api/mapApi';
+import { CafeMarker, CafeBottomSheetItem } from '@/features/map/types';
 
 const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
 
@@ -24,7 +24,7 @@ const SORT_OPTIONS = [
   { value: 'distance', label: '거리순' },
 ];
 
-function MapContent() {
+function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: number } }) {
   const router = useRouter();
   const {
     selectedFilters,
@@ -49,13 +49,8 @@ function MapContent() {
   const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const controls = useAnimation();
-  const initialUserLocationRef = useRef(userLocation);
-
-  // [수정] 지도 중심 좌표 상태 추가 (API 호출용) - 초기 렌더링 시 ref 접근 에러를 방지하기 위해 상수로 초기화
-  const [mapCenter, setMapCenter] = useState({ 
-    lat: 37.5665, 
-    lng: 126.978 
-  });
+  // [수정] 지도 중심 좌표 상태 추가 (API 호출용) - props로 받은 초기 위치를 사용
+  const [mapCenter, setMapCenter] = useState(initialCenter);
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -83,6 +78,54 @@ function MapContent() {
     }),
   });
 
+  // [추가] 바텀시트 리스트 무한 스크롤 쿼리
+  const {
+    data: bottomSheetData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isBottomSheetLoading
+  } = useInfiniteQuery({
+    queryKey: ['map', 'bottom-sheet', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, sortBy],
+    queryFn: ({ pageParam = 0 }) => getCafeBottomSheetList({
+      latitude: mapCenter.lat,
+      longitude: mapCenter.lng,
+      includeFranchise: isFranchiseIncluded,
+      sort: sortBy.toUpperCase(),
+      page: pageParam,
+      size: 10
+    }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.last ? undefined : allPages.length;
+    }
+  });
+
+  const bottomSheetItems = bottomSheetData ? bottomSheetData.pages.flatMap(page => page.content) : [];
+
+  // [추가] 바텀시트 끝에 닿으면 다음 페이지 호출하는 스크롤 핸들러
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      if (scrollTop + clientHeight >= scrollHeight - 50) {
+        if (hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      }
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   // 0. 초기 진입 시 자동 현 위치 추적
   useEffect(() => {
     setTracking(true);
@@ -95,15 +138,7 @@ function MapContent() {
     window.kakao.maps.load(() => {
       if (!mapContainerRef.current) return;
 
-      const initialUserLocation = initialUserLocationRef.current;
-      const center = initialUserLocation
-        ? new window.kakao.maps.LatLng(initialUserLocation.lat, initialUserLocation.lng)
-        : new window.kakao.maps.LatLng(37.5665, 126.978);
-
-      // [추가] 사용자의 초기 위치가 있다면 mapCenter 상태도 동기화
-      if (initialUserLocation) {
-        setMapCenter({ lat: initialUserLocation.lat, lng: initialUserLocation.lng });
-      }
+      const center = new window.kakao.maps.LatLng(initialCenter.lat, initialCenter.lng);
 
       const options = {
         center,
@@ -263,13 +298,47 @@ function MapContent() {
     }
   }, [activeCafeId]);
 
-  // 내 위치 버튼 핸들러 (토글)
+  // 내 위치 버튼 핸들러 (현 위치 동기화 및 API 재호출)
   const handleLocateMe = () => {
-    toggleTracking();
+    // 트래킹 모드가 꺼져있다면 켭니다.
+    if (!isTracking) {
+      toggleTracking();
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          
+          // 위도/경도 값이 정확한 숫자(Number) 타입인지 확인
+          const lat = Number(latitude);
+          const lng = Number(longitude);
+          
+          const newCenter = new window.kakao.maps.LatLng(lat, lng);
+
+          // 1. 지도 시점 이동
+          if (mapInstance.current) {
+            mapInstance.current.setCenter(newCenter);
+          }
+
+          // 2. 핵심: API 재호출(마커 & 바텀시트)을 위한 상태 갱신
+          setMapCenter({ lat, lng });
+          
+          // 3. 전역 사용자 위치 상태 업데이트
+          setUserLocation({ lat, lng });
+        },
+        (error) => {
+          console.error("위치 정보를 가져올 수 없습니다.", error);
+        },
+        { enableHighAccuracy: true, maximumAge: 0 }
+      );
+    } else {
+      alert("이 브라우저에서는 위치 추적을 지원하지 않습니다.");
+    }
   };
 
   // 카페 카드 클릭 핸들러
-  const handleCafeClick = (cafe: CafeMarker) => {
+  const handleCafeClick = (cafe: { cafeId: string }) => {
     router.push(`/cafes/${cafe.cafeId}`);
   };
 
@@ -362,20 +431,29 @@ function MapContent() {
         </div>
 
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 no-scrollbar relative">
-          {cafes.map((cafe) => (
-            <div key={cafe.cafeId} ref={(el) => { cardRefs.current[cafe.cafeId] = el; }}>
-              <CafeCard
-                id={cafe.cafeId}
-                name={`카페 (ID: ${cafe.cafeId.slice(0, 6)})`} // 임시 이름 처리 (API에 이름이 없음)
-                description=""
-                address="주소 정보 없음"
-                distance=""
-                imageUrl=""
-                isActive={activeCafeId === cafe.cafeId}
-                onClick={() => handleCafeClick(cafe)}
-              />
-            </div>
-          ))}
+          {isBottomSheetLoading ? (
+            <div className="text-center py-10 font-medium text-gray-500 text-sm">로딩 중...</div>
+          ) : bottomSheetItems.length === 0 ? (
+            <div className="text-center py-10 font-medium text-gray-500 text-sm">해당 조건의 카페가 없습니다.</div>
+          ) : (
+            bottomSheetItems.map((cafe) => (
+              <div key={cafe.cafeId} ref={(el) => { cardRefs.current[cafe.cafeId] = el; }}>
+                <CafeCard
+                  id={cafe.cafeId}
+                  name={cafe.name}
+                  description={cafe.cafeIntro || ''}
+                  address={cafe.roadAddress || ''}
+                  distance=""
+                  imageUrl={cafe.thumbnailUrl || ''}
+                  isActive={activeCafeId === cafe.cafeId}
+                  onClick={() => handleCafeClick(cafe)}
+                />
+              </div>
+            ))
+          )}
+          {isFetchingNextPage && (
+            <div className="text-center py-4 text-gray-400 text-sm">더 불러오는 중...</div>
+          )}
         </div>
       </motion.div>
 
@@ -394,9 +472,47 @@ function MapSkeleton() {
 }
 
 export default function MapPage() {
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [initialCenter, setInitialCenter] = useState({ lat: 37.5665, lng: 126.978 });
+  const { setUserLocation } = useMapStore();
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = Number(pos.coords.latitude);
+          const lng = Number(pos.coords.longitude);
+          setInitialCenter({ lat, lng });
+          setUserLocation({ lat, lng });
+          setIsLoadingLocation(false);
+        },
+        (error) => {
+          console.error("위치 정보를 가져올 수 없어 기본 좌표(서울역)로 설정합니다.", error);
+          setIsLoadingLocation(false);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+      );
+    } else {
+      // 비동기 흐름 보장 (React setState 경고 방지)
+      setTimeout(() => setIsLoadingLocation(false), 0);
+    }
+  }, [setUserLocation]);
+
+  if (isLoadingLocation) {
+    return (
+      <div className="relative w-full h-[100dvh] bg-[#E8E6E0] flex flex-col items-center justify-center overflow-hidden">
+        <div className="flex flex-col items-center gap-4 text-gray-600">
+          <div className="w-10 h-10 border-4 border-gray-300 border-t-[#007EEB] rounded-full animate-spin" />
+          <p className="font-medium text-[15px] animate-pulse">내 위치를 찾는 중입니다...</p>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
   return (
     <Suspense fallback={<MapSkeleton />}>
-      <MapContent />
+      <MapContent initialCenter={initialCenter} />
     </Suspense>
   );
 }
