@@ -5,6 +5,7 @@ import com.degging.be.cafe.dto.request.CafeBottomSheetSort;
 import com.degging.be.cafe.dto.request.CafeMapRequest;
 import com.degging.be.cafe.dto.response.internal.CafeBottomSheetResponse;
 import com.degging.be.cafe.dto.response.internal.CafeDetailResponse;
+import com.degging.be.cafe.dto.response.internal.CafeMapMarkersResponse;
 import com.degging.be.cafe.dto.response.internal.CafeMapResponse;
 import com.degging.be.cafe.dto.response.internal.CafeOnboardingResponse;
 import com.degging.be.cafe.entity.CafeEntity;
@@ -17,6 +18,7 @@ import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
+import com.degging.be.user.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
@@ -40,6 +42,7 @@ public class CafeService {
     private final UserRepository userRepository;
     private final CafeRepository cafeRepository;
     private final ScrapRepository scrapRepository;
+    private final MemberService memberService;
 
     /**
      * 카페 상세 정보 조회
@@ -100,11 +103,13 @@ public class CafeService {
 
     /**
      * 사용자 현재 위치를 기준으로 반경 2km 내의 카페 마커 목록을 조회합니다.
+     * 로그인한 사용자의 경우 선호 태그가 지정되지 않았다면 상위 3개 선호 태그로 자동 필터링합니다.
      *
-     * @param request 사용자의 현재 위도(latitude)와 경도(longitude)를 담은 요청 객체
-     * @return 조회된 카페들의 마커 정보(ID, 위도, 경도) 리스트
+     * @param userId  인증된 사용자 ID (nullable)
+     * @param request 사용자의 현재 위도(latitude)와 경도(longitude) 및 태그 필터를 담은 요청 객체
+     * @return 조회된 카페들의 마커 정보와 적용된 필터 태그 정보
      */
-    public List<CafeMapResponse> getCafeMarkers(CafeMapRequest request) {
+    public CafeMapMarkersResponse getCafeMarkers(UUID userId, CafeMapRequest request) {
 
         // 위/경도 좌표를 PostGIS POINT(경도 위도) 포맷 문자열로 변환
         String point = String.format("POINT(%f %f)", request.getLongitude(), request.getLatitude());
@@ -112,13 +117,28 @@ public class CafeService {
         // 고정된 반경 2,000미터(2km) 설정
         double radiusInMeters = 2000.0;
 
-        // 레포지토리 호출해 리스트 가져오기
-        List<CafeEntity> cafes = cafeRepository.findMarkersByRadius(point, radiusInMeters, request.isIncludeFranchise());
+        // 태그 추출 (요청에 없으면 사용자 선호 태그 조회)
+        List<String> tags = request.getTags();
+        if ((tags == null || tags.isEmpty()) && userId != null) {
+            tags = memberService.getUserPreferred(userId);
+            request.setTags(tags);
+        }
 
-        // 정적 팩토리 메서드를 활용하여 DTO로 변환 후 반환
-        return cafes.stream()
+        // 레포지토리 호출해 리스트 가져오기 (태그 존재 여부에 따라 분기)
+        List<CafeEntity> cafes;
+        if (tags != null && !tags.isEmpty()) {
+            cafes = cafeRepository.findMarkersByRadiusAndTags(point, radiusInMeters, request.isIncludeFranchise(), tags);
+        } else {
+            cafes = cafeRepository.findMarkersByRadius(point, radiusInMeters, request.isIncludeFranchise());
+        }
+
+        // 정적 팩토리 메서드를 활용하여 DTO로 변환
+        List<CafeMapResponse> markers = cafes.stream()
                 .map(CafeMapResponse::from)
                 .collect(Collectors.toList());
+
+        // 마커 정보와 사용된 필터 태그를 함께 반환
+        return CafeMapMarkersResponse.of(markers, tags);
     }
 
     /**
@@ -171,14 +191,31 @@ public class CafeService {
         // 정렬 기준이 오지 않았을 경우, 기본 정렬 기준 '추천순(RECOMMEND)'으로 설정
         CafeBottomSheetSort sort = request.getSort() != null ? request.getSort() : CafeBottomSheetSort.RECOMMEND;
 
-        // 정렬 기준별 Repository 메서드 분기 호출
-        Slice<CafeEntity> cafes = switch (sort) {
-            case RATING -> cafeRepository.findBottomSheetByRating(point, radiusInMeters, includeFranchise, pageRequest);
-            case REVIEW_COUNT -> cafeRepository.findBottomSheetByReviewCount(point, radiusInMeters, includeFranchise, pageRequest);
-            case DISTANCE -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
-            /* TODO: RECOMMEND(추천순)은 AI 연동 후 별도 로직으로 교체 예정. 현재는 기본 반환(거리순)으로 처리 */
-            default -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
-        };
+        // 태그 추출 (요청에 없으면 사용자 선호 태그 조회)
+        List<String> tags = request.getTags();
+        if ((tags == null || tags.isEmpty()) && userId != null) {
+            tags = memberService.getUserPreferred(userId);
+            request.setTags(tags);
+        }
+
+        // 정렬 기준별 Repository 메서드 분기 호출 (태그 존재 여부에 따라 분기)
+        Slice<CafeEntity> cafes;
+        if (tags != null && !tags.isEmpty()) {
+            cafes = switch (sort) {
+                case RATING -> cafeRepository.findBottomSheetByRatingAndTags(point, radiusInMeters, includeFranchise, tags, pageRequest);
+                case REVIEW_COUNT -> cafeRepository.findBottomSheetByReviewCountAndTags(point, radiusInMeters, includeFranchise, tags, pageRequest);
+                case DISTANCE -> cafeRepository.findBottomSheetByDistanceAndTags(point, radiusInMeters, includeFranchise, tags, pageRequest);
+                default -> cafeRepository.findBottomSheetByDistanceAndTags(point, radiusInMeters, includeFranchise, tags, pageRequest);
+            };
+        } else {
+            cafes = switch (sort) {
+                case RATING -> cafeRepository.findBottomSheetByRating(point, radiusInMeters, includeFranchise, pageRequest);
+                case REVIEW_COUNT -> cafeRepository.findBottomSheetByReviewCount(point, radiusInMeters, includeFranchise, pageRequest);
+                case DISTANCE -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
+                /* TODO: RECOMMEND(추천순)은 AI 연동 후 별도 로직으로 교체 예정. 현재는 기본 반환(거리순)으로 처리 */
+                default -> cafeRepository.findBottomSheetByDistance(point, radiusInMeters, includeFranchise, pageRequest);
+            };
+        }
 
         return cafes.map(cafe -> {
             boolean isScrapped = false;
