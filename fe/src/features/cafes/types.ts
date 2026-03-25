@@ -19,6 +19,7 @@ export interface CafeDetailData {
   description?: string;
   businessHours?: string;
   address?: string;
+  roadAddress?: string;
   phone?: string;
 }
 
