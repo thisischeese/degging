@@ -70,6 +70,12 @@ BLOCK_HOSTS = frozenset(
         "api.vworld.kr",
     }
 )
+ALLOWED_IMAGE_HOSTS = frozenset(
+    {
+        "pup-review-phinf.pstatic.net",
+        "ldb-phinf.pstatic.net",
+    }
+)
 _BLOCK_SEARCH = frozenset({"image", "font", "media", "stylesheet", "websocket", "other"})
 _BLOCK_TAB = frozenset({"font", "media", "websocket", "other"})
 NAV_TABS = {"홈", "메뉴", "리뷰", "사진", "정보"}
@@ -999,11 +1005,16 @@ async def fetch_review_tab_data(page: Page, tab_url: str) -> tuple[str, list[dic
     return review_text, parsed_reviews
 
 
+def is_allowed_image_url(url: str) -> bool:
+    host = urllib.parse.urlparse(url).hostname or ""
+    return host.lower() in ALLOWED_IMAGE_HOSTS
+
+
 async def collect_cdn_images(page: Page, scroll_steps: int = 4) -> list[str]:
     collected: set[str] = set()
 
     def on_request(request) -> None:
-        if request.resource_type == "image" and any(cdn in request.url for cdn in ["pstatic.net", "naver.net"]):
+        if request.resource_type == "image" and is_allowed_image_url(request.url):
             collected.add(request.url.split("?")[0])
 
     page.on("request", on_request)
@@ -1020,7 +1031,7 @@ async def collect_cdn_images(page: Page, scroll_steps: int = 4) -> list[str]:
             """
         )
         for src in srcs:
-            if any(cdn in src for cdn in ["pstatic.net", "naver.net"]):
+            if is_allowed_image_url(src):
                 high_quality = re.sub(r"/thumbnail/\d+x\d+(?:crop)?/", "/", src)
                 collected.add(high_quality.split("?")[0])
     finally:
