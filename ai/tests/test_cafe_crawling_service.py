@@ -192,7 +192,7 @@ class CafeCrawlingReviewMetricsTest(unittest.TestCase):
 
         self.assertEqual(metrics["review_count"], 2)
         self.assertEqual(metrics["rating_sum"], 6)
-        self.assertEqual(metrics["friends_ratio"], "1.000")
+        self.assertEqual(metrics["friends_ratio"], "100%")
 
     def test_build_cafe_reviews_adds_fixed_rating_field(self) -> None:
         seed = CafeSeed(

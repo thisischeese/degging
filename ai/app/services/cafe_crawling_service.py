@@ -298,15 +298,6 @@ def parse_intro(info_text: str) -> str:
     return " ".join(desc_lines).strip()
 
 
-def parse_phone(home_text: str) -> str | None:
-    phone_re = re.compile(r"^(0\d{1,4}-\d{3,4}-\d{4})$")
-    for line in read_lines(home_text):
-        match = phone_re.match(line)
-        if match:
-            return match.group(1)
-    return None
-
-
 def parse_menu_text(menu_text: str) -> list[dict[str, Any]]:
     lines = read_lines(menu_text)
     body = lines[skip_nav_header(lines) :]
@@ -505,7 +496,12 @@ def parse_visitor_reviews(review_text: str) -> list[dict[str, Any]]:
 
 
 def format_ratio(value: float | None) -> str | None:
-    return None if value is None else f"{value:.3f}"
+    if value is None:
+        return None
+    percentage = round(value * 100, 1)
+    if float(percentage).is_integer():
+        return f"{int(percentage)}%"
+    return f"{percentage:.1f}%"
 
 
 def parse_ratio_from_summary(text: str, keywords: list[str]) -> float | None:
@@ -1251,19 +1247,13 @@ async def upload_cafe_images(
 
         image_rows.append(
             {
-                "image_id": sequences.next_image_id(),
                 "image_url": stored_key,
                 "sort_order": sort_order,
-                "cafe_id": seed.cafe_id,
             }
         )
         sort_order += 1
 
     return thumbnail_url, image_rows
-
-
-def build_location(lon: float | None, lat: float | None) -> str | None:
-    return None if lon is None or lat is None else f"SRID=4326;POINT({lon} {lat})"
 
 
 def build_cafe_reviews(seed: CafeSeed, reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1300,11 +1290,9 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
     for menu in parse_menu_text(texts["메뉴"]):
         menus.append(
             {
-                "menu_id": sequences.next_menu_id(),
                 "menu_name": menu["menu_name"],
                 "price": menu["price"],
                 "menu_description": menu["menu_description"],
-                "cafe_id": seed.cafe_id,
             }
         )
 
@@ -1314,32 +1302,19 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
     vibe_tag_ids = await gms_client.choose_vibe_tag_ids(review_texts)
     cafe_vibe_tags = [
         {
-            "cafe_vibe_tag_id": sequences.next_cafe_vibe_tag_id(),
             "tag_id": tag_id,
-            "cafe_id": seed.cafe_id,
         }
         for tag_id in vibe_tag_ids
     ]
 
     cafes = {
         "cafe_id": seed.cafe_id,
-        "bizes_id": seed.bizes_id,
-        "kakao_place_id": seed.kakao_place_id or "",
         "name": seed.name,
-        "address": seed.address,
-        "road_address": seed.road_address,
-        "phone": parse_phone(texts["홈"]),
         "thumbnail_url": thumbnail_url,
-        "status": seed.status or "OPEN",
-        "location": build_location(seed.lon, seed.lat),
         "cafe_intro": summarized_intro or "",
-        "franchise": False,
-        "brandName": None,
-        "branchName": None,
     }
 
     cafe_rating_stats = {
-        "cafe_id": seed.cafe_id,
         "review_count": review_metrics["review_count"],
         "rating_sum": review_metrics["rating_sum"],
         "solo_ratio": review_metrics["solo_ratio"],
@@ -1347,7 +1322,7 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
         "friends_ratio": review_metrics["friends_ratio"],
     }
 
-    cafe_business_hours = {"cafe_id": seed.cafe_id, **business_hours}
+    cafe_business_hours = {**business_hours}
 
     return {
         "cafe_id": seed.cafe_id,

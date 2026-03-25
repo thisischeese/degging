@@ -48,7 +48,6 @@ from app.services.cafe_crawling_service import (
     CafeCrawlingSourceError,
     CafeSeed,
     RuntimeSettings,
-    SequenceState,
     build_cafe_reviews,
     clip_text,
     ensure_playwright_runtime_supported,
@@ -59,7 +58,6 @@ from app.services.cafe_crawling_service import (
     parse_business_hours,
     parse_intro,
     parse_menu_text,
-    parse_phone,
     parse_review_metrics,
     parse_structured_visitor_reviews,
     place_url_from_all_search,
@@ -675,7 +673,6 @@ async def upload_cafe_images(
             {
                 "image_url": stored_key,
                 "sort_order": sort_order,
-                "cafe_id": seed.cafe_id,
             }
         )
         sort_order += 1
@@ -720,22 +717,8 @@ async def upload_images_with_metrics(
         )
 
 
-def build_location(lon: float | None, lat: float | None) -> str | None:
-    return None if lon is None or lat is None else f"SRID=4326;POINT({lon} {lat})"
-
-
 def assign_sequence_ids(items: list[dict[str, Any]]) -> list[CafeCrawlingMergedItem]:
-    sequences = SequenceState()
-    validated_items: list[CafeCrawlingMergedItem] = []
-    for item in items:
-        for image in item["cafe_images"]:
-            image["image_id"] = sequences.next_image_id()
-        for menu in item["cafe_menus"]:
-            menu["menu_id"] = sequences.next_menu_id()
-        for vibe_tag in item["cafe_vibe_tags"]:
-            vibe_tag["cafe_vibe_tag_id"] = sequences.next_cafe_vibe_tag_id()
-        validated_items.append(CafeCrawlingMergedItem.model_validate(item))
-    return validated_items
+    return [CafeCrawlingMergedItem.model_validate(item) for item in items]
 
 
 async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) -> dict[str, Any]:
@@ -756,7 +739,6 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
                 "menu_name": menu["menu_name"],
                 "price": menu["price"],
                 "menu_description": menu["menu_description"],
-                "cafe_id": seed.cafe_id,
             }
             for menu in parse_menu_text(menu_text)
         ]
@@ -774,31 +756,20 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
 
         cafes = {
             "cafe_id": seed.cafe_id,
-            "bizes_id": seed.bizes_id,
-            "kakao_place_id": seed.kakao_place_id or "",
             "name": seed.name,
-            "address": seed.address,
-            "road_address": seed.road_address,
-            "phone": parse_phone(home_text),
             "thumbnail_url": thumbnail_url,
-            "status": seed.status or "OPEN",
-            "location": build_location(seed.lon, seed.lat),
             "cafe_intro": summarized_intro or "",
-            "franchise": False,
-            "brandName": None,
-            "branchName": None,
         }
 
         cafe_rating_stats = {
-            "cafe_id": seed.cafe_id,
             "review_count": review_metrics["review_count"],
             "rating_sum": review_metrics["rating_sum"],
             "solo_ratio": review_metrics["solo_ratio"],
             "date_ratio": review_metrics["date_ratio"],
             "friends_ratio": review_metrics["friends_ratio"],
         }
-        cafe_business_hours = {"cafe_id": seed.cafe_id, **business_hours}
-        cafe_vibe_tags = [{"tag_id": tag_id, "cafe_id": seed.cafe_id} for tag_id in vibe_tag_ids]
+        cafe_business_hours = {**business_hours}
+        cafe_vibe_tags = [{"tag_id": tag_id} for tag_id in vibe_tag_ids]
 
         return {
             "cafe_id": seed.cafe_id,
