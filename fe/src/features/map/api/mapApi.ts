@@ -12,7 +12,7 @@ export const getCafeMarkers = async (params: CafeMapRequest): Promise<CafeMapRes
   const response = (await axios_instance.get<CafeMapResponse>('/api/cafes/map/markers', {
     params: {
       ...params,
-      tags: params.tags || [], // 빈 배열이 안정적으로 전달되도록 기본값 보장
+      tags: (params.tags || []).join(','), // 빈 배열일 경우 태그 파라미터 유실 방지를 위해 빈 문자열로, 값이 있으면 쉼표 분리 문자열로 변환
     },
   })) as unknown as CafeMapResponse;
 
@@ -24,7 +24,7 @@ export const getCafeBottomSheetList = async (params: CafeBottomSheetRequest): Pr
   const response = (await axios_instance.get<CafeBottomSheetResponse>('/api/cafes/map/bottom-sheet', {
     params: {
       ...params,
-      tags: params.tags || [], // 빈 배열 보장
+      tags: (params.tags || []).join(','), // 빈 배열 파라미터 유실 방지 처리
     },
   })) as unknown as CafeBottomSheetResponse;
 
