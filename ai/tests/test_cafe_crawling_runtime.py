@@ -2,11 +2,14 @@ import asyncio
 import copy
 import unittest
 from contextlib import asynccontextmanager
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from PIL import Image
+
 from app.models.cafe_crawling import CafeCrawlingRequestItem
-from app.services import cafe_crawling_runtime
+from app.services import cafe_crawling_runtime, cafe_crawling_service
 from app.services.cafe_crawling_service import CafeCrawlingItemError, CafeCrawlingSourceError, CafeSeed, RuntimeSettings
 
 
@@ -40,6 +43,21 @@ def build_seed(cafe_id: str, name: str = "test cafe") -> CafeSeed:
         kakao_place_id=None,
         kakao_map_url=None,
     )
+
+
+def build_image_bytes(
+    width: int,
+    height: int,
+    *,
+    mode: str = "RGB",
+    color: tuple[int, ...] = (25, 50, 75),
+    format: str = "JPEG",
+) -> bytes:
+    buffer = BytesIO()
+    image = Image.new(mode, (width, height), color)
+    image.save(buffer, format=format)
+    image.close()
+    return buffer.getvalue()
 
 
 def build_raw_item(seed: CafeSeed, *, menu_count: int = 1, image_count: int = 1, vibe_count: int = 1) -> dict:
@@ -101,6 +119,55 @@ def build_raw_item(seed: CafeSeed, *, menu_count: int = 1, image_count: int = 1,
 @asynccontextmanager
 async def fake_resources_context(*args, **kwargs):
     yield SimpleNamespace(batch_semaphore=asyncio.Semaphore(3))
+
+
+class CafeCrawlingImageProcessingTest(unittest.TestCase):
+    def test_prepare_image_for_upload_resizes_landscape_image(self) -> None:
+        data = build_image_bytes(1600, 1200)
+
+        processed_data, content_type, ext = cafe_crawling_service.prepare_image_for_upload(
+            data,
+            max_edge_px=cafe_crawling_service.DEFAULT_IMAGE_MAX_EDGE_PX,
+        )
+
+        with Image.open(BytesIO(processed_data)) as image:
+            self.assertEqual(image.size, (800, 600))
+        self.assertEqual(content_type, "image/jpeg")
+        self.assertEqual(ext, ".jpg")
+
+    def test_prepare_image_for_upload_preserves_portrait_ratio_without_upscale(self) -> None:
+        portrait_data = build_image_bytes(600, 1200)
+        small_data = build_image_bytes(120, 80)
+
+        portrait_output, portrait_type, portrait_ext = cafe_crawling_service.prepare_image_for_upload(
+            portrait_data,
+            max_edge_px=cafe_crawling_service.DEFAULT_IMAGE_MAX_EDGE_PX,
+        )
+        small_output, small_type, small_ext = cafe_crawling_service.prepare_image_for_upload(
+            small_data,
+            max_edge_px=cafe_crawling_service.DEFAULT_IMAGE_MAX_EDGE_PX,
+        )
+
+        with Image.open(BytesIO(portrait_output)) as portrait_image:
+            self.assertEqual(portrait_image.size, (400, 800))
+        with Image.open(BytesIO(small_output)) as small_image:
+            self.assertEqual(small_image.size, (120, 80))
+        self.assertEqual((portrait_type, portrait_ext), ("image/jpeg", ".jpg"))
+        self.assertEqual((small_type, small_ext), ("image/jpeg", ".jpg"))
+
+    def test_prepare_image_for_upload_keeps_transparency_as_png(self) -> None:
+        data = build_image_bytes(400, 200, mode="RGBA", color=(200, 50, 25, 128), format="PNG")
+
+        processed_data, content_type, ext = cafe_crawling_service.prepare_image_for_upload(
+            data,
+            max_edge_px=cafe_crawling_service.THUMBNAIL_MAX_EDGE_PX,
+        )
+
+        with Image.open(BytesIO(processed_data)) as image:
+            self.assertEqual(image.size, (200, 100))
+            self.assertIn("A", image.getbands())
+        self.assertEqual(content_type, "image/png")
+        self.assertEqual(ext, ".png")
 
 
 class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
@@ -183,14 +250,22 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_upload_cafe_images_preserves_thumbnail_and_sort_order(self) -> None:
         seed = build_seed(CAFE_ID_1)
+        source_data = build_image_bytes(1600, 1200)
 
         async def fake_download_image_bytes(url, http_client):
             delay_by_index = {"00": 0.03, "01": 0.01, "02": 0.02}
             await asyncio.sleep(delay_by_index[url[-6:-4]])
-            return b"image-bytes", "image/jpeg"
+            return source_data, "image/jpeg"
 
         fake_s3 = AsyncMock()
-        fake_s3.upload_bytes = AsyncMock(side_effect=lambda key, data, content_type: key)
+        uploaded_images: dict[str, tuple[tuple[int, int], str]] = {}
+
+        async def fake_upload_bytes(key, data, content_type):
+            with Image.open(BytesIO(data)) as image:
+                uploaded_images[key] = (image.size, content_type)
+            return key
+
+        fake_s3.upload_bytes = AsyncMock(side_effect=fake_upload_bytes)
 
         with patch.object(cafe_crawling_runtime, "download_image_bytes", side_effect=fake_download_image_bytes):
             thumbnail_url, image_rows = await cafe_crawling_runtime.upload_cafe_images(
@@ -208,6 +283,9 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(thumbnail_url.endswith("/00.jpg"))
         self.assertEqual([row["image_url"].split("/")[-1] for row in image_rows], ["01.jpg", "02.jpg"])
         self.assertEqual([row["sort_order"] for row in image_rows], [0, 1])
+        self.assertEqual(uploaded_images[thumbnail_url], ((200, 150), "image/jpeg"))
+        self.assertEqual(uploaded_images[image_rows[0]["image_url"]], ((800, 600), "image/jpeg"))
+        self.assertEqual(uploaded_images[image_rows[1]["image_url"]], ((800, 600), "image/jpeg"))
 
     def test_assign_sequence_ids_preserves_nested_payloads(self) -> None:
         raw_items = [
