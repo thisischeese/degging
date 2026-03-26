@@ -1,27 +1,52 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { pushGtmEvent } from "@/lib/abTest";
-
-// 테스트를 위한 임시 가짜 데이터 (Mock Data)
-// 나중에 서버(AI)에서 받아올 예시 데이터
-const MOCK_FEEDS = [
-  { id: 1, cafeId: 101, src: "/images/discovery/mood1.jpg", type: "VERTICAL" },
-  { id: 2, cafeId: 102, src: "/images/discovery/mood2.jpg", type: "HORIZONTAL" },
-  { id: 3, cafeId: 103, src: "/images/discovery/mood1.jpg", type: "VERTICAL" },
-  { id: 4, cafeId: 104, src: "/images/discovery/mood1.jpg", type: "VERTICAL" },
-  { id: 5, cafeId: 105, src: "/images/discovery/mood2.jpg", type: "HORIZONTAL" },
-  { id: 6, cafeId: 106, src: "/images/discovery/mood1.jpg", type: "VERTICAL" },
-  { id: 7, cafeId: 107, src: "/images/discovery/mood2.jpg", type: "HORIZONTAL" },
-  { id: 8, cafeId: 108, src: "/images/discovery/mood1.jpg", type: "VERTICAL" },
-  { id: 9, cafeId: 109, src: "/images/discovery/mood2.jpg", type: "HORIZONTAL" },
-];
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { getDiscoveryCafes } from "@/features/discovery/api/discoveryApi";
+import { getImageUrl } from "@/common/utils/image";
 
 export default function DiscoveryPage() {
   const router = useRouter();
+  const loaderRef = useRef<HTMLDivElement>(null);
 
+  // 무한 스크롤 데이터 조회
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status,
+  } = useInfiniteQuery({
+    queryKey: ["discovery", "feeds"],
+    queryFn: ({ pageParam = 0 }) => getDiscoveryCafes(pageParam, 15),
+    getNextPageParam: (lastPage) => (lastPage.last ? undefined : lastPage.number + 1),
+    initialPageParam: 0,
+  });
+
+  // Intersection Observer를 이용한 무한 스크롤 감지
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // 머무른 시간 측정 (GTM)
   useEffect(() => {
     const startTime = Date.now();
     return () => {
@@ -32,49 +57,61 @@ export default function DiscoveryPage() {
     };
   }, []);
 
-  const handleImageClick = (cafeId: number) => {
+  const handleImageClick = (cafeId: string) => {
     pushGtmEvent('discovery_item_click', { cafe_id: cafeId });
     router.push(`/cafes/${cafeId}`);
   };
 
+  if (status === "pending") {
+    return (
+      <div className="h-full min-h-full bg-[#F7F7F5] p-4 columns-2 gap-4 space-y-4">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="break-inside-avoid w-full bg-gray-200 rounded-xl animate-pulse" style={{ height: i % 2 === 0 ? '200px' : '300px' }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="h-full flex items-center justify-center text-gray-500">
+        데이터를 불러오는 중 오류가 발생했습니다.
+      </div>
+    );
+  }
+
+  const allFeeds = data.pages.flatMap((page) => page.content);
+
   return (
     <div className="h-full min-h-full bg-[#F7F7F5] pb-24 font-pretendard">
-      <div className="pt-6 px-4 pb-4">
-      </div>
+      <div className="pt-6 px-4 pb-4"></div>
 
-      {/* 
-        Masonry(메이슨리) 레이아웃 핵심 구현부
-        - columns-2: 모바일 환경이므로 세로를 2줄(2단)로 나눔
-        - gap-4: 양옆, 위아래 간격을 16px(1rem)로 설정
-      */}
       <div className="px-4 columns-2 gap-4 space-y-4">
-        {MOCK_FEEDS.map((feed) => (
+        {allFeeds.map((feed, index) => (
           <div 
-            key={feed.id} 
-            // break-inside-avoid: 이미지가 다음 단(column)으로 쪼개져서 넘어가는 것을 방지
-            // 무조건 온전한 하나의 상자로 유지
-            className="break-inside-avoid relative w-full rounded-xl overflow-hidden cursor-pointer shadow-sm active:scale-[0.98] transition-transform"
+            key={`${feed.cafeId}-${index}`} 
+            className="break-inside-avoid relative w-full rounded-xl overflow-hidden cursor-pointer shadow-sm active:scale-[0.98] transition-transform bg-[#F5F0E8]"
             onClick={() => handleImageClick(feed.cafeId)}
           >
-            {/* 
-              비율(세로/가로)에 상관없이 원본 이미지의 비율을 그대로 유지하면서 화면에 꽉 차게 보여줌.
-              width, height 속성을 명시적으로 주지 않아도, tailwind의 w-full과 h-auto 형식을 활용.
-              다만, next/image는 크기를 요구하므로, layout="responsive" 효과를 내기 위해
-              여기서는 img 태그 역할의 일반 방식을 혼합하거나 sizes를 씀.
-            */}
             <Image 
-              src={feed.src} 
-              alt={`추천 분위기 ${feed.id}`}
-              // next/image (v13+)에서 가로세로 비율을 유동적으로 가져갈 때의 꼼수
-              width={500} // 원본 화질 유지를 위한 넉넉한 픽셀 수 (비율 계산용)
-              height={feed.type === 'VERTICAL' ? 700 : 400} // type을 참고해 비율 유추
+              src={getImageUrl(feed.image)} 
+              alt="추천 카페"
+              width={500}
+              height={index % 3 === 0 ? 700 : 400} // 랜덤한 느낌을 위해 인덱스로 비율 조절
               className="w-full h-auto object-cover block" 
-              priority={feed.id <= 4} // 처음 보이는 상위 4개는 빨리 로딩할 수 있게 우선순위 부여
+              priority={index < 4}
+              unoptimized
             />
           </div>
         ))}
       </div>
-      
+
+      {/* 무한 스크롤 트리거 요소 */}
+      <div ref={loaderRef} className="h-10 flex items-center justify-center mt-4">
+        {isFetchingNextPage && (
+          <div className="w-6 h-6 border-2 border-[#C3304F] border-t-transparent rounded-full animate-spin" />
+        )}
+      </div>
     </div>
   );
 }
