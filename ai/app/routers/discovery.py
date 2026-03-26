@@ -35,8 +35,8 @@ async def discover(
             detail=str(e),
         )
 
-    return DiscoveryResponse(
-        user_id=request.user_id,
-        cafe_ids=cafe_ids,
-        total=len(cafe_ids),
-    )
+    ranked_cafes = {
+        str(cafe_id): rank for rank, cafe_id in enumerate(cafe_ids, start=1)
+    }
+
+    return DiscoveryResponse(root=ranked_cafes)
