@@ -141,6 +141,7 @@ public class MemberService {
         // 회원 취향 태그 조회 (없을 경우 온보딩 미실행을 고려하여 null 값으로 초기화)
         UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId)
                 .orElse(null);
+        log.info("회원 취향 태그 DB 로드 결과: {}", onboardingData);
 
         // 온보딩 데이터 자체가 없거나, 있더라도 태그 Map이 비어있으면 빈 리스트 반환
         if (onboardingData == null || onboardingData.getPreferredTags() == null || onboardingData.getPreferredTags().isEmpty()) {
@@ -148,13 +149,14 @@ public class MemberService {
         }
 
         // 취향 태그들 가져와서
-        Map<UUID, Integer> tags = onboardingData.getPreferredTags();
+        Map<String, Integer> tags = onboardingData.getPreferredTags();
+        log.info("취향 태그 내용: {}", onboardingData.getPreferredTags());
 
         // 상위 3개의 태그 조회
         List<UUID> top3 = tags.entrySet().stream()
-                .sorted(Map.Entry.<UUID, Integer>comparingByValue().reversed()) // 내림차
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .limit(3) // 3개만
-                .map(Map.Entry::getKey) // 상위 3개의 UUID 를 가져옴
+                .map(entry -> UUID.fromString(entry.getKey()))
                 .toList();
 
         // top3가 비어있을 경우 빈 리스트 반환

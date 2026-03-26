@@ -10,6 +10,7 @@ import com.degging.be.review.dto.response.MyReviewResponse;
 import com.degging.be.review.dto.response.ReviewDetailResponse;
 import com.degging.be.review.dto.response.ReviewResponse;
 import com.degging.be.review.service.ReviewService;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -72,6 +73,9 @@ public class ReviewController {
     public BaseResponse<CommonSliceResponse<ReviewResponse>> getReviews(
                     @AuthenticationPrincipal UserDetails user,
                     @PathVariable("cafeId") UUID cafeId,
+                    @Parameter(name = "pageable", // Swagger 기본값
+                            description = "페이지 설정",
+                            example = "{\"page\": 0, \"size\": 10, \"sort\": [\"createdAt,desc\"]}")
                     @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
         UUID userId = getUserId(user);
         Slice<ReviewResponse> reviews = reviewService.getReviewsByCafeId(cafeId, userId, pageable);

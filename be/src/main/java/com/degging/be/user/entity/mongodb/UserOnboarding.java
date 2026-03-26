@@ -27,7 +27,7 @@ public class UserOnboarding {
     private UUID userId; // RDB 유저 엔티티와 매핑하기 위한 식별자
 
     @Field("preferred_tags")
-    private Map<UUID, Integer> preferredTags; // 분석된 선호 분위기 태그 식별자별 선택 빈도
+    private Map<String, Integer> preferredTags; // 분석된 선호 분위기 태그 식별자별 선택 빈도
 
     @Field("selected_data")
     private SelectedData selectedData; // 사용자가 직접 선택한 카페와 메뉴의 식별자 목록
@@ -56,7 +56,7 @@ public class UserOnboarding {
      * @param menuIds 선택한 메뉴 목록
      * @return 생성된 유저 취향 도큐먼트 객체
      */
-    public static UserOnboarding of(UUID userId, Map<UUID, Integer> tags, List<UUID> cafeIds, List<Long> menuIds) {
+    public static UserOnboarding of(UUID userId, Map<String, Integer> tags, List<UUID> cafeIds, List<Long> menuIds) {
         return UserOnboarding.builder()
                 .userId(userId)
                 .preferredTags(tags)
