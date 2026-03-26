@@ -19,7 +19,7 @@ export default function MainPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // 페이지 진입 시 현재 할당된 AB 그룹 정보를 GTM/GA4에 다시 알립니다.
+    // 페이지 진입 시 현재 할당된 AB 그룹 정보를 GTM/GA4에 다시 알림.
     initAbGroupTracking();
 
     const startTime = Date.now();
@@ -184,17 +184,28 @@ export default function MainPage() {
           onMouseLeave={onDragEnd}
           className="flex overflow-x-auto snap-x flex-nowrap snap-mandatory no-scrollbar gap-3 px-6"
         >
-          {[1, 2, 3, 4, 5].map((item) => (
+          {[
+            { id: 1, title: "두툼하고 쫀득한\n마성의 두쫀쿠", image: "/images/curation/duzzonku.jpg" },
+            { id: 2, title: "겉바속촉 고소함의 끝\n인생 소금빵", image: "/images/curation/soguem.jpg" },
+            { id: 3, title: "쌉싸름한 녹색의 유혹\n입맛 돋우는 말차", image: "/images/curation/mangoBingsu.png" },
+            { id: 4, title: "싱그러운 제철 과일\n상큼한 디저트", image: "/images/curation/mangoBingsu.png" },
+            { id: 5, title: "은은한 풍미의 향연\n나만 알고 싶은 카페", image: "/images/curation/mangoBingsu.png" },
+          ].map((item) => (
             <div 
-              key={item} 
+              key={item.id} 
               className="relative flex-none shrink-0 w-[260px] h-[300px] snap-center rounded-[24px] overflow-hidden cursor-pointer shadow-sm select-none"
-              onClick={(e) => handleItemClick(e, `/curations/${item}`, item)}
+              onClick={(e) => handleItemClick(e, `/curations/${item.id}`, item.id)}
             >
-              <Image draggable={false} src="/images/curation/mangoBingsu.png" alt="큐레이션" fill className="object-cover" />
+              <Image draggable={false} src={item.image} alt="큐레이션" fill className="object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-5">
                 {/* 큐레이션 내부는 나눔스퀘어 Bold 적용 */}
                 <h3 className="text-white text-[17px] font-nanum_bold leading-tight tracking-tight">
-                  무더위 날려버릴<br />완벽한 당도의 망고 빙수
+                  {item.title.split('\n').map((line, idx) => (
+                    <span key={idx}>
+                      {line}
+                      <br />
+                    </span>
+                  ))}
                 </h3>
               </div>
             </div>

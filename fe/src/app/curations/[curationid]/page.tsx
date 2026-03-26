@@ -21,6 +21,7 @@ interface CurationCafe {
   description2: string;
   mapImageSrc: string;
   listImageSrc: string;
+  objectPosition?: string;
 }
 
 interface CurationTheme {
@@ -74,6 +75,7 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         description2: "진짜 두쫀쿠를 경험하고 싶은 분들에게 강력하게 추천하는 장소입니다.",
         mapImageSrc: "/images/curation/duzzonku_map3.png",
         listImageSrc: "/images/curation/duzzonku3.png",
+        objectPosition: "center 38%",
       },
       {
         id: 4,
@@ -139,6 +141,7 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         description2: "화려한 변주 속에서도 결코 잃지 않은 것은 소금빵 본연의 쫄깃한 식감이다. 떡처럼 찰기 있는 반죽과 짭짤한 겉면이 어떤 재료와 만나도 훌륭한 균형을 유지한다.",
         mapImageSrc: "/images/curation/soguem_map4.png",
         listImageSrc: "/images/curation/soguem4.jpg",
+        objectPosition: "center 35%",
       }
     ]
   },
@@ -330,7 +333,7 @@ export default function CurationDetailPage() {
           </p>
 
           <div 
-            className="w-full h-[180px] bg-[#F5F5F5] rounded-2xl mb-10 relative cursor-pointer overflow-hidden border border-gray-100"
+            className="w-full h-[180px] bg-[#F5F5F5] rounded-2xl mb-10 relative cursor-pointer overflow-hidden border border-gray-100 active:scale-[0.98] transition-transform"
             onClick={() => router.push(`/cafes/${cafe.id}`)}
           >
              {/* 카페 상세 이미지가 없을 경우를 대비해 Fallback 컬러 지정 */}
@@ -342,6 +345,7 @@ export default function CurationDetailPage() {
                alt={`${cafe.name} 이미지`} 
                fill 
                className="object-cover z-10" 
+               style={{ objectPosition: cafe.objectPosition || "center" }}
                sizes="(max-width: 768px) 100vw, 768px"
              />
           </div>
@@ -351,7 +355,7 @@ export default function CurationDetailPage() {
           
           {/* 지도 정적 이미지 영역 */}
           <div 
-            className="w-full h-[180px] bg-[#F5F5F5] rounded-2xl relative cursor-pointer overflow-hidden border border-gray-100"
+            className="w-full h-[180px] bg-[#F5F5F5] rounded-2xl relative cursor-pointer overflow-hidden border border-gray-100 active:scale-[0.98] transition-transform"
             onClick={() => router.push(`/cafes/${cafe.id}`)}
           >
              <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-[12px] bg-gray-100 z-0">
