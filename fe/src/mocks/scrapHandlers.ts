@@ -4,19 +4,19 @@ const MOCK_SCRAPS = [
   {
     scrapId: null,
     name: "모든 스크랩",
-    thumbnailUrl: [],
+    thumbnailUrls: [],
     color: null
   },
   {
     scrapId: "dfd02c92-be16-44b1-a76a-aaed7cb24052",
     name: "역삼역 근처",
-    thumbnailUrl: ["https://picsum.photos/seed/cafe1/400/300"],
+    thumbnailUrls: ["https://picsum.photos/seed/cafe1/400/300"],
     color: "RED"
   },
   {
     scrapId: "e2f3c4d5-a1b2-c3d4-e5f6-a7b8c9d0e1f2",
     name: "연남 분좋카 투어",
-    thumbnailUrl: [],
+    thumbnailUrls: [],
     color: "PINK"
   }
 ];

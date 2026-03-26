@@ -22,5 +22,5 @@ export interface ScrapList {
     scrapId: string | null; // "모든 스크랩"은 null로 옴 
     name: string;
     color: StarColor | null;
-    thumbnailUrl: string[]; //  최대 4개까지 back end에서 보내줌
+    thumbnailUrls: string[]; //  최대 4개까지 back end에서 보내줌
 }
