@@ -237,5 +237,17 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * AI 크롤링이 필요한 카페의 총 개수 조회
      */
     long countByThumbnailUrlIsNull();
+
+    /**
+     * 특정 지역(구) 내에서 AI 크롤링이 필요한 카페의 총 개수 조회
+     */
+    @Query("SELECT COUNT(c) FROM CafeEntity c WHERE c.thumbnailUrl IS NULL AND (c.address LIKE %:region% OR c.roadAddress LIKE %:region%)")
+    long countByThumbnailUrlIsNullAndRegion(@Param("region") String region);
+
+    /**
+     * 특정 지역(구) 내에서 AI 크롤링이 필요한 카페 목록 조회
+     */
+    @Query("SELECT c FROM CafeEntity c WHERE c.thumbnailUrl IS NULL AND (c.address LIKE %:region% OR c.roadAddress LIKE %:region%)")
+    Page<CafeEntity> findAllByThumbnailUrlIsNullAndRegion(@Param("region") String region, Pageable pageable);
     
 }
