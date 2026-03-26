@@ -7,7 +7,7 @@ import json
 import logging
 import re
 import urllib.parse
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -22,8 +22,13 @@ from app.services.cafe_crawling_service import (
     COMPANION_WORDS,
     DEFAULT_IMAGE_MAX_EDGE_PX,
     DEFAULT_UA,
+    DAY_FIELD_MAP,
+    DAY_FIELDS,
     DEFAULT_VIBE_TAG_ID,
     GMS_CHAT_COMPLETIONS_URL,
+    GMS_MODEL,
+    INTRO_MAX_CHARS,
+    LABEL_TOKENS,
     MAX_PHOTOS,
     MAX_REVIEWS,
     NAVER_MAP_BASE_URL,
@@ -40,7 +45,6 @@ from app.services.cafe_crawling_service import (
     TAB_CONFIG,
     TAB_READY_SELECTORS,
     TAB_SCROLL_STEPS,
-    VIBE_TAGS,
     WINDOWS_PLAYWRIGHT_LOOP_ERROR,
     _BLOCK_SEARCH,
     _BLOCK_TAB,
@@ -50,12 +54,15 @@ from app.services.cafe_crawling_service import (
     CafeSeed,
     RuntimeSettings,
     build_cafe_reviews,
+    build_vibe_selection_messages,
     clip_text,
     ensure_playwright_runtime_supported,
     extract_review_card_payloads as base_extract_review_card_payloads,
-    extract_json_object,
+    extract_vibe_label_from_response,
     is_allowed_image_url,
+    is_allowed_place_category,
     normalize_request_item,
+    normalize_place_category,
     parse_business_hours,
     parse_intro,
     parse_menu_text,
@@ -66,6 +73,7 @@ from app.services.cafe_crawling_service import (
     random_ua,
     resolve_runtime_settings,
     THUMBNAIL_MAX_EDGE_PX,
+    vibe_tag_id_from_label,
 )
 
 if TYPE_CHECKING:
@@ -76,6 +84,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger("uvicorn.error")
 MAX_STALE_SCROLL_ROUNDS = 2
 BROWSER_RECYCLE_CAFE_THRESHOLD = 10
+MENU_IMAGE_KEY_SEGMENT = "menus"
+MENU_IMAGE_SOURCE_FIELD = "_menu_image_source_url"
+_LABEL_TOKEN_CASEFOLDS = frozenset(token.casefold() for token in LABEL_TOKENS)
 _RESOURCE_COUNTER_LOCK = Lock()
 _RESOURCE_COUNTERS = defaultdict(
     int,
@@ -114,6 +125,14 @@ class WorkerBrowserState:
     cafes_processed_in_browser: int = 0
     needs_recycle: bool = False
     recycle_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class MenuCardPayload:
+    menu_name: str
+    price: int | None = None
+    menu_description: str | None = None
+    image_url: str | None = None
 
 
 def reset_resource_counters_for_test() -> None:
@@ -156,10 +175,16 @@ class GMSClient:
         self.api_key = api_key
         self.http_client = http_client
 
-    async def chat(self, messages: list[dict[str, str]], *, temperature: float = 0.2, max_tokens: int = 300) -> str:
-        payload = {"model": "gpt-5-nano", "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+    async def chat(self, messages: list[dict[str, str]]) -> str:
+        payload = {"model": GMS_MODEL, "messages": messages}
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         response = await self.http_client.post(GMS_CHAT_COMPLETIONS_URL, headers=headers, json=payload)
+        if response.status_code >= 400:
+            logger.warning(
+                "GMS chat request failed: status=%s body=%s",
+                response.status_code,
+                clip_text(response.text, 500),
+            )
         response.raise_for_status()
         data = response.json()
         content = data["choices"][0]["message"]["content"]
@@ -172,66 +197,22 @@ class GMSClient:
     async def summarize_intro(self, intro: str) -> str:
         if not intro:
             return ""
-        if len(intro) <= 40:
-            return intro
+        return clip_text(intro, INTRO_MAX_CHARS)
 
-        developer_prompt = "Summarize the cafe introduction in 40 characters or fewer and return only the summary."
-        user_prompt = f"Summarize this cafe introduction in 40 characters or fewer.\n\n{intro}"
-        for _ in range(2):
-            try:
-                response = await self.chat(
-                    [
-                        {"role": "developer", "content": developer_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.2,
-                    max_tokens=120,
-                )
-                compact = clip_text(response, 40)
-                if compact:
-                    return compact
-            except Exception:
-                continue
-        return clip_text(intro, 40)
-
-    async def choose_vibe_tag_ids(self, reviews: list[str]) -> list[str]:
-        if not reviews:
+    async def choose_vibe_tag_ids(self, *, intro: str, reviews: list[str]) -> list[str]:
+        messages = build_vibe_selection_messages(intro=intro, reviews=reviews)
+        if messages is None:
             return [DEFAULT_VIBE_TAG_ID]
 
-        tag_lines = "\n".join(f"- {tag_id}: {tag_name}" for tag_id, tag_name in VIBE_TAGS.items())
-        review_lines = "\n".join(f"{idx + 1}. {review}" for idx, review in enumerate(reviews[:MAX_REVIEWS]))
-        developer_prompt = (
-            "Choose 1 to 3 vibe tags that best match the cafe reviews. "
-            'Return JSON only in the form {"tag_ids": ["uuid1", "uuid2"]}.'
-        )
-        user_prompt = (
-            "Available tags:\n"
-            f"{tag_lines}\n\n"
-            "Select 1 to 3 matching tag_ids from these reviews and return JSON only.\n"
-            f"{review_lines}"
-        )
-
         for _ in range(2):
             try:
-                response = await self.chat(
-                    [
-                        {"role": "developer", "content": developer_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.2,
-                    max_tokens=200,
-                )
+                response = await self.chat(messages)
             except Exception:
                 continue
 
-            parsed = extract_json_object(response)
-            if not parsed or not isinstance(parsed.get("tag_ids"), list):
-                continue
-
-            valid = [tag_id for tag_id in parsed["tag_ids"] if tag_id in VIBE_TAGS]
-            valid = list(dict.fromkeys(valid))[:3]
-            if valid:
-                return valid
+            tag_id = vibe_tag_id_from_label(extract_vibe_label_from_response(response))
+            if tag_id is not None:
+                return [tag_id]
 
         return [DEFAULT_VIBE_TAG_ID]
 
@@ -633,6 +614,265 @@ async def fetch_tab_text(
     return (await page.evaluate("() => document.body.innerText")).strip()
 
 
+async def extract_place_category(page: Page) -> str | None:
+    category = await page.evaluate(
+        """
+        () => {
+            const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+            const direct = normalize(document.querySelector('span.lnJFt')?.textContent || '');
+            if (direct) {
+                return direct;
+            }
+
+            const header = document.querySelector('.place_section.no_margin.OP4V8 .LylZZ, .place_section.no_margin .LylZZ, .LylZZ');
+            if (!header) {
+                return '';
+            }
+
+            const name = normalize(header.querySelector('span.GHAhO')?.textContent || '');
+            const spanCandidates = Array.from(header.querySelectorAll('span'))
+                .map((element) => normalize(element.textContent || ''))
+                .filter(Boolean);
+            for (const candidate of spanCandidates) {
+                if (!candidate || candidate === name || candidate === '\\uc54c\\ub9bc\\ubc1b\\uae30') {
+                    continue;
+                }
+                return candidate;
+            }
+
+            let tail = normalize(header.textContent || '');
+            if (name && tail.startsWith(name)) {
+                tail = tail.slice(name.length).trim();
+            }
+
+            for (const stopToken of ['\\uc54c\\ub9bc\\ubc1b\\uae30', '\\ubc29\\ubb38\\uc790 \\ub9ac\\ubdf0', '\\ube14\\ub85c\\uadf8 \\ub9ac\\ubdf0']) {
+                const stopIndex = tail.indexOf(stopToken);
+                if (stopIndex !== -1) {
+                    tail = tail.slice(0, stopIndex).trim();
+                }
+            }
+
+            return tail;
+        }
+        """
+    )
+    return normalize_place_category(category)
+
+
+def normalize_compact_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def normalize_optional_text(value: Any) -> str | None:
+    text = normalize_compact_text(value)
+    return text or None
+
+
+def empty_business_hours() -> dict[str, str | None]:
+    return {field: None for field in DAY_FIELDS}
+
+
+def normalize_business_hours_day_label(value: Any) -> str | None:
+    normalized = normalize_optional_text(value)
+    if normalized is None:
+        return None
+
+    compact = normalized.replace("\uC694\uC77C", "").replace("\uB9E4\uC8FC", "").replace(" ", "")
+    return DAY_FIELD_MAP.get(compact)
+
+
+def build_structured_business_hours(raw_rows: Any) -> dict[str, str | None]:
+    business_hours = empty_business_hours()
+    if not isinstance(raw_rows, list):
+        return business_hours
+
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, dict):
+            continue
+        field = normalize_business_hours_day_label(raw_row.get("day"))
+        value = normalize_optional_text(raw_row.get("time"))
+        if field is None or value is None:
+            continue
+        business_hours[field] = value
+
+    return business_hours
+
+
+def has_any_business_hours_value(business_hours: dict[str, str | None] | None) -> bool:
+    return bool(business_hours) and any(value is not None for value in business_hours.values())
+
+
+def normalize_menu_name_key(value: Any) -> str:
+    return normalize_compact_text(value).casefold()
+
+
+def parse_menu_price_value(value: Any) -> int | None:
+    text = normalize_compact_text(value).replace(" ", "").replace(",", "").replace("\uC6D0", "")
+    if not text.isdigit():
+        return None
+    return int(text)
+
+
+def normalize_image_source_url(url: Any) -> str | None:
+    normalized = normalize_optional_text(url)
+    if normalized is None:
+        return None
+
+    parsed = urllib.parse.urlparse(normalized)
+    if (parsed.hostname or "").lower() == "search.pstatic.net":
+        source_values = urllib.parse.parse_qs(parsed.query).get("src")
+        if source_values:
+            decoded_source = normalize_optional_text(source_values[0])
+            if decoded_source:
+                normalized = decoded_source
+
+    if not is_allowed_image_url(normalized):
+        return None
+
+    high_quality = re.sub(r"/thumbnail/\d+x\d+(?:crop)?/", "/", normalized)
+    return high_quality.split("?")[0]
+
+
+def normalize_menu_card_payloads(raw_payloads: list[dict[str, Any]]) -> list[MenuCardPayload]:
+    normalized_payloads: list[MenuCardPayload] = []
+    seen: set[tuple[str, int | None, str | None, str | None]] = set()
+
+    for raw_payload in raw_payloads:
+        if not isinstance(raw_payload, dict):
+            continue
+
+        menu_name = normalize_optional_text(raw_payload.get("menu_name"))
+        if menu_name is None or menu_name.casefold() in _LABEL_TOKEN_CASEFOLDS:
+            continue
+
+        payload = MenuCardPayload(
+            menu_name=menu_name,
+            price=parse_menu_price_value(raw_payload.get("price_text") or raw_payload.get("price")),
+            menu_description=normalize_optional_text(raw_payload.get("menu_description")),
+            image_url=normalize_image_source_url(raw_payload.get("image_url")),
+        )
+        signature = (
+            normalize_menu_name_key(payload.menu_name),
+            payload.price,
+            payload.menu_description,
+            payload.image_url,
+        )
+        if signature in seen:
+            continue
+        seen.add(signature)
+        normalized_payloads.append(payload)
+
+    return normalized_payloads
+
+
+async def extract_menu_card_payloads(page: Page) -> list[MenuCardPayload]:
+    raw_payloads = await page.evaluate(
+        """
+        (labelTokens) => {
+            const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+            const isVisible = (element) => {
+                if (!(element instanceof Element)) {
+                    return false;
+                }
+                const style = window.getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            };
+            const isPriceLine = (line) => /^[\\d,]+\\s*(?:\\uC6D0)?$/.test(line);
+            const isLabel = (line) => labelTokens.includes(line.toLowerCase());
+            const payloads = [];
+            const structuredCards = Array.from(document.querySelectorAll('li.E2jtL'));
+            for (const card of structuredCards) {
+                if (!isVisible(card)) {
+                    continue;
+                }
+
+                const menuName = normalize(card.querySelector('.lPzHi')?.textContent || '');
+                const priceText = normalize(card.querySelector('.p2H02')?.textContent || '');
+                const menuDescription = normalize(card.querySelector('.okI98')?.textContent || '') || null;
+                const imageNode = card.querySelector('.place_thumb img[src]');
+                if (!menuName || isLabel(menuName) || (!priceText && !imageNode)) {
+                    continue;
+                }
+
+                payloads.push({
+                    menu_name: menuName,
+                    menu_description: menuDescription,
+                    price_text: priceText || null,
+                    image_url: normalize(imageNode?.currentSrc || imageNode?.src || '') || null,
+                });
+            }
+
+            if (payloads.length === 0) {
+                const elements = Array.from(document.querySelectorAll('li, article, section, div'));
+                for (const element of elements) {
+                    if (!isVisible(element)) {
+                        continue;
+                    }
+
+                    const rawText = normalize(element.innerText || '');
+                    if (!rawText || rawText.length > 160) {
+                        continue;
+                    }
+
+                    const lines = rawText
+                        .split('\\n')
+                        .map(normalize)
+                        .filter(Boolean);
+                    if (lines.length === 0 || lines.length > 8) {
+                        continue;
+                    }
+
+                    const imageNode = element.querySelector('img[src]');
+                    const hasPrice = lines.some(isPriceLine);
+                    if (!imageNode && !hasPrice) {
+                        continue;
+                    }
+
+                    const candidateLines = lines.filter((line) => !isLabel(line));
+                    if (candidateLines.length === 0) {
+                        continue;
+                    }
+
+                    let menuName = null;
+                    let menuDescription = null;
+                    let priceText = null;
+
+                    for (const line of candidateLines) {
+                        if (isPriceLine(line)) {
+                            priceText = priceText || line;
+                            continue;
+                        }
+                        if (!menuName) {
+                            menuName = line;
+                            continue;
+                        }
+                        if (!menuDescription) {
+                            menuDescription = line;
+                        }
+                    }
+
+                    if (!menuName) {
+                        continue;
+                    }
+
+                    payloads.push({
+                        menu_name: menuName,
+                        menu_description: menuDescription,
+                        price_text: priceText,
+                        image_url: normalize(imageNode?.currentSrc || imageNode?.src || '') || null,
+                    });
+                }
+            }
+
+            return payloads;
+        }
+        """,
+        sorted(_LABEL_TOKEN_CASEFOLDS),
+    )
+    return normalize_menu_card_payloads(raw_payloads)
+
+
 async def extract_review_card_payloads(page: Page) -> list[dict[str, Any]]:
     return await base_extract_review_card_payloads(page)
 
@@ -680,12 +920,117 @@ async def fetch_review_tab_data(page: Page, tab_url: str) -> tuple[str, list[dic
     return review_text, parsed_reviews
 
 
+async def extract_structured_business_hours(page: Page) -> dict[str, str | None]:
+    raw_rows = await page.evaluate(
+        """
+        () => {
+            const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+            const sectionRoots = Array.from(
+                document.querySelectorAll('.PIbes .O8qbU.pSavy, #app-root .place_section_content .O8qbU.pSavy')
+            );
+            const section = sectionRoots.find((root) => {
+                const text = normalize(root.textContent || '');
+                return (
+                    text.includes('\\uc601\\uc5c5\\uc2dc\\uac04') ||
+                    text.includes('\\uc601\\uc5c5 \\uc911') ||
+                    text.includes('\\ud3bc\\uccd0\\ubcf4\\uae30')
+                );
+            });
+            if (!section) {
+                return [];
+            }
+
+            const pickText = (row, selectors) => {
+                for (const selector of selectors) {
+                    const text = normalize(row.querySelector(selector)?.textContent || '');
+                    if (text) {
+                        return text;
+                    }
+                }
+                return '';
+            };
+
+            return Array.from(section.querySelectorAll('.w9QyJ')).map((row) => ({
+                day: pickText(row, ['.A_cdD .i8cJw', '.i8cJw']),
+                time: pickText(row, ['.A_cdD .H3ua4', '.H3ua4']),
+                text: normalize(row.textContent || ''),
+            }));
+        }
+        """
+    )
+    return build_structured_business_hours(raw_rows)
+
+
+async def expand_business_hours_section(page: Page) -> bool:
+    expanded = bool(
+        await page.evaluate(
+            """
+            () => {
+                const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+                const sectionRoots = Array.from(
+                    document.querySelectorAll('.PIbes .O8qbU.pSavy, #app-root .place_section_content .O8qbU.pSavy')
+                );
+                const section = sectionRoots.find((root) => {
+                    const text = normalize(root.textContent || '');
+                    return (
+                        text.includes('\\uc601\\uc5c5\\uc2dc\\uac04') ||
+                        text.includes('\\uc601\\uc5c5 \\uc911') ||
+                        text.includes('\\ud3bc\\uccd0\\ubcf4\\uae30')
+                    );
+                });
+                if (!section) {
+                    return false;
+                }
+
+                const candidates = Array.from(
+                    section.querySelectorAll('a[role="button"], button[role="button"], a, button, [aria-expanded], [aria-expander]')
+                );
+                for (const candidate of candidates) {
+                    const text = normalize(candidate.textContent || '');
+                    const ariaExpanded = candidate.getAttribute('aria-expanded');
+                    const ariaExpander = candidate.getAttribute('aria-expander');
+                    if (
+                        text.includes('\\ud3bc\\uccd0\\ubcf4\\uae30') ||
+                        ariaExpanded === 'false' ||
+                        ariaExpander === 'true'
+                    ) {
+                        candidate.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            """
+        )
+    )
+    if expanded:
+        with suppress(Exception):
+            await page.wait_for_load_state("networkidle", timeout=int(SETTLE_WAIT_SECONDS * 1000))
+        await asyncio.sleep(SETTLE_WAIT_SECONDS)
+    return expanded
+
+
+async def fetch_home_tab_data(page: Page, tab_url: str) -> tuple[str, dict[str, str | None]]:
+    await page.goto(tab_url, wait_until="domcontentloaded", timeout=30000)
+    await wait_for_page_ready(page, ready_selectors=TAB_READY_SELECTORS["home"])
+    await scroll_page(page, max_rounds=TAB_SCROLL_STEPS.get("home", 0))
+
+    home_text = (await page.evaluate("() => document.body.innerText")).strip()
+    structured_business_hours = await extract_structured_business_hours(page)
+    if not has_any_business_hours_value(structured_business_hours) and await expand_business_hours_section(page):
+        home_text = (await page.evaluate("() => document.body.innerText")).strip()
+        structured_business_hours = await extract_structured_business_hours(page)
+
+    return home_text, structured_business_hours
+
+
 async def collect_cdn_images(page: Page, *, scroll_steps: int = 0) -> list[str]:
     collected: set[str] = set()
 
     def on_request(request) -> None:
-        if request.resource_type == "image" and is_allowed_image_url(request.url):
-            collected.add(request.url.split("?")[0])
+        normalized = normalize_image_source_url(request.url)
+        if request.resource_type == "image" and normalized is not None:
+            collected.add(normalized)
 
     page.on("request", on_request)
     try:
@@ -700,9 +1045,9 @@ async def collect_cdn_images(page: Page, *, scroll_steps: int = 0) -> list[str]:
             """
         )
         for src in srcs:
-            if is_allowed_image_url(src):
-                high_quality = re.sub(r"/thumbnail/\d+x\d+(?:crop)?/", "/", src)
-                collected.add(high_quality.split("?")[0])
+            normalized = normalize_image_source_url(src)
+            if normalized is not None:
+                collected.add(normalized)
     finally:
         page.remove_listener("request", on_request)
 
@@ -730,6 +1075,15 @@ async def fetch_photo_tab_data(page: Page, tab_url: str) -> tuple[str, list[str]
     return photo_text, photo_urls
 
 
+async def fetch_menu_tab_data(page: Page, tab_url: str) -> tuple[str, list[MenuCardPayload]]:
+    await page.goto(tab_url, wait_until="domcontentloaded", timeout=30000)
+    await wait_for_page_ready(page, ready_selectors=TAB_READY_SELECTORS["menu"])
+    await scroll_page(page, max_rounds=TAB_SCROLL_STEPS["menu"])
+    menu_text = (await page.evaluate("() => document.body.innerText")).strip()
+    menu_cards = await extract_menu_card_payloads(page)
+    return menu_text, menu_cards
+
+
 async def fetch_place_tabs(
     seed: CafeSeed,
     context: BrowserContext,
@@ -739,20 +1093,27 @@ async def fetch_place_tabs(
     worker_state: WorkerBrowserState,
 ) -> dict[str, Any]:
     texts: dict[str, str] = {}
+    menu_cards: list[MenuCardPayload] = []
     photo_urls: list[str] = []
     visitor_reviews: list[dict[str, Any]] = []
+    structured_business_hours = empty_business_hours()
+    place_category: str | None = None
     tab_semaphore = asyncio.Semaphore(tab_concurrency)
 
     async def fetch_single_tab(tab_name: str, slug: str) -> None:
-        nonlocal photo_urls, visitor_reviews
+        nonlocal menu_cards, photo_urls, visitor_reviews, structured_business_hours, place_category
         async with tab_semaphore:
             async with track_inflight("tab"):
                 page = await open_tracked_page(context)
                 try:
                     await configure_page(page, search_mode=False)
                     tab_url = f"{place_base_url}/{slug}"
-                    if slug == "review":
+                    if slug == "home":
+                        texts[tab_name], structured_business_hours = await fetch_home_tab_data(page, tab_url)
+                    elif slug == "review":
                         texts[tab_name], visitor_reviews = await fetch_review_tab_data(page, tab_url)
+                    elif slug == "menu":
+                        texts[tab_name], menu_cards = await fetch_menu_tab_data(page, tab_url)
                     elif slug == "photo":
                         texts[tab_name], photo_urls = await fetch_photo_tab_data(page, tab_url)
                     else:
@@ -762,13 +1123,18 @@ async def fetch_place_tabs(
                             scroll_steps=TAB_SCROLL_STEPS.get(slug, 0),
                             ready_selectors=TAB_READY_SELECTORS.get(slug, ("body",)),
                         )
+                    if place_category is None:
+                        place_category = await extract_place_category(page)
                     logger.info(
-                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s photo_urls=%s visitor_reviews=%s",
+                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s menu_cards=%s photo_urls=%s visitor_reviews=%s business_hours=%s place_category=%s",
                         seed.cafe_id,
                         tab_name,
                         len(texts[tab_name]),
+                        len(menu_cards),
                         len(photo_urls),
                         len(visitor_reviews),
+                        sum(1 for value in structured_business_hours.values() if value),
+                        place_category,
                     )
                 finally:
                     await close_tracked_page(
@@ -784,8 +1150,11 @@ async def fetch_place_tabs(
 
     return {
         "texts": texts,
+        "menu_cards": menu_cards,
         "photo_urls": photo_urls,
         "visitor_reviews": visitor_reviews,
+        "structured_business_hours": structured_business_hours,
+        "place_category": place_category,
         "place_base_url": place_base_url,
     }
 
@@ -837,6 +1206,89 @@ async def download_image_bytes(url: str, http_client: httpx.AsyncClient) -> tupl
     response.raise_for_status()
     content_type = response.headers.get("content-type", "").split(";")[0].strip() or "application/octet-stream"
     return response.content, content_type
+
+
+def build_menus_with_image_candidates(menu_text: str, menu_cards: list[MenuCardPayload]) -> list[dict[str, Any]]:
+    parsed_menus = parse_menu_text(menu_text)
+    if not parsed_menus:
+        return [
+            {
+                "menu_name": menu_card.menu_name,
+                "price": menu_card.price,
+                "menu_description": menu_card.menu_description,
+                MENU_IMAGE_SOURCE_FIELD: menu_card.image_url,
+            }
+            for menu_card in menu_cards
+        ]
+
+    menu_card_queues: defaultdict[str, deque[MenuCardPayload]] = defaultdict(deque)
+    for menu_card in menu_cards:
+        name_key = normalize_menu_name_key(menu_card.menu_name)
+        if name_key:
+            menu_card_queues[name_key].append(menu_card)
+
+    menus: list[dict[str, Any]] = []
+    for parsed_menu in parsed_menus:
+        name_key = normalize_menu_name_key(parsed_menu["menu_name"])
+        matched_card = menu_card_queues[name_key].popleft() if name_key and menu_card_queues[name_key] else None
+        menus.append(
+            {
+                "menu_name": parsed_menu["menu_name"],
+                "price": parsed_menu["price"] if parsed_menu["price"] is not None else matched_card.price if matched_card else None,
+                "menu_description": (
+                    parsed_menu["menu_description"]
+                    if parsed_menu["menu_description"] is not None
+                    else matched_card.menu_description if matched_card else None
+                ),
+                MENU_IMAGE_SOURCE_FIELD: matched_card.image_url if matched_card else None,
+            }
+        )
+
+    return menus
+
+
+async def upload_menu_images(
+    seed: CafeSeed,
+    s3_client: S3Client,
+    http_client: httpx.AsyncClient,
+    menus: list[dict[str, Any]],
+    *,
+    max_concurrency: int,
+) -> list[str | None]:
+    stored_keys: list[str | None] = [None] * len(menus)
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def upload_single(index: int, source_url: str) -> None:
+        async with semaphore:
+            try:
+                data, content_type = await download_image_bytes(source_url, http_client)
+                data, content_type, ext = prepare_image_for_upload(data, max_edge_px=DEFAULT_IMAGE_MAX_EDGE_PX)
+                key = f"{S3_KEY_PREFIX}/{seed.cafe_id}/{MENU_IMAGE_KEY_SEGMENT}/{index:02d}{ext}"
+                stored_keys[index] = await s3_client.upload_bytes(key, data, content_type=content_type)
+            except Exception:
+                logger.warning("Menu image upload failed: cafe_id=%s menu_index=%s", seed.cafe_id, index)
+
+    async with asyncio.TaskGroup() as task_group:
+        for index, menu in enumerate(menus):
+            source_url = menu.get(MENU_IMAGE_SOURCE_FIELD)
+            if source_url:
+                task_group.create_task(upload_single(index, source_url))
+
+    return stored_keys
+
+
+def finalize_uploaded_menu_keys(menus: list[dict[str, Any]], stored_keys: list[str | None]) -> list[dict[str, Any]]:
+    finalized_menus: list[dict[str, Any]] = []
+    for index, menu in enumerate(menus):
+        finalized_menus.append(
+            {
+                "menu_name": menu["menu_name"],
+                "price": menu["price"],
+                "menu_description": menu["menu_description"],
+                "menu_img_url": stored_keys[index] if index < len(stored_keys) else None,
+            }
+        )
+    return finalized_menus
 
 
 async def upload_cafe_images(
@@ -892,29 +1344,24 @@ async def resolve_gms_enrichment(
     worker_state: WorkerBrowserState,
     seed: CafeSeed,
 ) -> tuple[str, list[str]]:
+    normalized_intro = clip_text(intro, INTRO_MAX_CHARS) if intro else ""
+    prompt_source = "intro" if normalized_intro else "reviews" if review_texts else "default"
     logger.info(
-        "Cafe crawling GMS start: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s intro_chars=%s review_texts=%s",
+        "Cafe crawling GMS start: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s intro_chars=%s review_texts=%s prompt_source=%s",
         seed.cafe_id,
         seed.name,
         worker_state.worker_id,
         worker_state.browser_generation,
         _current_browser_cafe_index(worker_state),
-        len(intro),
+        len(normalized_intro),
         len(review_texts),
+        prompt_source,
     )
-    summarized_intro = intro
+    summarized_intro = normalized_intro
     vibe_tag_ids = [DEFAULT_VIBE_TAG_ID]
 
     with track_stage("gms"):
-        intro_task = asyncio.create_task(gms_client.summarize_intro(intro)) if intro and len(intro) > 40 else None
-        vibe_task = asyncio.create_task(gms_client.choose_vibe_tag_ids(review_texts)) if review_texts else None
-
-        if intro_task and vibe_task:
-            summarized_intro, vibe_tag_ids = await asyncio.gather(intro_task, vibe_task)
-        elif intro_task:
-            summarized_intro = await intro_task
-        elif vibe_task:
-            vibe_tag_ids = await vibe_task
+        vibe_tag_ids = await gms_client.choose_vibe_tag_ids(intro=normalized_intro, reviews=review_texts)
 
     logger.info(
         "Cafe crawling GMS complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s summarized_intro_chars=%s vibe_tag_count=%s",
@@ -965,6 +1412,43 @@ async def upload_images_with_metrics(
     return thumbnail_url, cafe_images
 
 
+async def upload_menu_images_with_metrics(
+    seed: CafeSeed,
+    resources: CrawlRequestResources,
+    menus: list[dict[str, Any]],
+    worker_state: WorkerBrowserState,
+) -> list[dict[str, Any]]:
+    source_count = sum(1 for menu in menus if menu.get(MENU_IMAGE_SOURCE_FIELD))
+    logger.info(
+        "Cafe crawling menu image upload start: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s menu_count=%s source_menu_image_count=%s",
+        seed.cafe_id,
+        seed.name,
+        worker_state.worker_id,
+        worker_state.browser_generation,
+        _current_browser_cafe_index(worker_state),
+        len(menus),
+        source_count,
+    )
+    stored_keys = await upload_menu_images(
+        seed,
+        resources.s3_client,
+        resources.http_client,
+        menus,
+        max_concurrency=resources.image_concurrency,
+    )
+    uploaded_count = sum(1 for stored_key in stored_keys if stored_key is not None)
+    logger.info(
+        "Cafe crawling menu image upload complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s stored_menu_image_count=%s",
+        seed.cafe_id,
+        seed.name,
+        worker_state.worker_id,
+        worker_state.browser_generation,
+        _current_browser_cafe_index(worker_state),
+        uploaded_count,
+    )
+    return finalize_uploaded_menu_keys(menus, stored_keys)
+
+
 def assign_sequence_ids(items: list[dict[str, Any]]) -> list[CafeCrawlingMergedItem]:
     return [CafeCrawlingMergedItem.model_validate(item) for item in items]
 
@@ -976,6 +1460,20 @@ async def crawl_single_cafe(
 ) -> dict[str, Any]:
     with track_stage("total"):
         crawl_result = await crawl_place(seed, resources, worker_state)
+        place_category = normalize_place_category(crawl_result.get("place_category"))
+        if not is_allowed_place_category(place_category):
+            reason = "missing_place_category" if place_category is None else "filtered_place_category"
+            logger.info(
+                "Cafe crawling item skipped by place category: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s place_category=%s reason=%s",
+                seed.cafe_id,
+                seed.name,
+                worker_state.worker_id,
+                worker_state.browser_generation,
+                _current_browser_cafe_index(worker_state),
+                place_category,
+                reason,
+            )
+            raise CafeCrawlingItemError(f"Unsupported place category for cafe_id={seed.cafe_id}")
         texts = crawl_result["texts"]
 
         home_text = texts[tab_name_for_slug("home")]
@@ -983,31 +1481,31 @@ async def crawl_single_cafe(
         review_text = texts[tab_name_for_slug("review")]
         info_text = texts[tab_name_for_slug("information")]
 
-        intro = parse_intro(info_text)
+        intro = clip_text(parse_intro(info_text), INTRO_MAX_CHARS)
         review_metrics = parse_review_metrics(review_text, crawl_result.get("visitor_reviews"))
-        business_hours = parse_business_hours(home_text, info_text)
-        menus = [
-            {
-                "menu_name": menu["menu_name"],
-                "price": menu["price"],
-                "menu_description": menu["menu_description"],
-            }
-            for menu in parse_menu_text(menu_text)
-        ]
+        structured_business_hours = crawl_result.get("structured_business_hours") or empty_business_hours()
+        business_hours = (
+            structured_business_hours
+            if has_any_business_hours_value(structured_business_hours)
+            else parse_business_hours(home_text, info_text)
+        )
+        menus = build_menus_with_image_candidates(menu_text, crawl_result.get("menu_cards", []))
 
         review_texts = [review["review_text"] for review in review_metrics["reviews"] if review.get("review_text")]
         logger.info(
-            "Cafe crawling gather setup: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s photo_urls=%s review_texts=%s intro_chars=%s",
+            "Cafe crawling gather setup: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s menu_cards=%s photo_urls=%s review_texts=%s intro_chars=%s",
             seed.cafe_id,
             seed.name,
             worker_state.worker_id,
             worker_state.browser_generation,
             _current_browser_cafe_index(worker_state),
+            len(crawl_result.get("menu_cards", [])),
             len(crawl_result["photo_urls"]),
             len(review_texts),
             len(intro),
         )
         image_task = asyncio.create_task(upload_images_with_metrics(seed, resources, crawl_result["photo_urls"], worker_state))
+        menu_image_task = asyncio.create_task(upload_menu_images_with_metrics(seed, resources, menus, worker_state))
         gms_task = asyncio.create_task(
             resolve_gms_enrichment(
                 intro=intro,
@@ -1018,27 +1516,34 @@ async def crawl_single_cafe(
             )
         )
         logger.info(
-            "Cafe crawling gather waiting: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s image_task_done=%s gms_task_done=%s",
+            "Cafe crawling gather waiting: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s image_task_done=%s menu_image_task_done=%s gms_task_done=%s",
             seed.cafe_id,
             seed.name,
             worker_state.worker_id,
             worker_state.browser_generation,
             _current_browser_cafe_index(worker_state),
             image_task.done(),
+            menu_image_task.done(),
             gms_task.done(),
         )
-        (thumbnail_url, cafe_images), (summarized_intro, vibe_tag_ids) = await asyncio.gather(image_task, gms_task)
+        (thumbnail_url, cafe_images), menus, (summarized_intro, vibe_tag_ids) = await asyncio.gather(
+            image_task,
+            menu_image_task,
+            gms_task,
+        )
         logger.info(
-            "Cafe crawling gather complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s image_task_done=%s gms_task_done=%s thumbnail_present=%s image_count=%s summarized_intro_chars=%s vibe_tag_count=%s",
+            "Cafe crawling gather complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s image_task_done=%s menu_image_task_done=%s gms_task_done=%s thumbnail_present=%s image_count=%s menu_image_count=%s summarized_intro_chars=%s vibe_tag_count=%s",
             seed.cafe_id,
             seed.name,
             worker_state.worker_id,
             worker_state.browser_generation,
             _current_browser_cafe_index(worker_state),
             image_task.done(),
+            menu_image_task.done(),
             gms_task.done(),
             bool(thumbnail_url),
             len(cafe_images),
+            sum(1 for menu in menus if menu.get("menu_img_url")),
             len(summarized_intro),
             len(vibe_tag_ids),
         )

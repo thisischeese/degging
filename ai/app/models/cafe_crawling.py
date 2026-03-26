@@ -52,6 +52,7 @@ class CafeMenu(BaseModel):
     menu_name: str
     price: int | None = None
     menu_description: str | None = None
+    menu_img_url: str | None = None
 
 
 class CafeBusinessHours(BaseModel):

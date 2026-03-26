@@ -9,15 +9,23 @@ from app.services import cafe_crawling_service
 from app.services.cafe_crawling_service import (
     CafeCrawlingSourceError,
     CafeSeed,
+    build_vibe_selection_messages,
+    extract_vibe_label_from_response,
+    INTRO_MAX_CHARS,
     MAX_REVIEWS,
     RuntimeSettings,
     SequenceState,
     build_cafe_reviews,
+    is_allowed_place_category,
+    normalize_place_category,
+    parse_business_hours,
     parse_review_metrics,
     parse_structured_visitor_reviews,
     parse_total_review_count,
     resolve_runtime_settings,
+    tokenize_place_category,
     upload_cafe_images,
+    vibe_tag_id_from_label,
 )
 
 
@@ -244,3 +252,123 @@ class CafeCrawlingReviewMetricsTest(unittest.TestCase):
 
         self.assertEqual(len(cafe_reviews), 1)
         self.assertEqual(cafe_reviews[0]["rating"], 3)
+
+
+class CafeCrawlingBusinessHoursParsingTest(unittest.TestCase):
+    def test_parse_business_hours_supports_daily_schedule(self) -> None:
+        parsed = parse_business_hours("\uc601\uc5c5\uc2dc\uac04\n\ub9e4\uc77c 08:00 - 20:00")
+
+        self.assertEqual(
+            parsed,
+            {
+                "mon_hours": "08:00 - 20:00",
+                "tues_hours": "08:00 - 20:00",
+                "wed_hours": "08:00 - 20:00",
+                "thur_hours": "08:00 - 20:00",
+                "fri_hours": "08:00 - 20:00",
+                "sat_hours": "08:00 - 20:00",
+                "sun_hours": "08:00 - 20:00",
+            },
+        )
+
+    def test_parse_business_hours_supports_weekday_and_weekend_schedule(self) -> None:
+        parsed = parse_business_hours("\uc601\uc5c5\uc2dc\uac04\n\ud3c9\uc77c 09:00 - 18:00\n\uc8fc\ub9d0 \ud734\ubb34")
+
+        self.assertEqual(parsed["mon_hours"], "09:00 - 18:00")
+        self.assertEqual(parsed["fri_hours"], "09:00 - 18:00")
+        self.assertEqual(parsed["sat_hours"], "\ud734\ubb34")
+        self.assertEqual(parsed["sun_hours"], "\ud734\ubb34")
+
+
+class CafeCrawlingVibeSelectionTest(unittest.TestCase):
+    def test_build_vibe_selection_messages_prefers_intro_over_reviews(self) -> None:
+        messages = build_vibe_selection_messages(
+            intro="따뜻한 조명과 우드톤 가구가 많은 카페",
+            reviews=["review 0", "review 1"],
+        )
+
+        self.assertIsNotNone(messages)
+        user_prompt = messages[1]["content"]
+        self.assertIn("\uce74\ud398 \uc18c\uac1c", user_prompt)
+        self.assertIn("따뜻한 조명과 우드톤 가구가 많은 카페", user_prompt)
+        self.assertNotIn("review 0", user_prompt)
+
+    def test_build_vibe_selection_messages_limits_reviews_to_max(self) -> None:
+        reviews = [f"review {index}" for index in range(MAX_REVIEWS + 2)]
+
+        messages = build_vibe_selection_messages(intro="", reviews=reviews)
+
+        self.assertIsNotNone(messages)
+        user_prompt = messages[1]["content"]
+        self.assertIn("1. review 0", user_prompt)
+        self.assertIn(f"{MAX_REVIEWS}. review {MAX_REVIEWS - 1}", user_prompt)
+        self.assertNotIn(f"review {MAX_REVIEWS}", user_prompt)
+
+    def test_build_vibe_selection_messages_clips_intro_to_500_chars(self) -> None:
+        intro = "a" * (INTRO_MAX_CHARS + 25)
+
+        messages = build_vibe_selection_messages(intro=intro, reviews=[])
+
+        self.assertIsNotNone(messages)
+        self.assertIn("a" * INTRO_MAX_CHARS, messages[1]["content"])
+        self.assertNotIn("a" * (INTRO_MAX_CHARS + 1), messages[1]["content"])
+
+    def test_extract_vibe_label_from_response_supports_json_and_text_fallback(self) -> None:
+        self.assertEqual(
+            extract_vibe_label_from_response('{"selected_label":"\ud799\ud55c"}'),
+            "\ud799\ud55c",
+        )
+        self.assertEqual(
+            extract_vibe_label_from_response("\ubd84\uc704\uae30\ub294 \uc870\uc6a9\ud55c/\ucc28\ubd84\ud55c \uc785\ub2c8\ub2e4."),
+            "\uc870\uc6a9\ud55c/\ucc28\ubd84\ud55c",
+        )
+
+    def test_vibe_tag_id_from_label_normalizes_spaces(self) -> None:
+        self.assertEqual(
+            vibe_tag_id_from_label("\uc6b0\ub4dc\ud1a4 / \ub530\ub73b\ud568"),
+            "7ab663df-31be-43f8-b06a-2e8979806d89",
+        )
+
+
+class CafeCrawlingPlaceCategoryTest(unittest.TestCase):
+    def test_normalize_place_category_compacts_whitespace(self) -> None:
+        self.assertEqual(
+            normalize_place_category("  \uce74\ud398   /   \ub514\uc800\ud2b8  "),
+            "\uce74\ud398 / \ub514\uc800\ud2b8",
+        )
+        self.assertIsNone(normalize_place_category("   "))
+
+    def test_tokenize_place_category_splits_common_delimiters(self) -> None:
+        self.assertEqual(
+            tokenize_place_category("\uce74\ud398 / \ub514\uc800\ud2b8 \u00b7 \ubca0\uc774\ucee4\ub9ac"),
+            ["\uce74\ud398", "\ub514\uc800\ud2b8", "\ubca0\uc774\ucee4\ub9ac"],
+        )
+
+    def test_is_allowed_place_category_accepts_configured_keywords_and_compounds(self) -> None:
+        allowed_categories = [
+            "\uce74\ud398",
+            "\uce74\ud398,\ub514\uc800\ud2b8",
+            "\ub514\uc800\ud2b8",
+            "\ubca0\uc774\ucee4\ub9ac",
+            "\ub514\uc800\ud2b8\uce74\ud398",
+            "\ubca0\uc774\ucee4\ub9ac\uce74\ud398",
+            "\uc2a4\ud130\ub514\uce74\ud398",
+        ]
+
+        for category in allowed_categories:
+            with self.subTest(category=category):
+                self.assertTrue(is_allowed_place_category(category))
+
+    def test_is_allowed_place_category_rejects_non_cafe_categories(self) -> None:
+        rejected_categories = [
+            None,
+            "",
+            "   ",
+            "\ud559\uc6d0",
+            "\uad50\uc2b5\uc18c",
+            "\uc0ac\uc9c4\uad00",
+        ]
+
+        for category in rejected_categories:
+            with self.subTest(category=category):
+                self.assertFalse(is_allowed_place_category(category))

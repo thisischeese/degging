@@ -33,10 +33,12 @@ logger = logging.getLogger("uvicorn.error")
 
 NAVER_MAP_BASE_URL = "https://map.naver.com/p/search/"
 GMS_CHAT_COMPLETIONS_URL = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions"
+GMS_MODEL = "gpt-5-nano"
 S3_KEY_PREFIX = "cafes"
 PRESIGN_EXPIRES_SECONDS = 604800
 MAX_PHOTOS = 6
 MAX_REVIEWS = 10
+INTRO_MAX_CHARS = 500
 THUMBNAIL_MAX_EDGE_PX = 200
 DEFAULT_IMAGE_MAX_EDGE_PX = 800
 FALLBACK_IMAGE_MAX_EDGE_PX = 640
@@ -105,6 +107,12 @@ PRICE_RE = re.compile(r"^[\d,]+(원)?$")
 REVIEWER_STATS_RE = re.compile(r"^리뷰\s+[\d,]+")
 QUOTE_KW_RE = re.compile(r'^"(.+)"$')
 KW_PLUS_RE = re.compile(r"^(.+?)\+(\d+)$")
+PLACE_CATEGORY_SPLIT_RE = re.compile(r"\s*(?:,|/|\||\u00b7)\s*")
+PLACE_CATEGORY_ALLOWED_KEYWORDS = (
+    "\uce74\ud398",
+    "\ub514\uc800\ud2b8",
+    "\ubca0\uc774\ucee4\ub9ac",
+)
 KNOWN_KEYWORDS = {
     "빵이 맛있어요",
     "커피가 맛있어요",
@@ -157,6 +165,14 @@ VIBE_TAGS = {
     "9b71769c-2293-4e06-bf37-f1fbf33c2853": "탁트인/뷰 좋은",
 }
 DEFAULT_VIBE_TAG_ID = "e747e844-db71-42ea-81cf-c25d510672b2"
+VIBE_LABEL_TO_TAG_ID = {
+    "\uc6b0\ub4dc\ud1a4/\ub530\ub73b\ud568": "7ab663df-31be-43f8-b06a-2e8979806d89",
+    "\uc2dd\ubb3c\uc6d0/\ud50c\ub79c\ud14c\ub9ac\uc5b4": "4ada6e46-3d5b-4ac8-abf9-9479abb35cfc",
+    "\ud799\ud55c": "c35facb1-f2ae-42aa-8234-522f6ae3352b",
+    "\uc870\uc6a9\ud55c/\ucc28\ubd84\ud55c": "e747e844-db71-42ea-81cf-c25d510672b2",
+    "\ud0c1\ud2b8\uc778/\ubdf0 \uc88b\uc740": "9b71769c-2293-4e06-bf37-f1fbf33c2853",
+}
+VIBE_SELECTION_LABELS = tuple(VIBE_LABEL_TO_TAG_ID.keys())
 
 
 @dataclass(frozen=True)
@@ -340,6 +356,38 @@ def parse_menu_text(menu_text: str) -> list[dict[str, Any]]:
     if pending_name:
         menus.append({"menu_name": pending_name, "price": None, "menu_description": pending_desc})
     return menus
+
+
+def normalize_place_category(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = re.sub(r"\s+", " ", str(value)).strip()
+    return normalized or None
+
+
+def tokenize_place_category(value: Any) -> list[str]:
+    normalized = normalize_place_category(value)
+    if normalized is None:
+        return []
+
+    tokens = [
+        re.sub(r"\s+", "", token)
+        for token in PLACE_CATEGORY_SPLIT_RE.split(normalized)
+        if token.strip()
+    ]
+    if tokens:
+        return tokens
+
+    compact = re.sub(r"\s+", "", normalized)
+    return [compact] if compact else []
+
+
+def is_allowed_place_category(value: Any) -> bool:
+    return any(
+        keyword in token
+        for token in tokenize_place_category(value)
+        for keyword in PLACE_CATEGORY_ALLOWED_KEYWORDS
+    )
 
 
 def parse_total_review_count(visitor_reviews: list[dict[str, Any]] | int | None) -> int:
@@ -677,17 +725,105 @@ def clip_text(text: str, limit: int = 500) -> str:
     return compact if len(compact) <= limit else compact[:limit].rstrip()
 
 
+def normalize_vibe_label(value: Any) -> str | None:
+    normalized = normalize_nullable_text(value)
+    if normalized is None:
+        return None
+    normalized = re.sub(r"\s*/\s*", "/", normalized)
+    return normalized or None
+
+
+def resolve_vibe_label(value: Any) -> str | None:
+    normalized = normalize_vibe_label(value)
+    if normalized is None:
+        return None
+    if normalized in VIBE_LABEL_TO_TAG_ID:
+        return normalized
+
+    compact = re.sub(r"\s+", "", normalized)
+    for label in VIBE_SELECTION_LABELS:
+        if re.sub(r"\s+", "", label) == compact:
+            return label
+    return None
+
+
+def vibe_tag_id_from_label(value: Any) -> str | None:
+    label = resolve_vibe_label(value)
+    if label is None:
+        return None
+    return VIBE_LABEL_TO_TAG_ID[label]
+
+
+def extract_vibe_label_from_response(text: Any) -> str | None:
+    if text is None:
+        return None
+
+    response_text = str(text)
+    parsed = extract_json_object(response_text)
+    if isinstance(parsed, dict):
+        label = resolve_vibe_label(parsed.get("selected_label"))
+        if label is not None:
+            return label
+
+    normalized_response = re.sub(r"\s+", "", response_text)
+    for label in VIBE_SELECTION_LABELS:
+        if re.sub(r"\s+", "", label) in normalized_response:
+            return label
+    return None
+
+
+def build_vibe_selection_messages(*, intro: str, reviews: list[str]) -> list[dict[str, str]] | None:
+    normalized_intro = clip_text(intro, INTRO_MAX_CHARS) if normalize_nullable_text(intro) else ""
+    normalized_reviews = [
+        clip_text(review, INTRO_MAX_CHARS)
+        for review in reviews[:MAX_REVIEWS]
+        if normalize_nullable_text(review)
+    ]
+    if not normalized_intro and not normalized_reviews:
+        return None
+
+    labels_text = ", ".join(VIBE_SELECTION_LABELS)
+    developer_prompt = (
+        "당신은 카페 분위기를 분류한다. "
+        f"허용 라벨은 다음 다섯 개뿐이다: {labels_text}. "
+        '정확히 하나만 선택하고 JSON only 형식 {"selected_label":"라벨명"} 으로만 응답한다.'
+    )
+    if normalized_intro:
+        user_prompt = (
+            f"후보 라벨: {labels_text}\n\n"
+            "아래 카페 소개를 읽고 가장 잘 맞는 라벨 하나를 선택해 JSON만 반환해.\n\n"
+            f"카페 소개:\n{normalized_intro}"
+        )
+    else:
+        review_lines = "\n".join(f"{index + 1}. {review}" for index, review in enumerate(normalized_reviews))
+        user_prompt = (
+            f"후보 라벨: {labels_text}\n\n"
+            "아래 사용자 리뷰를 읽고 가장 잘 맞는 라벨 하나를 선택해 JSON만 반환해.\n\n"
+            f"사용자 리뷰:\n{review_lines}"
+        )
+    return [
+        {"role": "developer", "content": developer_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
 class GMSClient:
     def __init__(self, api_key: str) -> None:
         self.api_key = api_key
 
-    async def chat(self, messages: list[dict[str, str]], *, temperature: float = 0.2, max_tokens: int = 300) -> str:
+    async def chat(self, messages: list[dict[str, str]]) -> str:
         import httpx
 
-        payload = {"model": "gpt-5-nano", "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+        payload = {"model": GMS_MODEL, "messages": messages}
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(GMS_CHAT_COMPLETIONS_URL, headers=headers, json=payload)
+            if response.status_code >= 400:
+                logger.warning(
+                    "GMS chat request failed: status=%s body=%s",
+                    response.status_code,
+                    clip_text(response.text, 500),
+                )
             response.raise_for_status()
             data = response.json()
         content = data["choices"][0]["message"]["content"]
@@ -700,6 +836,7 @@ class GMSClient:
     async def summarize_intro(self, intro: str) -> str:
         if not intro:
             return ""
+        return clip_text(intro, INTRO_MAX_CHARS)
         if len(intro) <= 40:
             return intro
 
@@ -722,7 +859,23 @@ class GMSClient:
                 continue
         return clip_text(intro, 40)
 
-    async def choose_vibe_tag_ids(self, reviews: list[str]) -> list[str]:
+    async def choose_vibe_tag_ids(self, *, intro: str, reviews: list[str]) -> list[str]:
+        messages = build_vibe_selection_messages(intro=intro, reviews=reviews)
+        if messages is None:
+            return [DEFAULT_VIBE_TAG_ID]
+
+        for _ in range(2):
+            try:
+                response = await self.chat(messages)
+            except Exception:
+                continue
+
+            tag_id = vibe_tag_id_from_label(extract_vibe_label_from_response(response))
+            if tag_id is not None:
+                return [tag_id]
+
+        return [DEFAULT_VIBE_TAG_ID]
+
         if not reviews:
             return [DEFAULT_VIBE_TAG_ID]
 
@@ -1356,7 +1509,8 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
     s3_client = S3Client(runtime_settings)
 
     intro = parse_intro(texts["정보"])
-    summarized_intro = await gms_client.summarize_intro(intro) if intro and len(intro) > 40 else intro
+    intro = clip_text(intro, INTRO_MAX_CHARS)
+    summarized_intro = await gms_client.summarize_intro(intro) if intro else ""
     review_metrics = parse_review_metrics(texts["리뷰"], crawl_result.get("visitor_reviews"))
     business_hours = parse_business_hours(texts["홈"], texts["정보"])
 
@@ -1373,7 +1527,7 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
     thumbnail_url, cafe_images = await upload_cafe_images(seed, s3_client, crawl_result["photo_urls"], sequences)
 
     review_texts = [review["review_text"] for review in review_metrics["reviews"] if review.get("review_text")]
-    vibe_tag_ids = await gms_client.choose_vibe_tag_ids(review_texts)
+    vibe_tag_ids = await gms_client.choose_vibe_tag_ids(intro=summarized_intro, reviews=review_texts)
     cafe_vibe_tags = [
         {
             "tag_id": tag_id,
