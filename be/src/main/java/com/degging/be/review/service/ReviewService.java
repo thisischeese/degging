@@ -54,7 +54,7 @@ public class ReviewService {
      * 리뷰 생성 메서드
      */
     @Transactional
-    public void createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId) throws IOException {
+    public UUID createReview(ReviewRequest request, UUID loginUser, List<MultipartFile> images, UUID cafeId) throws IOException {
         // 유효성 검증 및 객체 조회
         UserEntity user = getValidUser(loginUser);
         CafeEntity cafe = checkCafeValidation(cafeId);
@@ -70,7 +70,7 @@ public class ReviewService {
 
         // Dto -> Entity 후 Review 테이블에 저장
         ReviewEntity entity = request.toEntity(user, cafe);
-        reviewRepository.save(entity);
+        ReviewEntity savedEntity = reviewRepository.save(entity);
 
         // S3 와 리뷰 이미지 테이블에 추가
         uploadReviewImages(entity, images, 0);
@@ -85,6 +85,8 @@ public class ReviewService {
 
         // 새로 생성된 엔티티일 수 있어 명시적으로 save 호출해줌
         cafeRatingStatsRepository.save(stats);
+
+        return savedEntity.getReviewId();
     }
 
     /**
