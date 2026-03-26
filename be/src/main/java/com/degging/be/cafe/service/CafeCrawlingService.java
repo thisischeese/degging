@@ -14,12 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * 카페 크롤링 데이터를 처리하고 대량 수집 프로세스를 관리하는 서비스
@@ -38,7 +34,6 @@ public class CafeCrawlingService {
     private final ObjectProvider<CafeCrawlingService> cafeCrawlingServiceProvider;
 
     private static final int BATCH_SIZE = 50;
-    private static final int BATCH_START_DELAY_SECONDS = 2; // 배치 간 요청 시작 딜레이
 
     /**
      * 수집된 데이터를 DB에 저장 (배치 단위로 트랜잭션 처리)
@@ -67,15 +62,11 @@ public class CafeCrawlingService {
 
     /**
      * 전체 카페에 대한 AI 크롤링 실행 (비동기)
-     * DB에서 썸네일이 없는 카페 목록을 400개(4개 워커 분량)씩 읽어와 AI 서버에 병렬로 크롤링 요청
+     * DB에서 썸네일이 없는 카페 목록을 배치 단위로 읽어와 AI 서버에 크롤링 요청
      */
     @Async
     public void crawling() {
-        // [기존 코드] 전체 데이터 개수 확인
-        // long totalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
-        // log.info("크롤링 프로세스 시작 (전체 대상: {}개)", totalToCrawl);
-
-        // [테스트용] 1000개 제한 적용
+        // [테스트용] 50개 제한 적용 (필요 시 조절)
         long actualTotalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
         long totalToCrawl = Math.min(actualTotalToCrawl, 50);
         log.info("크롤링 프로세스 시작 (테스트 모드: {}개 제한 / 실제 대상: {}개)", totalToCrawl, actualTotalToCrawl);
@@ -92,90 +83,61 @@ public class CafeCrawlingService {
             return;
         }
 
-        // 한 루프에서 처리할 양 (4개 워커 * 배치 사이즈 50)
-        final int WORKERS = 4;
-        final int TOTAL_PER_LOOP = BATCH_SIZE * WORKERS;
+        // 전체 배치 수 계산 (단일 배치 흐름)
+        int totalBatches = (int) Math.ceil((double) totalToCrawl / BATCH_SIZE);
 
-        int totalLoops = (int) Math.ceil((double) totalToCrawl / TOTAL_PER_LOOP);
+        for (int i = 0; i < totalBatches; i++) {
+            int currentBatchNum = i + 1;
+            log.info("[배치 {}/{}] 데이터 {}개 조회 중...", currentBatchNum, totalBatches, BATCH_SIZE);
 
-        for (int loop = 0; loop < totalLoops; loop++) {
-            log.info("[루프 {}/{}] 데이터 {}개 조회 중...", loop + 1, totalLoops, TOTAL_PER_LOOP);
+            // 잔여 대상 중 상위 BATCH_SIZE(50)개 조회
+            Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, BATCH_SIZE));
+            List<CafeEntity> currentBatch = cafePage.getContent();
 
-            // 잔여 대상 중 상위 400개 조회
-            Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, TOTAL_PER_LOOP));
-            List<CafeEntity> allCafesInLoop = cafePage.getContent();
-
-            if (allCafesInLoop.isEmpty()) {
+            if (currentBatch.isEmpty()) {
                 log.info("더 이상 수집할 데이터 없음.");
                 break;
             }
 
-            // 조회된 데이터를 100개씩 4개 배치로 분할
-            List<List<CafeEntity>> batches = IntStream.range(0, (allCafesInLoop.size() + BATCH_SIZE - 1) / BATCH_SIZE)
-                    .mapToObj(i -> allCafesInLoop.subList(i * BATCH_SIZE,
-                            Math.min(allCafesInLoop.size(), (i + 1) * BATCH_SIZE)))
+            // AI 서버 요청용 DTO 변환
+            List<AiCrawlerRequestDto> requestBatch = currentBatch.stream()
+                    .map(AiCrawlerRequestDto::from)
                     .collect(Collectors.toList());
 
-            log.info("[루프 {}/{}] 순차 요청 시작 (총 {}건, {}개 그룹)", loop + 1, totalLoops, allCafesInLoop.size(), batches.size());
+            try {
+                log.info("[배치 {}/{}] AI 서버 요청 전송... ({}건)", currentBatchNum, totalBatches, requestBatch.size());
+                AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
 
-            for (int i = 0; i < batches.size(); i++) {
-                final int batchIdx = i + 1;
-                final List<CafeEntity> currentBatch = batches.get(i);
-                final int currentLoop = loop + 1;
+                if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                    log.info("[배치 {}/{}] {}건 수신 성공, DB 저장을 시작합니다.", currentBatchNum, totalBatches,
+                            response.getItems().size());
 
-                // 배치 간 시간 간격을 주어 AI 서버 숨돌릴 틈 제공
-                if (i > 0) {
-                    try {
-                        log.info("[루프 {}/워커 {}] {}초 후 다음 그룹(50개) 요청 시작...", currentLoop, batchIdx, BATCH_START_DELAY_SECONDS);
-                        TimeUnit.SECONDS.sleep(BATCH_START_DELAY_SECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("배치 딜레이 중 인터럽트 발생: {}", e.getMessage());
+                    // AI 응답 즉시 JSON 백업
+                    crawlingBackupService.backup(response, 1, currentBatchNum);
+
+                    // 프록시 객체(self)를 통해 트랜잭션 보장하며 저장
+                    self.saveCrawlingData(response.getItems());
+
+                    if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
+                        List<CafeEntity> missingCafes = cafeRepository.findAllById(response.getMissingCafeIds());
+                        List<String> missingCafeInfo = missingCafes.stream()
+                                .map(c -> c.getName() + "(" + c.getCafeId() + ")")
+                                .collect(Collectors.toList());
+                        log.warn("[배치 {}/{}] AI 크롤링 누락 대상 ({}건): {}",
+                                currentBatchNum, totalBatches, missingCafeInfo.size(), missingCafeInfo);
                     }
+                } else {
+                    log.warn("[배치 {}/{}] AI 서버 응답이 없거나 비어있습니다.", currentBatchNum, totalBatches);
                 }
-
-                List<AiCrawlerRequestDto> requestBatch = currentBatch.stream()
-                        .map(AiCrawlerRequestDto::from)
-                        .collect(Collectors.toList());
-
-                try {
-                    log.info("[루프 {}/워커 {}] AI 서버 요청 전송... ({}건)", currentLoop, batchIdx, requestBatch.size());
-                    AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
-
-                    if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
-                        log.info("[루프 {}/워커 {}] {}건 수신 성공, DB 저장을 시작합니다.", currentLoop, batchIdx,
-                                response.getItems().size());
-
-                        // AI 응답 즉시 JSON 백업
-                        crawlingBackupService.backup(response, currentLoop, batchIdx);
-
-                        // 프록시 객체(self)를 통해 트랜잭션 보장하며 저장
-                        self.saveCrawlingData(response.getItems());
-
-                        if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
-                            List<CafeEntity> missingCafes = cafeRepository
-                                    .findAllById(response.getMissingCafeIds());
-                            List<String> missingCafeInfo = missingCafes.stream()
-                                    .map(c -> c.getName() + "(" + c.getCafeId() + ")")
-                                    .collect(Collectors.toList());
-                            log.warn("[루프 {}/워커 {}] AI 크롤링 누락 대상 ({}건): {}",
-                                    currentLoop, batchIdx, missingCafeInfo.size(), missingCafeInfo);
-                        }
-                    } else {
-                        log.warn("[루프 {}/워커 {}] AI 서버 응답이 없거나 비어있습니다.", currentLoop, batchIdx);
-                    }
-                } catch (Exception e) {
-                    log.error("[루프 {}/워커 {}] 크롤링 작업 중 예외 발생: {}", currentLoop, batchIdx, e.getMessage());
-                }
+            } catch (Exception e) {
+                log.error("[배치 {}/{}] 크롤링 작업 중 예외 발생: {}", currentBatchNum, totalBatches, e.getMessage());
             }
 
-            log.info("[루프 {}/{}] 모든 순차 작업 완료", loop + 1, totalLoops);
-
-            // 다음 루프 시작 전 지연 시간 추가
-            if (loop < totalLoops - 1) {
-                log.info("다음 루프 시작 전 60초간 대기합니다...");
+            // 배치 간 지연 시간 추가 (AI 서버 부하 방지용, 필요 시 조절)
+            if (i < totalBatches - 1) {
                 try {
-                    Thread.sleep(60000);
+                    log.info("다음 배치를 위해 5초간 대기합니다...");
+                    Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     log.warn("대기 중 인터럽트 발생: {}", e.getMessage());
@@ -183,7 +145,7 @@ public class CafeCrawlingService {
             }
         }
 
-        log.info("모든 크롤링 순차 작업이 종료되었습니다.");
+        log.info("모든 크롤링 작업이 종료되었습니다.");
     }
 }
 
