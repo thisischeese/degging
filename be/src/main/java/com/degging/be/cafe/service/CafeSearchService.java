@@ -61,7 +61,19 @@ public class CafeSearchService {
                     log.error("AI 서버 호출 실패: {}", e.getMessage());
                     return Mono.just(AiSearchResponse.empty());
                 })
-                .block(Duration.ofSeconds(5)); // 결과 나올 때까지 동기 방식으로 대기, 5초까지만 대기
+                .block();
+//                .block(Duration.ofSeconds(5)); // 결과 나올 때까지 동기 방식으로 대기, 5초까지만 대기
+
+        // AI가 대답을 했다면, 결과가 0개여도 사용자의 의도는 기록으로 남김
+        if (res != null){
+            // 검색 이벤트 발행 -> 랭크 도메인에서 받아 실시간 트랜드 반영
+            if (res.getExtractedMenus() != null && !res.getExtractedMenus().isEmpty()) {
+                kafkaProducer.send(TOPIC_NAME, SearchEvent.of(res.getExtractedMenus(), userId));
+            }
+
+            // 개인 검색 로그 저장 호출
+            saveSearchLog(userId, request.getKeyword());
+        }
 
         // AI 응답 검증
         if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
@@ -95,14 +107,7 @@ public class CafeSearchService {
         // 비동기로 추천 결과 캐싱  10분 저장
         saveRecommendCache(userId, items);
 
-        // 검색 이벤트 발행 -> 랭크 도메인에서 받아 실시간 트랜드 반영
-        if (res.getExtractedMenus() != null && !res.getExtractedMenus().isEmpty()) {
-            kafkaProducer.send(TOPIC_NAME, SearchEvent.of(res.getExtractedMenus(), userId));
-        }
-
-        // 개인 검색 로그 저장 호출
-        saveSearchLog(userId, request.getKeyword());
-
+        // TODO : 유저 취향 태그 반영
         return CafeSearchResponse.builder()
                 .cafes(items)
                 .build();
