@@ -7,9 +7,11 @@ import json
 import logging
 import re
 import urllib.parse
+from collections import defaultdict
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from threading import Lock
 from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
@@ -68,20 +70,30 @@ from app.services.cafe_crawling_service import (
 
 if TYPE_CHECKING:
     import httpx
-    from playwright.async_api import Browser, BrowserContext, Page
+    from playwright.async_api import Browser, BrowserContext, Page, Playwright
 
 
 logger = logging.getLogger("uvicorn.error")
 MAX_STALE_SCROLL_ROUNDS = 2
+BROWSER_RECYCLE_CAFE_THRESHOLD = 10
+_RESOURCE_COUNTER_LOCK = Lock()
+_RESOURCE_COUNTERS = defaultdict(
+    int,
+    {
+        "active_contexts": 0,
+        "active_pages": 0,
+        "browser_launches": 0,
+        "browser_recycles": 0,
+    },
+)
 
 
 @dataclass
 class CrawlRequestResources:
-    browser: Browser
+    playwright: Playwright
     http_client: httpx.AsyncClient
     gms_client: "GMSClient"
     s3_client: "S3Client"
-    batch_semaphore: asyncio.Semaphore
     tab_concurrency: int
     image_concurrency: int
 
@@ -92,6 +104,51 @@ class OrderedCrawlResult:
     missing_cafe_id: str | None = None
     failed_cafe_id: str | None = None
     failure_reason: str | None = None
+
+
+@dataclass
+class WorkerBrowserState:
+    worker_id: int
+    browser: Browser | None = None
+    browser_generation: int = 0
+    cafes_processed_in_browser: int = 0
+    needs_recycle: bool = False
+    recycle_reason: str | None = None
+
+
+def reset_resource_counters_for_test() -> None:
+    with _RESOURCE_COUNTER_LOCK:
+        for key in _RESOURCE_COUNTERS:
+            _RESOURCE_COUNTERS[key] = 0
+
+
+def get_resource_counters_snapshot() -> dict[str, int]:
+    with _RESOURCE_COUNTER_LOCK:
+        return dict(_RESOURCE_COUNTERS)
+
+
+def _adjust_resource_counter(name: str, delta: int) -> int:
+    with _RESOURCE_COUNTER_LOCK:
+        _RESOURCE_COUNTERS[name] = max(0, _RESOURCE_COUNTERS[name] + delta)
+        return _RESOURCE_COUNTERS[name]
+
+
+def _current_browser_cafe_index(worker_state: WorkerBrowserState) -> int:
+    return worker_state.cafes_processed_in_browser + 1
+
+
+def _mark_worker_browser_for_recycle(worker_state: WorkerBrowserState, reason: str) -> None:
+    worker_state.needs_recycle = True
+    worker_state.recycle_reason = reason
+
+
+def _log_resource_state(event: str, **details: Any) -> None:
+    logger.info(
+        "Cafe crawling resource state: event=%s details=%s counters=%s",
+        event,
+        details,
+        get_resource_counters_snapshot(),
+    )
 
 
 class GMSClient:
@@ -280,22 +337,14 @@ async def open_crawl_request_resources(runtime_settings: RuntimeSettings):
     try:
         async with httpx.AsyncClient(timeout=timeout, limits=limits) as http_client:
             async with async_playwright() as playwright:
-                browser = await playwright.chromium.launch(
-                    headless=True,
-                    args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+                yield CrawlRequestResources(
+                    playwright=playwright,
+                    http_client=http_client,
+                    gms_client=GMSClient(runtime_settings.gms_api_key, http_client),
+                    s3_client=S3Client(runtime_settings, http_client),
+                    tab_concurrency=settings.cafe_tab_concurrency,
+                    image_concurrency=settings.cafe_image_concurrency,
                 )
-                try:
-                    yield CrawlRequestResources(
-                        browser=browser,
-                        http_client=http_client,
-                        gms_client=GMSClient(runtime_settings.gms_api_key, http_client),
-                        s3_client=S3Client(runtime_settings, http_client),
-                        batch_semaphore=asyncio.Semaphore(settings.cafe_batch_concurrency),
-                        tab_concurrency=settings.cafe_tab_concurrency,
-                        image_concurrency=settings.cafe_image_concurrency,
-                    )
-                finally:
-                    await browser.close()
     except CafeCrawlingSourceError:
         raise
     except Exception as exc:
@@ -303,6 +352,150 @@ async def open_crawl_request_resources(runtime_settings: RuntimeSettings):
         if isinstance(translated, CafeCrawlingSourceError):
             raise translated from exc
         raise
+
+
+async def launch_worker_browser(resources: CrawlRequestResources, worker_state: WorkerBrowserState) -> Browser:
+    try:
+        browser = await resources.playwright.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+        )
+    except Exception as exc:
+        translated = explain_crawl_exception(exc)
+        if isinstance(translated, CafeCrawlingSourceError):
+            raise translated from exc
+        raise CafeCrawlingSourceError(f"Failed to launch browser for worker {worker_state.worker_id}") from exc
+
+    worker_state.browser = browser
+    worker_state.browser_generation += 1
+    worker_state.cafes_processed_in_browser = 0
+    worker_state.needs_recycle = False
+    worker_state.recycle_reason = None
+    _adjust_resource_counter("browser_launches", 1)
+    _log_resource_state(
+        "browser_launch",
+        worker_id=worker_state.worker_id,
+        browser_generation=worker_state.browser_generation,
+    )
+    return browser
+
+
+async def close_worker_browser(
+    worker_state: WorkerBrowserState,
+    *,
+    reason: str,
+    recycle: bool,
+) -> None:
+    browser = worker_state.browser
+    if browser is None:
+        worker_state.needs_recycle = False
+        worker_state.recycle_reason = None
+        worker_state.cafes_processed_in_browser = 0
+        return
+
+    if recycle:
+        _adjust_resource_counter("browser_recycles", 1)
+
+    try:
+        await browser.close()
+    except Exception as exc:
+        logger.warning(
+            "Cafe crawling browser close failed: worker_id=%s browser_generation=%s reason=%s message=%s counters=%s",
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            reason,
+            str(exc),
+            get_resource_counters_snapshot(),
+        )
+    finally:
+        worker_state.browser = None
+        worker_state.needs_recycle = False
+        worker_state.recycle_reason = None
+        worker_state.cafes_processed_in_browser = 0
+
+    _log_resource_state(
+        "browser_recycle" if recycle else "browser_close",
+        worker_id=worker_state.worker_id,
+        browser_generation=worker_state.browser_generation,
+        reason=reason,
+    )
+
+
+async def ensure_worker_browser(resources: CrawlRequestResources, worker_state: WorkerBrowserState) -> Browser:
+    if worker_state.browser is None:
+        return await launch_worker_browser(resources, worker_state)
+    return worker_state.browser
+
+
+async def open_tracked_context(worker_state: WorkerBrowserState) -> BrowserContext:
+    browser = worker_state.browser
+    if browser is None:
+        raise RuntimeError(f"Browser is not available for worker {worker_state.worker_id}")
+
+    context = await browser.new_context(
+        viewport=_VIEWPORT_POOL[0],
+        user_agent=random_ua(),
+        locale="ko-KR",
+    )
+    _adjust_resource_counter("active_contexts", 1)
+    await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    return context
+
+
+async def close_tracked_context(
+    context: BrowserContext,
+    *,
+    worker_state: WorkerBrowserState,
+    seed: CafeSeed,
+) -> None:
+    try:
+        await context.close()
+    except Exception as exc:
+        _mark_worker_browser_for_recycle(worker_state, "context_close_failure")
+        logger.warning(
+            "Cafe crawling context close failed: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s message=%s counters=%s",
+            seed.cafe_id,
+            seed.name,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
+            str(exc),
+            get_resource_counters_snapshot(),
+        )
+    finally:
+        _adjust_resource_counter("active_contexts", -1)
+
+
+async def open_tracked_page(context: BrowserContext) -> Page:
+    page = await context.new_page()
+    _adjust_resource_counter("active_pages", 1)
+    return page
+
+
+async def close_tracked_page(
+    page: Page,
+    *,
+    worker_state: WorkerBrowserState,
+    seed: CafeSeed,
+    page_scope: str,
+) -> None:
+    try:
+        await page.close()
+    except Exception as exc:
+        _mark_worker_browser_for_recycle(worker_state, f"{page_scope}_page_close_failure")
+        logger.warning(
+            "Cafe crawling page close failed: cafe_id=%s name=%s page_scope=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s message=%s counters=%s",
+            seed.cafe_id,
+            seed.name,
+            page_scope,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
+            str(exc),
+            get_resource_counters_snapshot(),
+        )
+    finally:
+        _adjust_resource_counter("active_pages", -1)
 
 
 async def configure_page(page: Page, *, search_mode: bool = False) -> None:
@@ -362,9 +555,9 @@ async def extract_place_url(page: Page, timeout_sec: float = 20) -> str | None:
     return None
 
 
-async def resolve_place_url(seed: CafeSeed, context: BrowserContext) -> str:
+async def resolve_place_url(seed: CafeSeed, context: BrowserContext, *, worker_state: WorkerBrowserState) -> str:
     search_url = NAVER_MAP_BASE_URL + urllib.parse.quote(seed.name)
-    search_page = await context.new_page()
+    search_page = await open_tracked_page(context)
     await configure_page(search_page, search_mode=True)
     all_search_data: dict[str, Any] = {}
     all_search_event = asyncio.Event()
@@ -411,7 +604,14 @@ async def resolve_place_url(seed: CafeSeed, context: BrowserContext) -> str:
                     search_page.remove_listener("framenavigated", on_frame_nav)
                 break
     finally:
-        await search_page.close()
+        with suppress(Exception):
+            search_page.remove_listener("response", on_response)
+        await close_tracked_page(
+            search_page,
+            worker_state=worker_state,
+            seed=seed,
+            page_scope="search",
+        )
 
     if not place_base_url:
         raise CafeCrawlingItemError(f"Failed to find a Naver Place entry for cafe_id={seed.cafe_id}")
@@ -536,6 +736,7 @@ async def fetch_place_tabs(
     place_base_url: str,
     *,
     tab_concurrency: int,
+    worker_state: WorkerBrowserState,
 ) -> dict[str, Any]:
     texts: dict[str, str] = {}
     photo_urls: list[str] = []
@@ -546,7 +747,7 @@ async def fetch_place_tabs(
         nonlocal photo_urls, visitor_reviews
         async with tab_semaphore:
             async with track_inflight("tab"):
-                page = await context.new_page()
+                page = await open_tracked_page(context)
                 try:
                     await configure_page(page, search_mode=False)
                     tab_url = f"{place_base_url}/{slug}"
@@ -570,7 +771,12 @@ async def fetch_place_tabs(
                         len(visitor_reviews),
                     )
                 finally:
-                    await page.close()
+                    await close_tracked_page(
+                        page,
+                        worker_state=worker_state,
+                        seed=seed,
+                        page_scope=slug,
+                    )
 
     async with asyncio.TaskGroup() as task_group:
         for tab_name, slug in TAB_CONFIG.items():
@@ -584,33 +790,33 @@ async def fetch_place_tabs(
     }
 
 
-async def new_browser_context(browser: Browser) -> BrowserContext:
-    context = await browser.new_context(
-        viewport=_VIEWPORT_POOL[0],
-        user_agent=random_ua(),
-        locale="ko-KR",
-    )
-    await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-    return context
-
-
-async def crawl_place(seed: CafeSeed, resources: CrawlRequestResources) -> dict[str, Any]:
+async def crawl_place(seed: CafeSeed, resources: CrawlRequestResources, worker_state: WorkerBrowserState) -> dict[str, Any]:
     context: BrowserContext | None = None
     try:
-        context = await new_browser_context(resources.browser)
+        context = await open_tracked_context(worker_state)
         with track_stage("resolve_place"):
-            place_base_url = await resolve_place_url(seed, context)
+            place_base_url = await resolve_place_url(seed, context, worker_state=worker_state)
         with track_stage("tabs"):
-            return await fetch_place_tabs(seed, context, place_base_url, tab_concurrency=resources.tab_concurrency)
+            return await fetch_place_tabs(
+                seed,
+                context,
+                place_base_url,
+                tab_concurrency=resources.tab_concurrency,
+                worker_state=worker_state,
+            )
     except CafeCrawlingItemError:
         logger.warning("crawl_place item error: cafe_id=%s name=%s", seed.cafe_id, seed.name)
         raise
     except Exception as exc:
+        _mark_worker_browser_for_recycle(worker_state, "crawl_place_exception")
         translated = explain_crawl_exception(exc)
         logger.exception(
-            "crawl_place unexpected failure: cafe_id=%s name=%s message=%s",
+            "crawl_place unexpected failure: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s message=%s",
             seed.cafe_id,
             seed.name,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
             str(exc),
         )
         if isinstance(translated, CafeCrawlingSourceError):
@@ -618,7 +824,11 @@ async def crawl_place(seed: CafeSeed, resources: CrawlRequestResources) -> dict[
         raise CafeCrawlingItemError(f"Failed to crawl cafe_id={seed.cafe_id}") from exc
     finally:
         if context is not None:
-            await context.close()
+            await close_tracked_context(
+                context,
+                worker_state=worker_state,
+                seed=seed,
+            )
 
 
 async def download_image_bytes(url: str, http_client: httpx.AsyncClient) -> tuple[bytes, str]:
@@ -679,9 +889,16 @@ async def resolve_gms_enrichment(
     intro: str,
     review_texts: list[str],
     gms_client: GMSClient,
+    worker_state: WorkerBrowserState,
+    seed: CafeSeed,
 ) -> tuple[str, list[str]]:
     logger.info(
-        "Cafe crawling GMS start: intro_chars=%s review_texts=%s",
+        "Cafe crawling GMS start: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s intro_chars=%s review_texts=%s",
+        seed.cafe_id,
+        seed.name,
+        worker_state.worker_id,
+        worker_state.browser_generation,
+        _current_browser_cafe_index(worker_state),
         len(intro),
         len(review_texts),
     )
@@ -700,7 +917,12 @@ async def resolve_gms_enrichment(
             vibe_tag_ids = await vibe_task
 
     logger.info(
-        "Cafe crawling GMS complete: summarized_intro_chars=%s vibe_tag_count=%s",
+        "Cafe crawling GMS complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s summarized_intro_chars=%s vibe_tag_count=%s",
+        seed.cafe_id,
+        seed.name,
+        worker_state.worker_id,
+        worker_state.browser_generation,
+        _current_browser_cafe_index(worker_state),
         len(summarized_intro),
         len(vibe_tag_ids),
     )
@@ -711,11 +933,15 @@ async def upload_images_with_metrics(
     seed: CafeSeed,
     resources: CrawlRequestResources,
     photo_urls: list[str],
+    worker_state: WorkerBrowserState,
 ) -> tuple[str | None, list[dict[str, Any]]]:
     logger.info(
-        "Cafe crawling image upload start: cafe_id=%s name=%s source_photo_count=%s",
+        "Cafe crawling image upload start: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s source_photo_count=%s",
         seed.cafe_id,
         seed.name,
+        worker_state.worker_id,
+        worker_state.browser_generation,
+        _current_browser_cafe_index(worker_state),
         len(photo_urls),
     )
     with track_stage("images"):
@@ -727,9 +953,12 @@ async def upload_images_with_metrics(
             max_concurrency=resources.image_concurrency,
         )
     logger.info(
-        "Cafe crawling image upload complete: cafe_id=%s name=%s thumbnail_present=%s stored_image_count=%s",
+        "Cafe crawling image upload complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s thumbnail_present=%s stored_image_count=%s",
         seed.cafe_id,
         seed.name,
+        worker_state.worker_id,
+        worker_state.browser_generation,
+        _current_browser_cafe_index(worker_state),
         bool(thumbnail_url),
         len(cafe_images),
     )
@@ -740,9 +969,13 @@ def assign_sequence_ids(items: list[dict[str, Any]]) -> list[CafeCrawlingMergedI
     return [CafeCrawlingMergedItem.model_validate(item) for item in items]
 
 
-async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) -> dict[str, Any]:
+async def crawl_single_cafe(
+    seed: CafeSeed,
+    resources: CrawlRequestResources,
+    worker_state: WorkerBrowserState,
+) -> dict[str, Any]:
     with track_stage("total"):
-        crawl_result = await crawl_place(seed, resources)
+        crawl_result = await crawl_place(seed, resources, worker_state)
         texts = crawl_result["texts"]
 
         home_text = texts[tab_name_for_slug("home")]
@@ -764,33 +997,44 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
 
         review_texts = [review["review_text"] for review in review_metrics["reviews"] if review.get("review_text")]
         logger.info(
-            "Cafe crawling gather setup: cafe_id=%s name=%s photo_urls=%s review_texts=%s intro_chars=%s",
+            "Cafe crawling gather setup: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s photo_urls=%s review_texts=%s intro_chars=%s",
             seed.cafe_id,
             seed.name,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
             len(crawl_result["photo_urls"]),
             len(review_texts),
             len(intro),
         )
-        image_task = asyncio.create_task(upload_images_with_metrics(seed, resources, crawl_result["photo_urls"]))
+        image_task = asyncio.create_task(upload_images_with_metrics(seed, resources, crawl_result["photo_urls"], worker_state))
         gms_task = asyncio.create_task(
             resolve_gms_enrichment(
                 intro=intro,
                 review_texts=review_texts,
                 gms_client=resources.gms_client,
+                worker_state=worker_state,
+                seed=seed,
             )
         )
         logger.info(
-            "Cafe crawling gather waiting: cafe_id=%s name=%s image_task_done=%s gms_task_done=%s",
+            "Cafe crawling gather waiting: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s image_task_done=%s gms_task_done=%s",
             seed.cafe_id,
             seed.name,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
             image_task.done(),
             gms_task.done(),
         )
         (thumbnail_url, cafe_images), (summarized_intro, vibe_tag_ids) = await asyncio.gather(image_task, gms_task)
         logger.info(
-            "Cafe crawling gather complete: cafe_id=%s name=%s image_task_done=%s gms_task_done=%s thumbnail_present=%s image_count=%s summarized_intro_chars=%s vibe_tag_count=%s",
+            "Cafe crawling gather complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s image_task_done=%s gms_task_done=%s thumbnail_present=%s image_count=%s summarized_intro_chars=%s vibe_tag_count=%s",
             seed.cafe_id,
             seed.name,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
             image_task.done(),
             gms_task.done(),
             bool(thumbnail_url),
@@ -817,16 +1061,18 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
         cafe_vibe_tags = [{"tag_id": tag_id} for tag_id in vibe_tag_ids]
 
         logger.info(
-            "Cafe crawling item assembled before return: cafe_id=%s name=%s thumbnail_present=%s image_count=%s menu_count=%s review_count=%s vibe_tag_count=%s",
+            "Cafe crawling item assembled before return: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s thumbnail_present=%s image_count=%s menu_count=%s review_count=%s vibe_tag_count=%s",
             seed.cafe_id,
             seed.name,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
             bool(thumbnail_url),
             len(cafe_images),
             len(menus),
             len(review_metrics["reviews"]),
             len(cafe_vibe_tags),
         )
-
         result = {
             "cafe_id": seed.cafe_id,
             "cafes": cafes,
@@ -838,8 +1084,11 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
             "cafe_reviews": build_cafe_reviews(seed, review_metrics["reviews"]),
         }
         logger.info(
-            "Cafe crawling item return payload: cafe_id=%s type=%s keys=%s",
+            "Cafe crawling item return payload: cafe_id=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s type=%s keys=%s",
             seed.cafe_id,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
             type(result).__name__,
             sorted(result.keys()),
         )
@@ -852,52 +1101,92 @@ async def _crawl_batch_item(
     total: int,
     seed: CafeSeed,
     resources: CrawlRequestResources,
+    worker_state: WorkerBrowserState,
     ordered_results: list[OrderedCrawlResult | None],
 ) -> None:
-    logger.info("Cafe crawling item start: [%d/%d] cafe_id=%s name=%s", index + 1, total, seed.cafe_id, seed.name)
+    logger.info(
+        "Cafe crawling item start: [%d/%d] cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s",
+        index + 1,
+        total,
+        seed.cafe_id,
+        seed.name,
+        worker_state.worker_id,
+        worker_state.browser_generation,
+        _current_browser_cafe_index(worker_state),
+    )
     crawled: dict[str, Any] | None = None
-
-    try:
-        async with resources.batch_semaphore:
-            async with track_inflight("cafe"):
-                try:
-                    crawled = await crawl_single_cafe(seed, resources)
-                    logger.info(
-                        "Cafe crawling item await returned: cafe_id=%s name=%s type=%s is_none=%s keys=%s",
-                        seed.cafe_id,
-                        seed.name,
-                        type(crawled).__name__ if crawled is not None else "NoneType",
-                        crawled is None,
-                        sorted(crawled.keys()) if isinstance(crawled, dict) else None,
-                    )
-                except CafeCrawlingItemError:
-                    record_result(scope="item", status="item_failure")
-                    logger.warning("Cafe crawling item missing: cafe_id=%s name=%s", seed.cafe_id, seed.name)
-                    ordered_results[index] = OrderedCrawlResult(missing_cafe_id=seed.cafe_id)
-                    return
-                except CafeCrawlingSourceError:
-                    record_result(scope="item", status="source_failure")
-                    raise
-                except Exception:
-                    record_result(scope="item", status="unexpected_failure")
-                    logger.exception("Cafe crawling item unexpected failure: cafe_id=%s name=%s", seed.cafe_id, seed.name)
-                    ordered_results[index] = OrderedCrawlResult(
-                        failed_cafe_id=seed.cafe_id,
-                        failure_reason="unexpected_failure",
-                    )
-                    return
-    except asyncio.CancelledError:
-        record_result(scope="item", status="cancelled")
-        logger.warning("Cafe crawling item cancelled: cafe_id=%s name=%s", seed.cafe_id, seed.name)
-        ordered_results[index] = OrderedCrawlResult(
-            failed_cafe_id=seed.cafe_id,
-            failure_reason="cancelled",
-        )
-        raise
+    async with track_inflight("cafe"):
+        try:
+            crawled = await crawl_single_cafe(seed, resources, worker_state)
+            logger.info(
+                "Cafe crawling item await returned: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s type=%s is_none=%s keys=%s",
+                seed.cafe_id,
+                seed.name,
+                worker_state.worker_id,
+                worker_state.browser_generation,
+                _current_browser_cafe_index(worker_state),
+                type(crawled).__name__ if crawled is not None else "NoneType",
+                crawled is None,
+                sorted(crawled.keys()) if isinstance(crawled, dict) else None,
+            )
+        except CafeCrawlingItemError:
+            record_result(scope="item", status="item_failure")
+            logger.warning(
+                "Cafe crawling item missing: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s",
+                seed.cafe_id,
+                seed.name,
+                worker_state.worker_id,
+                worker_state.browser_generation,
+                _current_browser_cafe_index(worker_state),
+            )
+            ordered_results[index] = OrderedCrawlResult(missing_cafe_id=seed.cafe_id)
+            return
+        except CafeCrawlingSourceError:
+            record_result(scope="item", status="source_failure")
+            raise
+        except asyncio.CancelledError:
+            record_result(scope="item", status="cancelled")
+            logger.warning(
+                "Cafe crawling item cancelled: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s",
+                seed.cafe_id,
+                seed.name,
+                worker_state.worker_id,
+                worker_state.browser_generation,
+                _current_browser_cafe_index(worker_state),
+            )
+            ordered_results[index] = OrderedCrawlResult(
+                failed_cafe_id=seed.cafe_id,
+                failure_reason="cancelled",
+            )
+            raise
+        except Exception:
+            _mark_worker_browser_for_recycle(worker_state, "unexpected_failure")
+            record_result(scope="item", status="unexpected_failure")
+            logger.exception(
+                "Cafe crawling item unexpected failure: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s",
+                seed.cafe_id,
+                seed.name,
+                worker_state.worker_id,
+                worker_state.browser_generation,
+                _current_browser_cafe_index(worker_state),
+            )
+            ordered_results[index] = OrderedCrawlResult(
+                failed_cafe_id=seed.cafe_id,
+                failure_reason="unexpected_failure",
+            )
+            return
 
     if crawled is None:
+        _mark_worker_browser_for_recycle(worker_state, "empty_result")
         record_result(scope="item", status="empty_result")
-        logger.error("Cafe crawling item produced empty result: cafe_id=%s name=%s", seed.cafe_id, seed.name)
+        logger.error(
+            "Cafe crawling item produced empty result: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s",
+            seed.cafe_id,
+            seed.name,
+            worker_state.worker_id,
+            worker_state.browser_generation,
+            _current_browser_cafe_index(worker_state),
+        )
         ordered_results[index] = OrderedCrawlResult(
             failed_cafe_id=seed.cafe_id,
             failure_reason="empty_result",
@@ -906,6 +1195,42 @@ async def _crawl_batch_item(
 
     record_result(scope="item", status="success")
     ordered_results[index] = OrderedCrawlResult(item=crawled)
+
+
+async def _crawl_batch_worker(
+    *,
+    worker_id: int,
+    total: int,
+    queue: asyncio.Queue[tuple[int, CafeSeed] | None],
+    resources: CrawlRequestResources,
+    ordered_results: list[OrderedCrawlResult | None],
+) -> None:
+    worker_state = WorkerBrowserState(worker_id=worker_id)
+    try:
+        while True:
+            queued = await queue.get()
+            if queued is None:
+                return
+
+            index, seed = queued
+            try:
+                await ensure_worker_browser(resources, worker_state)
+                await _crawl_batch_item(
+                    index=index,
+                    total=total,
+                    seed=seed,
+                    resources=resources,
+                    worker_state=worker_state,
+                    ordered_results=ordered_results,
+                )
+            finally:
+                if worker_state.browser is not None:
+                    worker_state.cafes_processed_in_browser += 1
+                    if worker_state.needs_recycle or worker_state.cafes_processed_in_browser >= BROWSER_RECYCLE_CAFE_THRESHOLD:
+                        recycle_reason = worker_state.recycle_reason or "max_cafes_per_browser"
+                        await close_worker_browser(worker_state, reason=recycle_reason, recycle=True)
+    finally:
+        await close_worker_browser(worker_state, reason="worker_shutdown", recycle=False)
 
 
 async def crawl_cafes_batch(request_items: list[CafeCrawlingRequestItem]) -> CafeCrawlingResponse:
@@ -917,18 +1242,30 @@ async def crawl_cafes_batch(request_items: list[CafeCrawlingRequestItem]) -> Caf
     runtime_settings = resolve_runtime_settings()
     seeds = [normalize_request_item(item) for item in request_items]
     ordered_results: list[OrderedCrawlResult | None] = [None] * len(seeds)
+    worker_count = max(1, min(settings.cafe_batch_concurrency, len(seeds)))
+    logger.info(
+        "Cafe crawling batch worker setup: requested=%s worker_count=%s recycle_threshold=%s",
+        len(seeds),
+        worker_count,
+        BROWSER_RECYCLE_CAFE_THRESHOLD,
+    )
+    queue: asyncio.Queue[tuple[int, CafeSeed] | None] = asyncio.Queue()
+    for index, seed in enumerate(seeds):
+        queue.put_nowait((index, seed))
+    for _ in range(worker_count):
+        queue.put_nowait(None)
 
     async with track_inflight("batch"):
         try:
             async with open_crawl_request_resources(runtime_settings) as resources:
                 try:
                     async with asyncio.TaskGroup() as task_group:
-                        for index, seed in enumerate(seeds):
+                        for worker_id in range(worker_count):
                             task_group.create_task(
-                                _crawl_batch_item(
-                                    index=index,
+                                _crawl_batch_worker(
+                                    worker_id=worker_id + 1,
                                     total=len(seeds),
-                                    seed=seed,
+                                    queue=queue,
                                     resources=resources,
                                     ordered_results=ordered_results,
                                 )
@@ -990,10 +1327,11 @@ async def crawl_cafes_batch(request_items: list[CafeCrawlingRequestItem]) -> Caf
 
     record_result(scope="batch", status="success")
     logger.info(
-        "Cafe crawling batch complete: requested=%s succeeded=%s missing=%s failed=%s",
+        "Cafe crawling batch complete: requested=%s succeeded=%s missing=%s failed=%s resource_counters=%s",
         len(request_items),
         response.total,
         len(response.missing_cafe_ids),
         len(failed_cafe_ids),
+        get_resource_counters_snapshot(),
     )
     return response
