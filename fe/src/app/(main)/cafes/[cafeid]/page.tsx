@@ -222,15 +222,21 @@ function ScrapCategoryOverlay({
           <div className="flex-1 overflow-y-auto px-6">
             <div className="flex flex-col">
               {categories.map((cat) => {
-                const isSelected = selectedIds.includes(cat.scrapId as string);
+                const isDefault = cat.scrapId === null;
+                const isSelected = isDefault || selectedIds.includes(cat.scrapId as string);
+
                 return (
                   <button
-                    key={cat.scrapId}
+                    key={cat.scrapId ?? 'default'}
                     type="button"
-                    onClick={() => toggleCategory(cat.scrapId as string)}
-                    className="flex items-center justify-center py-4 border-t border-white/30 active:bg-white/5 transition-colors relative"
+                    onClick={() => {
+                      if (!isDefault) toggleCategory(cat.scrapId as string);
+                    }}
+                    className={`flex items-center justify-center py-4 border-t border-white/30 transition-colors relative ${!isDefault ? 'active:bg-white/5' : 'cursor-default'}`}
                   >
-                    <span className="text-[16px] font-medium text-white">{cat.name}</span>
+                    <span className={`text-[16px] text-white ${isDefault ? 'font-bold' : 'font-medium'}`}>
+                      {isDefault ? '기본 스크랩' : cat.name}
+                    </span>
                     {isSelected && (
                       <Check size={22} strokeWidth={2.5} className="text-white absolute right-2" />
                     )}
@@ -300,7 +306,13 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   useEffect(() => {
     if (isScrapOpen && scrapCategories.length === 0) {
       getScraps().then(data => {
-        setScrapCategories(data.filter(c => c.scrapId !== null));
+        // null을 갖는 기본 스크랩을 포함하여 가져오고 맨 앞으로 정렬
+        const sorted = [...data].sort((a, b) => {
+          if (a.scrapId === null) return -1;
+          if (b.scrapId === null) return 1;
+          return 0;
+        });
+        setScrapCategories(sorted);
       }).catch(err => console.error('스크랩 카테고리 로드 실패', err));
     }
   }, [isScrapOpen, scrapCategories.length]);
@@ -330,7 +342,13 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
     try {
       await postCreateScrap({ name, color });
       const updated = await getScraps();
-      setScrapCategories(updated.filter(c => c.scrapId !== null));
+      // null을 갖는 기본 스크랩을 맨 앞으로 정렬 후 저장
+      const sorted = [...updated].sort((a, b) => {
+        if (a.scrapId === null) return -1;
+        if (b.scrapId === null) return 1;
+        return 0;
+      });
+      setScrapCategories(sorted);
     } catch (err) {
       console.error('카테고리 생성 실패', err);
     }
