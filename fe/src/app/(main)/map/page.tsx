@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { StaticImageData } from 'next/image';
 import { Search, LocateFixed } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
-import { useSuspenseQuery, useInfiniteQuery } from '@tanstack/react-query';
+// 기존 코드 유지: import { useSuspenseQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
 import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
@@ -74,7 +75,8 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   }, []);
 
   // [수정] 통합 마커 쿼리: 키워드가 있으면 검색 API(searchCafes), 없으면 일반 마커 API 호출
-  const { data: cafes } = useSuspenseQuery({
+  // 기존 코드 주석 처리: const { data: cafes } = useSuspenseQuery({ ... })
+  const { data: cafes, isLoading: isMapLoading } = useQuery({
     queryKey: ['map', 'markers', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, keyword, selectedFilters],
     queryFn: async () => {
       if (keyword.trim()) {
@@ -98,14 +100,45 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   const isSearchMode = keyword.trim().length > 0;
   
   // 마커를 그릴 데이터 배열 파싱 (타입 가드)
+  // 기존 코드:
+  // const markerItems = isSearchMode 
+  //   ? (cafes as SearchCafeItem[]) 
+  //   : (cafes as { markers: CafeMarker[]; filterTags: string[] }).markers;
+  
+  /* [AS-IS: 의존성 배열 경고 방지를 위해 주석 처리]
   const markerItems = isSearchMode 
-    ? (cafes as SearchCafeItem[]) 
-    : (cafes as { markers: CafeMarker[]; filterTags: string[] }).markers;
+    ? (cafes as SearchCafeItem[] || []) 
+    : ((cafes as { markers: CafeMarker[]; filterTags: string[] })?.markers || []);
+  */
+
+  // [TO-BE] useMemo를 활용한 데이터 메모이제이션
+  /* 기존 코드 주석 (API에서 filterTags 필드 삭제됨)
+  const markerItems = React.useMemo(() => {
+    return isSearchMode 
+      ? (cafes as SearchCafeItem[] || []) 
+      : ((cafes as { markers: CafeMarker[]; filterTags: string[] })?.markers || []);
+  }, [isSearchMode, cafes]);
+  */
+  // [수정] filterTags 제거 반영된 타입 캐스팅
+  const markerItems = React.useMemo(() => {
+    return isSearchMode 
+      ? (cafes as SearchCafeItem[] || []) 
+      : ((cafes as { markers: CafeMarker[] })?.markers || []);
+  }, [isSearchMode, cafes]);
     
   // 서버에서 받은 추천 필터 태그 (향후 UI 렌더링을 위해 추출)
+  // 기존 코드 주석 (filterTags 삭제 반영)
+  // const serverFilterTags = !isSearchMode 
+  //   ? (cafes as { markers: CafeMarker[]; filterTags: string[] }).filterTags 
+  //   : [];
+  /* 
   const serverFilterTags = !isSearchMode 
-    ? (cafes as { markers: CafeMarker[]; filterTags: string[] }).filterTags 
+    ? ((cafes as { markers: CafeMarker[]; filterTags: string[] })?.filterTags || [])
     : [];
+  */
+  
+  // 혹시라도 향후 사용되거나 다른 부분에 의존성이 있을 수 있으므로 빈 배열로 폴백 처리
+  const serverFilterTags: string[] = [];
 
   // [추가] 바텀시트 리스트 무한 스크롤 쿼리
   const {
@@ -187,45 +220,65 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
   // 2. 지도 초기화 useEffect
   useEffect(() => {
-    if (!window.kakao) return;
+    const initMap = () => {
+      if (!mapContainerRef.current || !window.kakao) return;
 
-    window.kakao.maps.load(() => {
-      if (!mapContainerRef.current) return;
+      window.kakao.maps.load(() => {
+        if (!mapContainerRef.current) return;
 
-      const center = new window.kakao.maps.LatLng(initialCenter.lat, initialCenter.lng);
+        const center = new window.kakao.maps.LatLng(initialCenter.lat, initialCenter.lng);
 
-      const options = {
-        center,
-        level: 3,
-      };
+        const options = {
+          center,
+          level: 3,
+        };
 
-      // 지도 생성
-      mapInstance.current = new window.kakao.maps.Map(mapContainerRef.current, options);
-      setIsMapLoaded(true);
+        // 지도 생성
+        mapInstance.current = new window.kakao.maps.Map(mapContainerRef.current, options);
+        setIsMapLoaded(true);
 
-      // 지도 빈 영역 클릭 시 선택 해제 및 바텀 시트 내리기
-      window.kakao.maps.event.addListener(mapInstance.current, 'click', () => {
-        setActiveCafeId(null);
-        controls.start({ y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } }); // 시트 원위치
+        // 지도 빈 영역 클릭 시 선택 해제 및 바텀 시트 내리기
+        window.kakao.maps.event.addListener(mapInstance.current, 'click', () => {
+          setActiveCafeId(null);
+          controls.start({ y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } }); // 시트 원위치
+        });
+
+        // [추가] 이벤트 디바운싱: 지도의 중심 좌표 갱신 (API 호출 최적화)
+        /* 기존 코드 주석 블록
+        window.kakao.maps.event.addListener(mapInstance.current, 'dragend', () => { ... });
+        window.kakao.maps.event.addListener(mapInstance.current, 'zoom_changed', () => { ... });
+        */
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let mapDebounceTimer: any;
+        const handleMapMove = () => {
+          if (!mapInstance.current) return;
+          clearTimeout(mapDebounceTimer);
+          mapDebounceTimer = setTimeout(() => {
+            if (!mapInstance.current) return;
+            const center = mapInstance.current.getCenter();
+            setMapCenter({ lat: center.getLat(), lng: center.getLng() });
+          }, 300); // 300ms 디바운스
+        };
+
+        window.kakao.maps.event.addListener(mapInstance.current, 'dragend', handleMapMove);
+        window.kakao.maps.event.addListener(mapInstance.current, 'zoom_changed', handleMapMove);
       });
+    };
 
-      // [추가] 지도 영역 이동, 줌 조절 후 지도 중심 좌표 갱신 (API 호출 목적)
-      window.kakao.maps.event.addListener(mapInstance.current, 'dragend', () => {
-        if (!mapInstance.current) return;
-        // 타입 확장을 통해 any 키워드 없이 안전하게 getCenter() 메서드 호출
-        const center = mapInstance.current.getCenter();
-        setMapCenter({ lat: center.getLat(), lng: center.getLng() });
-      });
-
-      window.kakao.maps.event.addListener(mapInstance.current, 'zoom_changed', () => {
-        if (!mapInstance.current) return;
-        // 타입 확장을 통해 any 키워드 없이 안전하게 getCenter() 메서드 호출
-        const center = mapInstance.current.getCenter();
-        setMapCenter({ lat: center.getLat(), lng: center.getLng() });
-      });
-
-    });
-  }, [controls]);
+    if (window.kakao && window.kakao.maps) {
+      initMap();
+    } else {
+      // afterInteractive 등으로 스크립트가 늦게 로드될 경우를 대비한 폴링
+      const timer = setInterval(() => {
+        if (window.kakao && window.kakao.maps) {
+          clearInterval(timer);
+          initMap();
+        }
+      }, 100);
+      return () => clearInterval(timer);
+    }
+  }, [controls, initialCenter.lat, initialCenter.lng]);
 
   // 3. 카페 데이터가 변경될 때마다 마커 업데이트 (지도가 로드된 상태 보장)
   useEffect(() => {
@@ -405,6 +458,14 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
         className="absolute inset-0 z-0"
       />
 
+      {/* [최적화] 지도 데이터를 불러오는 중일 때 상단에 작은 스피너 표시 */}
+      {isMapLoading && isMapLoaded && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-md flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-gray-300 border-t-[#007EEB] rounded-full animate-spin" />
+          <span className="text-xs text-gray-600 font-medium whitespace-nowrap">검색 중...</span>
+        </div>
+      )}
+
       {/* UI Overlay: Top Section */}
       <div className="absolute top-0 inset-x-0 z-20 flex flex-col pt-safe-top">
         <div className="px-4 py-3 flex items-center gap-2">
@@ -505,7 +566,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
                     description={typedCafe.cafeIntro || ''}
                     address={typedCafe.roadAddress || typedCafe.address || ''}
                     distance=""
-                    imageUrl={typedCafe.thumbnailUrl || ''}
+                    imageUrl={typedCafe.thumbnailUrl ? `${process.env.NEXT_PUBLIC_CLOUDFRONT_URL}/${typedCafe.thumbnailUrl}` : ''}
                     isScrapped={'isScrapped' in typedCafe ? typedCafe.isScrapped : false} // [추가] 스크랩 여부
                     isActive={activeCafeId === typedCafe.cafeId}
                     onClick={() => handleCafeClick(typedCafe)}
@@ -535,6 +596,7 @@ function MapSkeleton() {
 }
 
 export default function MapPage() {
+  /* 기존 코드 보존 (초기 로딩 시 지도 노출 방지)
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [initialCenter, setInitialCenter] = useState({ lat: 37.5665, lng: 126.978 });
   const { setUserLocation } = useMapStore();
@@ -556,7 +618,6 @@ export default function MapPage() {
         { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
       );
     } else {
-      // 비동기 흐름 보장 (React setState 경고 방지)
       setTimeout(() => setIsLoadingLocation(false), 0);
     }
   }, [setUserLocation]);
@@ -572,6 +633,11 @@ export default function MapPage() {
       </div>
     );
   }
+  */
+
+  // [최적화] 위치 정보를 기다리지 않고 즉시 기본 좌표로 지도 렌더링 (Non-blocking Location)
+  // 이후 MapContent 컴포넌트 내부에서 위치 추적(watchPosition)을 통해 현재 위치로 자동 panTo 이동함.
+  const [initialCenter] = useState({ lat: 37.5665, lng: 126.978 });
 
   return (
     <Suspense fallback={<MapSkeleton />}>
