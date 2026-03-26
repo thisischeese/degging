@@ -5,13 +5,11 @@ import hashlib
 import hmac
 import json
 import logging
-import mimetypes
 import re
 import urllib.parse
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
@@ -20,6 +18,7 @@ from app.models.cafe_crawling import CafeCrawlingMergedItem, CafeCrawlingRequest
 from app.services.cafe_crawling_service import (
     BLOCK_HOSTS,
     COMPANION_WORDS,
+    DEFAULT_IMAGE_MAX_EDGE_PX,
     DEFAULT_UA,
     DEFAULT_VIBE_TAG_ID,
     GMS_CHAT_COMPLETIONS_URL,
@@ -61,8 +60,10 @@ from app.services.cafe_crawling_service import (
     parse_review_metrics,
     parse_structured_visitor_reviews,
     place_url_from_all_search,
+    prepare_image_for_upload,
     random_ua,
     resolve_runtime_settings,
+    THUMBNAIL_MAX_EDGE_PX,
 )
 
 if TYPE_CHECKING:
@@ -626,15 +627,6 @@ async def download_image_bytes(url: str, http_client: httpx.AsyncClient) -> tupl
     return response.content, content_type
 
 
-def choose_extension(url: str, content_type: str) -> str:
-    path = urllib.parse.urlparse(url).path
-    ext = Path(path).suffix.lower()
-    if ext in {".jpg", ".jpeg", ".png", ".webp"}:
-        return ext
-    guessed = mimetypes.guess_extension(content_type) or ".jpg"
-    return ".jpg" if guessed == ".jpe" else guessed
-
-
 async def upload_cafe_images(
     seed: CafeSeed,
     s3_client: S3Client,
@@ -650,7 +642,8 @@ async def upload_cafe_images(
         async with semaphore:
             try:
                 data, content_type = await download_image_bytes(source_url, http_client)
-                ext = choose_extension(source_url, content_type)
+                max_edge_px = THUMBNAIL_MAX_EDGE_PX if index == 0 else DEFAULT_IMAGE_MAX_EDGE_PX
+                data, content_type, ext = prepare_image_for_upload(data, max_edge_px=max_edge_px)
                 key = f"{S3_KEY_PREFIX}/{seed.cafe_id}/images/{index:02d}{ext}"
                 stored_keys[index] = await s3_client.upload_bytes(key, data, content_type=content_type)
             except Exception:

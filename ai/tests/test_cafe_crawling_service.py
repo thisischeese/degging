@@ -1,6 +1,9 @@
 import asyncio
 import unittest
+from io import BytesIO
 from unittest.mock import AsyncMock, patch
+
+from PIL import Image
 
 from app.services import cafe_crawling_service
 from app.services.cafe_crawling_service import (
@@ -16,6 +19,21 @@ from app.services.cafe_crawling_service import (
     resolve_runtime_settings,
     upload_cafe_images,
 )
+
+
+def build_image_bytes(
+    width: int,
+    height: int,
+    *,
+    mode: str = "RGB",
+    color: tuple[int, ...] = (25, 50, 75),
+    format: str = "JPEG",
+) -> bytes:
+    buffer = BytesIO()
+    image = Image.new(mode, (width, height), color)
+    image.save(buffer, format=format)
+    image.close()
+    return buffer.getvalue()
 
 
 class CafeCrawlingServiceRuntimeTest(unittest.TestCase):
@@ -88,18 +106,21 @@ class CafeCrawlingServiceRuntimeTest(unittest.TestCase):
             kakao_place_id=None,
             kakao_map_url=None,
         )
+        source_data = build_image_bytes(1600, 1200)
+        uploaded_images: dict[str, tuple[tuple[int, int], str]] = {}
         s3_client = AsyncMock()
-        s3_client.upload_bytes = AsyncMock(
-            side_effect=[
-                "cafes/46537625-27db-4bd0-b9f4-d87c112183ff/images/00.jpg",
-                "cafes/46537625-27db-4bd0-b9f4-d87c112183ff/images/01.jpg",
-            ]
-        )
+
+        async def fake_upload_bytes(key, data, content_type):
+            with Image.open(BytesIO(data)) as image:
+                uploaded_images[key] = (image.size, content_type)
+            return key
+
+        s3_client.upload_bytes = AsyncMock(side_effect=fake_upload_bytes)
 
         with patch.object(
             cafe_crawling_service,
             "download_image_bytes",
-            AsyncMock(return_value=(b"image-bytes", "image/jpeg")),
+            AsyncMock(return_value=(source_data, "image/jpeg")),
         ):
             thumbnail_url, image_rows = asyncio.run(
                 upload_cafe_images(
@@ -121,6 +142,8 @@ class CafeCrawlingServiceRuntimeTest(unittest.TestCase):
             image_rows[0]["image_url"],
             "cafes/46537625-27db-4bd0-b9f4-d87c112183ff/images/01.jpg",
         )
+        self.assertEqual(uploaded_images[thumbnail_url], ((200, 150), "image/jpeg"))
+        self.assertEqual(uploaded_images[image_rows[0]["image_url"]], ((800, 600), "image/jpeg"))
 
 
 class CafeCrawlingReviewMetricsTest(unittest.TestCase):

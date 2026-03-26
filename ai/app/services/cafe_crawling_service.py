@@ -5,16 +5,18 @@ import hashlib
 import hmac
 import json
 import logging
-import mimetypes
 import random
 import re
 import sys
 import urllib.parse
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import NAMESPACE_URL, uuid5
+
+from PIL import Image, ImageOps
 
 from app.core.config import settings
 from app.models.cafe_crawling import (
@@ -35,6 +37,8 @@ S3_KEY_PREFIX = "cafes"
 PRESIGN_EXPIRES_SECONDS = 604800
 MAX_PHOTOS = 6
 MAX_REVIEWS = 10
+THUMBNAIL_MAX_EDGE_PX = 200
+DEFAULT_IMAGE_MAX_EDGE_PX = 800
 WINDOWS_PLAYWRIGHT_LOOP_ERROR = (
     "Playwright cannot launch Chromium under the current Windows asyncio event loop. "
     "The server is running a selector loop, which does not support subprocesses. "
@@ -1213,13 +1217,53 @@ async def download_image_bytes(url: str) -> tuple[bytes, str]:
         return response.content, content_type
 
 
-def choose_extension(url: str, content_type: str) -> str:
-    path = urllib.parse.urlparse(url).path
-    ext = Path(path).suffix.lower()
-    if ext in {".jpg", ".jpeg", ".png", ".webp"}:
-        return ext
-    guessed = mimetypes.guess_extension(content_type) or ".jpg"
-    return ".jpg" if guessed == ".jpe" else guessed
+def _image_has_transparency(image: Image.Image) -> bool:
+    if image.mode in {"RGBA", "LA"}:
+        alpha = image.getchannel("A")
+        extrema = alpha.getextrema()
+        return extrema is not None and extrema[0] < 255
+
+    if image.mode == "P":
+        transparency = image.info.get("transparency")
+        if transparency is None:
+            return False
+        if isinstance(transparency, bytes):
+            return any(value < 255 for value in transparency)
+        return True
+
+    return False
+
+
+def prepare_image_for_upload(data: bytes, *, max_edge_px: int) -> tuple[bytes, str, str]:
+    if max_edge_px <= 0:
+        raise ValueError("max_edge_px must be positive")
+
+    with Image.open(BytesIO(data)) as source_image:
+        working_image = ImageOps.exif_transpose(source_image)
+        if working_image is source_image:
+            working_image = source_image.copy()
+
+    has_transparency = _image_has_transparency(working_image)
+    width, height = working_image.size
+    longest_edge = max(width, height)
+
+    if longest_edge > max_edge_px:
+        scale = max_edge_px / longest_edge
+        resized_size = (
+            max(1, int(round(width * scale))),
+            max(1, int(round(height * scale))),
+        )
+        working_image = working_image.resize(resized_size, Image.Resampling.LANCZOS)
+
+    output = BytesIO()
+    if has_transparency:
+        processed_image = working_image if working_image.mode in {"RGBA", "LA", "P"} else working_image.convert("RGBA")
+        processed_image.save(output, format="PNG", optimize=True)
+        return output.getvalue(), "image/png", ".png"
+
+    processed_image = working_image.convert("RGB")
+    processed_image.save(output, format="JPEG", quality=85, optimize=True)
+    return output.getvalue(), "image/jpeg", ".jpg"
 
 
 async def upload_cafe_images(
@@ -1235,7 +1279,8 @@ async def upload_cafe_images(
     for index, source_url in enumerate(photo_urls[:MAX_PHOTOS]):
         try:
             data, content_type = await download_image_bytes(source_url)
-            ext = choose_extension(source_url, content_type)
+            max_edge_px = THUMBNAIL_MAX_EDGE_PX if index == 0 else DEFAULT_IMAGE_MAX_EDGE_PX
+            data, content_type, ext = prepare_image_for_upload(data, max_edge_px=max_edge_px)
             key = f"{S3_KEY_PREFIX}/{seed.cafe_id}/images/{index:02d}{ext}"
             stored_key = await s3_client.upload_bytes(key, data, content_type=content_type)
         except Exception:
