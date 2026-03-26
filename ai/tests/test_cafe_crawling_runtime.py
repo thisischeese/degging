@@ -117,8 +117,20 @@ def build_raw_item(seed: CafeSeed, *, menu_count: int = 1, image_count: int = 1,
 
 
 @asynccontextmanager
-async def fake_resources_context(*args, **kwargs):
-    yield SimpleNamespace(batch_semaphore=asyncio.Semaphore(3))
+async def fake_resources_context_factory(launched_browsers: list[SimpleNamespace], *args, **kwargs):
+    async def fake_launch(*launch_args, **launch_kwargs):
+        browser = SimpleNamespace(close=AsyncMock())
+        launched_browsers.append(browser)
+        return browser
+
+    yield SimpleNamespace(
+        playwright=SimpleNamespace(chromium=SimpleNamespace(launch=AsyncMock(side_effect=fake_launch))),
+        http_client=AsyncMock(),
+        gms_client=AsyncMock(),
+        s3_client=AsyncMock(),
+        tab_concurrency=2,
+        image_concurrency=3,
+    )
 
 
 class CafeCrawlingImageProcessingTest(unittest.TestCase):
@@ -187,6 +199,9 @@ class CafeCrawlingImageProcessingTest(unittest.TestCase):
 
 
 class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        cafe_crawling_runtime.reset_resource_counters_for_test()
+
     def test_is_allowed_image_url_only_accepts_real_image_hosts(self) -> None:
         self.assertTrue(
             cafe_crawling_runtime.is_allowed_image_url(
@@ -215,8 +230,9 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             CafeCrawlingRequestItem(cafeId=MISSING_CAFE_ID, name="missing"),
             CafeCrawlingRequestItem(cafeId=CAFE_ID_2, name="beta"),
         ]
+        launched_browsers: list[SimpleNamespace] = []
 
-        async def fake_crawl_single_cafe(seed, resources):
+        async def fake_crawl_single_cafe(seed, resources, worker_state):
             if seed.cafe_id == CAFE_ID_2:
                 await asyncio.sleep(0.01)
                 return build_raw_item(seed, menu_count=1, image_count=1)
@@ -228,7 +244,7 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
-            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", fake_resources_context),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", lambda *args, **kwargs: fake_resources_context_factory(launched_browsers)),
             patch.object(cafe_crawling_runtime, "crawl_single_cafe", side_effect=fake_crawl_single_cafe),
         ):
             response = await cafe_crawling_runtime.crawl_cafes_batch(request_items)
@@ -242,8 +258,9 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             CafeCrawlingRequestItem(cafeId=SOURCE_FAIL_CAFE_ID, name="source-fail"),
         ]
         cancelled = asyncio.Event()
+        launched_browsers: list[SimpleNamespace] = []
 
-        async def fake_crawl_single_cafe(seed, resources):
+        async def fake_crawl_single_cafe(seed, resources, worker_state):
             if seed.cafe_id == SOURCE_FAIL_CAFE_ID:
                 await asyncio.sleep(0.01)
                 raise CafeCrawlingSourceError("source unavailable")
@@ -256,7 +273,7 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
-            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", fake_resources_context),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", lambda *args, **kwargs: fake_resources_context_factory(launched_browsers)),
             patch.object(cafe_crawling_runtime, "crawl_single_cafe", side_effect=fake_crawl_single_cafe),
         ):
             with self.assertLogs("uvicorn.error", level="WARNING") as logs:
@@ -264,24 +281,80 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
                     await cafe_crawling_runtime.crawl_cafes_batch(request_items)
 
         self.assertTrue(cancelled.is_set())
+        self.assertTrue(all(browser.close.await_count >= 1 for browser in launched_browsers))
         joined_logs = "\n".join(logs.output)
         self.assertIn("Cafe crawling item cancelled", joined_logs)
         self.assertIn(CAFE_ID_1, joined_logs)
+
+    async def test_crawl_cafes_batch_recycles_worker_browser_after_empty_result(self) -> None:
+        request_items = [
+            CafeCrawlingRequestItem(cafeId=CAFE_ID_1, name="alpha"),
+            CafeCrawlingRequestItem(cafeId=CAFE_ID_2, name="beta"),
+        ]
+        launched_browsers: list[SimpleNamespace] = []
+
+        async def fake_crawl_single_cafe(seed, resources, worker_state):
+            if seed.cafe_id == CAFE_ID_1:
+                return None
+            return build_raw_item(seed, image_count=2)
+
+        with (
+            patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", lambda *args, **kwargs: fake_resources_context_factory(launched_browsers)),
+            patch.object(cafe_crawling_runtime, "crawl_single_cafe", side_effect=fake_crawl_single_cafe),
+            patch.object(cafe_crawling_runtime.settings, "cafe_batch_concurrency", 1),
+        ):
+            with self.assertLogs("uvicorn.error", level="INFO") as logs:
+                response = await cafe_crawling_runtime.crawl_cafes_batch(request_items)
+
+        self.assertEqual([item.cafe_id for item in response.items], [CAFE_ID_2])
+        self.assertEqual(response.missing_cafe_ids, [])
+        self.assertGreaterEqual(len(launched_browsers), 2)
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("Cafe crawling item produced empty result", joined_logs)
+        self.assertIn("event=browser_recycle", joined_logs)
+        self.assertIn("requested=2 succeeded=1 missing=0 failed=1", joined_logs)
+
+    async def test_crawl_cafes_batch_recycles_worker_browser_after_threshold(self) -> None:
+        request_items = [
+            CafeCrawlingRequestItem(cafeId=f"cafe-{index:02d}", name=f"cafe-{index:02d}")
+            for index in range(cafe_crawling_runtime.BROWSER_RECYCLE_CAFE_THRESHOLD + 1)
+        ]
+        launched_browsers: list[SimpleNamespace] = []
+
+        async def fake_crawl_single_cafe(seed, resources, worker_state):
+            return build_raw_item(seed, image_count=1)
+
+        with (
+            patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", lambda *args, **kwargs: fake_resources_context_factory(launched_browsers)),
+            patch.object(cafe_crawling_runtime, "crawl_single_cafe", side_effect=fake_crawl_single_cafe),
+            patch.object(cafe_crawling_runtime.settings, "cafe_batch_concurrency", 1),
+        ):
+            with self.assertLogs("uvicorn.error", level="INFO") as logs:
+                response = await cafe_crawling_runtime.crawl_cafes_batch(request_items)
+
+        self.assertEqual(response.total, len(request_items))
+        self.assertGreaterEqual(len(launched_browsers), 2)
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("Cafe crawling batch worker setup", joined_logs)
+        self.assertIn("event=browser_recycle", joined_logs)
 
     async def test_crawl_cafes_batch_counts_unexpected_item_failures_without_dropping_them(self) -> None:
         request_items = [
             CafeCrawlingRequestItem(cafeId=CAFE_ID_1, name="alpha"),
             CafeCrawlingRequestItem(cafeId=CAFE_ID_2, name="beta"),
         ]
+        launched_browsers: list[SimpleNamespace] = []
 
-        async def fake_crawl_single_cafe(seed, resources):
+        async def fake_crawl_single_cafe(seed, resources, worker_state):
             if seed.cafe_id == CAFE_ID_2:
                 raise ValueError("boom")
             return build_raw_item(seed)
 
         with (
             patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
-            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", fake_resources_context),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", lambda *args, **kwargs: fake_resources_context_factory(launched_browsers)),
             patch.object(cafe_crawling_runtime, "crawl_single_cafe", side_effect=fake_crawl_single_cafe),
         ):
             with self.assertLogs("uvicorn.error", level="INFO") as logs:
@@ -299,6 +372,7 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             CafeCrawlingRequestItem(cafeId=CAFE_ID_1, name="alpha"),
             CafeCrawlingRequestItem(cafeId=CAFE_ID_2, name="beta"),
         ]
+        launched_browsers: list[SimpleNamespace] = []
 
         async def fake_crawl_batch_item(*, index, seed, ordered_results, **kwargs):
             if seed.cafe_id == CAFE_ID_1:
@@ -306,7 +380,7 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
-            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", fake_resources_context),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", lambda *args, **kwargs: fake_resources_context_factory(launched_browsers)),
             patch.object(cafe_crawling_runtime, "_crawl_batch_item", side_effect=fake_crawl_batch_item),
         ):
             with self.assertLogs("uvicorn.error", level="INFO") as logs:
@@ -380,3 +454,37 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             [[tag.tag_id for tag in item.cafe_vibe_tags] for item in first],
             [[tag.tag_id for tag in item.cafe_vibe_tags] for item in second],
         )
+
+    async def test_close_failures_keep_resource_counters_non_negative(self) -> None:
+        class FailingCloser:
+            async def close(self):
+                raise RuntimeError("close failed")
+
+        worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=2)
+        seed = build_seed(CAFE_ID_1)
+
+        cafe_crawling_runtime._adjust_resource_counter("active_contexts", 1)
+        cafe_crawling_runtime._adjust_resource_counter("active_pages", 1)
+
+        with self.assertLogs("uvicorn.error", level="WARNING") as logs:
+            await cafe_crawling_runtime.close_tracked_context(
+                FailingCloser(),
+                worker_state=worker_state,
+                seed=seed,
+            )
+            await cafe_crawling_runtime.close_tracked_page(
+                FailingCloser(),
+                worker_state=worker_state,
+                seed=seed,
+                page_scope="photo",
+            )
+
+        snapshot = cafe_crawling_runtime.get_resource_counters_snapshot()
+        self.assertEqual(snapshot["active_contexts"], 0)
+        self.assertEqual(snapshot["active_pages"], 0)
+        self.assertGreaterEqual(snapshot["browser_launches"], 0)
+        self.assertGreaterEqual(snapshot["browser_recycles"], 0)
+        self.assertTrue(worker_state.needs_recycle)
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("Cafe crawling context close failed", joined_logs)
+        self.assertIn("Cafe crawling page close failed", joined_logs)
