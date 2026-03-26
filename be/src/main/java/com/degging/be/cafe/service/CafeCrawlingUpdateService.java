@@ -25,14 +25,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CafeCrawlingUpdateService {
 
+    private static final List<String> ADJECTIVES = List.of("맑은", "고운", "푸른", "깊은", "밝은", "기쁜", "멋진", "착한", "숲속", "새벽");
+    private static final List<String> NOUNS = List.of("하늘", "바다", "나무", "요정", "라떼", "하루", "소망", "미소", "햇살", "구름");
+
     private final CafeRepository cafeRepository;
     private final VibeRepository vibeRepository;
     private final UserRepository userRepository;
     private final ReviewRepository reviewRepository;
-    private final CafeImageRepository cafeImageRepository;
-    private final CafeMenuRepository cafeMenuRepository;
-    private final CafeBusinessHoursRepository cafeBusinessHoursRepository;
-    private final CafeVibeTagRepository cafeVibeTagRepository;
     private final EntityManager em;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -57,9 +56,14 @@ public class CafeCrawlingUpdateService {
         }
 
         // 기본 정보 업데이트 (전제: 현재 비어있음)
+        String intro = dto.getCafes().getCafeIntro();
+        if (intro != null && intro.length() > 495) {
+            intro = intro.substring(0, 495);
+        }
+
         cafe.updateCrawledData(
                 dto.getCafes().getThumbnailUrl(),
-                dto.getCafes().getCafeIntro());
+                intro);
         log.info("기본 정보 업데이트 완료 (thumbnail: {}, intro: {})",
                 cafe.getThumbnailUrl() != null ? "O" : "X",
                 cafe.getCafeIntro() != null ? "O" : "X");
@@ -82,81 +86,91 @@ public class CafeCrawlingUpdateService {
 
         // 영업 시간 (CafeBusinessHoursEntity) 업데이트
         if (dto.getCafeBusinessHours() != null) {
-            cafeBusinessHoursRepository.deleteByCafe(cafe); // 기존 정보 삭제
+            CafeBusinessHoursEntity hours = cafe.getBusinessHoursEntity();
+            AiCrawlerItemResponse.CafeBusinessHoursDto hDto = dto.getCafeBusinessHours();
             
-            CafeBusinessHoursEntity hours = CafeBusinessHoursEntity.builder()
-                    .cafe(cafe)
-                    .monHours(dto.getCafeBusinessHours().getMonHours())
-                    .tuesHours(dto.getCafeBusinessHours().getTuesHours())
-                    .wedHours(dto.getCafeBusinessHours().getWedHours())
-                    .thurHours(dto.getCafeBusinessHours().getThurHours())
-                    .friHours(dto.getCafeBusinessHours().getFriHours())
-                    .satHours(dto.getCafeBusinessHours().getSatHours())
-                    .sunHours(dto.getCafeBusinessHours().getSunHours())
-                    .build();
-            
-            cafe.setBusinessHoursEntity(hours); // 양방향 연관관계 설정
-            cafeBusinessHoursRepository.save(hours);
+            if (hours == null) {
+                hours = CafeBusinessHoursEntity.builder()
+                        .cafe(cafe)
+                        .monHours(hDto.getMonHours())
+                        .tuesHours(hDto.getTuesHours())
+                        .wedHours(hDto.getWedHours())
+                        .thurHours(hDto.getThurHours())
+                        .friHours(hDto.getFriHours())
+                        .satHours(hDto.getSatHours())
+                        .sunHours(hDto.getSunHours())
+                        .build();
+                cafe.setBusinessHoursEntity(hours);
+                em.persist(hours);
+            } else {
+                hours.updateCrawledHours(
+                        hDto.getMonHours(), hDto.getTuesHours(), hDto.getWedHours(),
+                        hDto.getThurHours(), hDto.getFriHours(), hDto.getSatHours(), hDto.getSunHours());
+            }
             log.info("영업 시간 업데이트 완료");
         }
 
         // 카페 이미지 업데이트
         if (dto.getCafeImages() != null && !dto.getCafeImages().isEmpty()) {
-            cafeImageRepository.deleteAllByCafe(cafe); // 기존 이미지 삭제
+            cafe.getImages().clear(); // orphanRemoval=true로 인해 전파됨
             
-            List<CafeImageEntity> imagesToSave = dto.getCafeImages().stream()
-                    .map(imgDto -> CafeImageEntity.builder()
-                            .cafe(cafe)
-                            .imageUrl(imgDto.getImageUrl())
-                            .sortOrder(imgDto.getSortOrder() != null ? imgDto.getSortOrder() : 0)
-                            .build())
-                    .collect(Collectors.toList());
-            
-            cafeImageRepository.saveAll(imagesToSave);
-            log.info("이미지 {}건 추가", imagesToSave.size());
+            for (AiCrawlerItemResponse.CafeImageDto imgDto : dto.getCafeImages()) {
+                CafeImageEntity image = CafeImageEntity.builder()
+                        .cafe(cafe)
+                        .imageUrl(imgDto.getImageUrl())
+                        .sortOrder(imgDto.getSortOrder() != null ? imgDto.getSortOrder() : 0)
+                        .build();
+                cafe.getImages().add(image);
+            }
+            log.info("이미지 {}건 추가", dto.getCafeImages().size());
         }
 
         // 카페 메뉴 업데이트
         if (dto.getCafeMenus() != null && !dto.getCafeMenus().isEmpty()) {
-            cafeMenuRepository.deleteAllByCafe(cafe); // 기존 메뉴 삭제
+            cafe.getMenus().clear(); // orphanRemoval=true로 인해 전파됨
             
-            List<CafeMenuEntity> menusToSave = dto.getCafeMenus().stream()
-                    .map(menuDto -> CafeMenuEntity.builder()
-                            .cafe(cafe)
-                            .menuName(menuDto.getMenuName())
-                            .price(menuDto.getPrice())
-                            .menuDescription(menuDto.getMenuDescription())
-                            .build())
-                    .collect(Collectors.toList());
-            
-            cafeMenuRepository.saveAll(menusToSave);
-            log.info("메뉴 {}건 추가", menusToSave.size());
+            for (AiCrawlerItemResponse.CafeMenuDto menuDto : dto.getCafeMenus()) {
+                String desc = menuDto.getMenuDescription();
+                if (desc != null && desc.length() > 495) {
+                    desc = desc.substring(0, 495);
+                }
+                String name = menuDto.getMenuName();
+                if (name != null && name.length() > 95) {
+                    name = name.substring(0, 95);
+                }
+                
+                CafeMenuEntity menu = CafeMenuEntity.builder()
+                        .cafe(cafe)
+                        .menuName(name)
+                        .price(menuDto.getPrice())
+                        .menuDescription(desc)
+                        .build();
+                cafe.getMenus().add(menu);
+            }
+            log.info("메뉴 {}건 추가", dto.getCafeMenus().size());
         }
 
         // 카페 분위기 태그 업데이트
-        int vibeCount = 0;
         if (dto.getCafeVibeTags() != null && !dto.getCafeVibeTags().isEmpty()) {
-            cafeVibeTagRepository.deleteAllByCafe(cafe); // 기존 태그 삭제
+            cafe.getVibeTags().clear(); // 기존 태그 관계 삭제 (orphanRemoval)
             
             Set<UUID> targetVibeIds = dto.getCafeVibeTags().stream()
                     .map(AiCrawlerItemResponse.CafeVibeTagDto::getTagId)
-                    .filter(id -> id != null)
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
 
             if (!targetVibeIds.isEmpty()) {
                 List<VibeEntity> vibes = vibeRepository.findAllById(targetVibeIds);
-                List<CafeVibeTagEntity> tagsToSave = vibes.stream()
-                        .map(vibe -> CafeVibeTagEntity.builder()
-                                .cafe(cafe)
-                                .vibe(vibe)
-                                .build())
-                        .collect(Collectors.toList());
-                
-                cafeVibeTagRepository.saveAll(tagsToSave);
-                vibeCount = tagsToSave.size();
+                for (VibeEntity vibe : vibes) {
+                    CafeVibeTagEntity tag = CafeVibeTagEntity.builder()
+                            .cafe(cafe)
+                            .vibe(vibe)
+                            .build();
+                    cafe.getVibeTags().add(tag);
+                }
             }
+            log.info("분위기 태그 {}건 추가", cafe.getVibeTags().size());
         }
-        log.info("분위기 태그 {}건 추가", vibeCount);
 
         // 콜드스타트용 리뷰 데이터 업데이트
         if (dto.getCafeReviews() != null && !dto.getCafeReviews().isEmpty()) {
@@ -165,7 +179,9 @@ public class CafeCrawlingUpdateService {
                 Map<String, AiCrawlerItemResponse.CafeReviewDto> reviewDtoMap = new HashMap<>();
                 for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
                     if (reviewDto.getUserId() != null && reviewDto.getUserReview() != null) {
-                        String dummyEmail = "crawler_" + reviewDto.getUserId() + "@degging.com";
+                        String userIdStr = reviewDto.getUserId();
+                        String emailId = userIdStr.substring(0, Math.min(userIdStr.length(), 20));
+                        String dummyEmail = "crawler_" + emailId + "@degging.com";
                         reviewDtoMap.put(dummyEmail, reviewDto);
                     }
                 }
@@ -180,14 +196,20 @@ public class CafeCrawlingUpdateService {
                     List<UserEntity> newUsersToSave = new ArrayList<>();
                     for (String email : reviewDtoMap.keySet()) {
                         if (!userCache.containsKey(email)) {
-                            AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
-
                             UserEntity newUser = UserEntity.of(email, "dummy_crawler_password", 'A');
-                            String shortId = reviewDto.getUserId().substring(0, Math.min(reviewDto.getUserId().length(), 8));
+                            
+                            // 자연스러운 닉네임 생성 로직 (2자 + 2자 + 6자 = 총 10자)
+                            int adjIndex = Math.abs(email.hashCode()) % ADJECTIVES.size();
+                            int nounIndex = Math.abs((email + "seed").hashCode()) % NOUNS.size();
+                            
+                            // email: crawler_{emailId}@degging.com 에서 emailId 부분 6자리 추출
+                            String idPart = email.substring(8, email.indexOf("@"));
+                            String suffix = idPart.substring(0, Math.min(idPart.length(), 6)); 
+                            String naturalNickname = ADJECTIVES.get(adjIndex) + NOUNS.get(nounIndex) + suffix;
 
                             UserProfileEntity profile = UserProfileEntity.builder()
                                     .user(newUser)
-                                    .nickname("크롤러_" + shortId)
+                                    .nickname(naturalNickname)
                                     .gender(Gender.MALE)
                                     .birthDate(LocalDate.of(2000, 1, 1))
                                     .build();
