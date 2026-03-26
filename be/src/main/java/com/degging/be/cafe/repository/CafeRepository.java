@@ -15,52 +15,52 @@ import java.util.UUID;
 
 public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
 
-    /**
-     * 상가업소번호(bizesId) 중복 여부 확인
-     */
-    boolean existsByBizesId(String bizesId);
+        /**
+         * 상가업소번호(bizesId) 중복 여부 확인
+         */
+        boolean existsByBizesId(String bizesId);
 
-    /**
-     * 카카오 장소 식별자 중복 여부
-     */
-    boolean existsByKakaoPlaceId(String kakaoPlaceId);
+        /**
+         * 카카오 장소 식별자 중복 여부
+         */
+        boolean existsByKakaoPlaceId(String kakaoPlaceId);
 
-    /**
-     * 여러 카카오 플레이스 ID 중 이미 DB에 존재하는 ID 리스트 조회
-     */
-    @Query("SELECT c.kakaoPlaceId FROM CafeEntity c WHERE c.kakaoPlaceId IN :kakaoPlaceIds")
-    List<String> findAllExistingKakaoPlaceIds(@Param("kakaoPlaceIds") List<String> kakaoPlaceIds);
+        /**
+         * 여러 카카오 플레이스 ID 중 이미 DB에 존재하는 ID 리스트 조회
+         */
+        @Query("SELECT c.kakaoPlaceId FROM CafeEntity c WHERE c.kakaoPlaceId IN :kakaoPlaceIds")
+        List<String> findAllExistingKakaoPlaceIds(@Param("kakaoPlaceIds") List<String> kakaoPlaceIds);
 
-    /**
-     * 이름을 기반으로 카페 목록 조회
-     */
-    List<CafeEntity> findAllByName(String name);
+        /**
+         * 이름을 기반으로 카페 목록 조회
+         */
+        List<CafeEntity> findAllByName(String name);
 
-    /**
-     * 정제된 브랜드명(brandName)이 10개 이상인 목록 조회
-     */
-    @Query("SELECT c.brandName " +
-            "FROM CafeEntity c " +
-            "GROUP BY c.brandName " +
-            "HAVING COUNT(c.brandName) >= 10")
-    List<String> findBrandNamesExceedingThreshold();
+        /**
+         * 정제된 브랜드명(brandName)이 10개 이상인 목록 조회
+         */
+        @Query("SELECT c.brandName " +
+                        "FROM CafeEntity c " +
+                        "GROUP BY c.brandName " +
+                        "HAVING COUNT(c.brandName) >= 10")
+        List<String> findBrandNamesExceedingThreshold();
 
-    /**
-     * 특정 브랜드명을 가진 모든 카페 목록 조회
-     */
-    List<CafeEntity> findAllByBrandName(String brandName);
+        /**
+         * 특정 브랜드명을 가진 모든 카페 목록 조회
+         */
+        List<CafeEntity> findAllByBrandName(String brandName);
 
-//----------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------
 
-    /**
-     * 카페 상세 조회를 위한 페치 조인 쿼리
-     */
-    @Query("SELECT DISTINCT c FROM CafeEntity c " +
-            "LEFT JOIN FETCH c.ratingStats " +
-            "LEFT JOIN FETCH c.vibeTags vt " +
-            "LEFT JOIN FETCH vt.vibe " +
-            "WHERE c.cafeId = :cafeId")
-    Optional<CafeEntity> findByIdWithDetail(@Param("cafeId") UUID cafeId);
+        /**
+         * 카페 상세 조회를 위한 페치 조인 쿼리
+         */
+        @Query("SELECT DISTINCT c FROM CafeEntity c " +
+                        "LEFT JOIN FETCH c.ratingStats " +
+                        "LEFT JOIN FETCH c.vibeTags vt " +
+                        "LEFT JOIN FETCH vt.vibe " +
+                        "WHERE c.cafeId = :cafeId")
+        Optional<CafeEntity> findByIdWithDetail(@Param("cafeId") UUID cafeId);
 
     /**
      * 사용자 현재 위치 기준 반경 내 카페 목록 조회
@@ -93,14 +93,20 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             @Param("includeFranchise") boolean includeFranchise,
             @Param("tags") List<String> tags);
 
-//----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
 
     /**
      * 썸네일 이미지가 존재하고 특정 영업 상태인 카페를 상위 100개 조회
+     * 
      * @param status 조회할 카페의 영업 상태 (ex. OPEN)
      * @return 필터링된 카페 엔티티 리스트
      */
     List<CafeEntity> findTop100ByThumbnailUrlIsNotNullAndStatus(CafeStatus status);
+
+    /**
+     * 탐색(Discovery) 탭에서 상위 500개 조회
+     */
+    List<CafeEntity> findTop500ByThumbnailUrlIsNotNullAndStatus(CafeStatus status);
 
     /**
      * 온보딩 분석을 위해 필요한 분위기 태그 정보만 선별적으로 조회합니다.
@@ -113,8 +119,6 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             "JOIN FETCH vt.vibe " +
             "WHERE c.cafeId IN :cafeIds")
     List<CafeEntity> findAllWithVibesById(@Param("cafeIds") List<UUID> cafeIds);
-
-//----------------------------------------------------------------------------------------------
 
     /**
      * [바텀시트] 반경 내 카페 조회 - 거리순
@@ -224,7 +228,7 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      * [바텀시트] 반경 내 카페 조회 - 추천순
      * TODO: AI 연동을 통한 추천 카페 리스트업 예정
      */
-    
+
     /**
      * AI 크롤링이 필요한 카페 목록 조회 (썸네일이 없는 카페 기준)
      *
@@ -249,5 +253,4 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      */
     @Query("SELECT c FROM CafeEntity c WHERE c.thumbnailUrl IS NULL AND (c.address LIKE %:region% OR c.roadAddress LIKE %:region%)")
     Page<CafeEntity> findAllByThumbnailUrlIsNullAndRegion(@Param("region") String region, Pageable pageable);
-    
 }
