@@ -43,7 +43,14 @@ def build_item(cafe_id: str, name: str, review_count: int) -> dict:
             "friends_ratio": "25%",
         },
         "cafe_images": [],
-        "cafe_menus": [],
+        "cafe_menus": [
+            {
+                "menu_name": "Americano",
+                "price": 4500,
+                "menu_description": None,
+                "menu_img_url": None,
+            }
+        ],
         "cafe_business_hours": {
             "mon_hours": None,
             "tues_hours": None,
@@ -113,6 +120,8 @@ class CafeCrawlingAPITest(unittest.TestCase):
         self.assertEqual(payload["items"][0]["cafe_reviews"], [])
         self.assertEqual(len(payload["items"][1]["cafe_reviews"]), 2)
         self.assertEqual(payload["items"][1]["cafe_reviews"][0]["rating"], 3)
+        self.assertIn("menu_img_url", payload["items"][0]["cafe_menus"][0])
+        self.assertIsNone(payload["items"][0]["cafe_menus"][0]["menu_img_url"])
         self.assertIn("cafes", payload["items"][0])
         self.assertIn("cafe_rating_stats", payload["items"][0])
         self.assertIn("cafe_business_hours", payload["items"][0])

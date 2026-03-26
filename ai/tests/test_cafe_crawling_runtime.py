@@ -88,6 +88,7 @@ def build_raw_item(seed: CafeSeed, *, menu_count: int = 1, image_count: int = 1,
                 "menu_name": f"menu-{index}",
                 "price": 5000 + index,
                 "menu_description": None,
+                "menu_img_url": None,
             }
             for index in range(menu_count)
         ],
@@ -178,7 +179,7 @@ class CafeCrawlingImageProcessingTest(unittest.TestCase):
 
         with Image.open(BytesIO(processed_data)) as image:
             self.assertEqual(image.size, (200, 100))
-            self.assertIn("A", image.getbands())
+            self.assertTrue("A" in image.getbands() or "transparency" in image.info)
             self.assertIn(image.mode, {"P", "RGBA"})
         self.assertEqual(content_type, "image/png")
         self.assertEqual(ext, ".png")
@@ -223,6 +224,108 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
                 "https://pstatic.net/common/proxy.jpg"
             )
         )
+
+    def test_normalize_menu_card_payloads_filters_labels_and_normalizes_urls(self) -> None:
+        payloads = cafe_crawling_runtime.normalize_menu_card_payloads(
+            [
+                {
+                    "menu_name": "Americano",
+                    "price_text": "4,500원",
+                    "menu_description": "hot",
+                    "image_url": "https://search.pstatic.net/common/?autoRotate=true&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250325_1%2Famericano.jpg",
+                },
+                {
+                    "menu_name": "BEST",
+                    "price_text": None,
+                    "menu_description": None,
+                    "image_url": "https://ldb-phinf.pstatic.net/20250325_1/best.jpg",
+                },
+                {
+                    "menu_name": "Americano",
+                    "price_text": "4,500원",
+                    "menu_description": "hot",
+                    "image_url": "https://search.pstatic.net/common/?autoRotate=true&type=f320_320&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250325_1%2Famericano.jpg",
+                },
+            ]
+        )
+
+        self.assertEqual(len(payloads), 1)
+        self.assertEqual(payloads[0].menu_name, "Americano")
+        self.assertEqual(payloads[0].price, 4500)
+        self.assertEqual(payloads[0].menu_description, "hot")
+        self.assertEqual(payloads[0].image_url, "https://ldb-phinf.pstatic.net/20250325_1/americano.jpg")
+
+    def test_normalize_image_source_url_rejects_proxy_without_allowed_source(self) -> None:
+        self.assertIsNone(
+            cafe_crawling_runtime.normalize_image_source_url(
+                "https://search.pstatic.net/common/?src=https%3A%2F%2Fexample.com%2Fmenu.jpg"
+            )
+        )
+
+    def test_normalize_image_source_url_preserves_percent_encoded_filename_from_proxy(self) -> None:
+        normalized = cafe_crawling_runtime.normalize_image_source_url(
+            "https://search.pstatic.net/common/?autoRotate=true&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20230609_48%2F1686312191624n1UuV_JPEG%2F%25BE%25C6%25B8%25DE%25B8%25AE%25C4%25AB%25B3%25EB.jpg"
+        )
+
+        self.assertEqual(
+            normalized,
+            "https://ldb-phinf.pstatic.net/20230609_48/1686312191624n1UuV_JPEG/%BE%C6%B8%DE%B8%AE%C4%AB%B3%EB.jpg",
+        )
+
+    def test_build_menus_with_image_candidates_matches_exact_names_fifo(self) -> None:
+        menu_cards = [
+            cafe_crawling_runtime.MenuCardPayload(
+                menu_name="Americano",
+                image_url="https://ldb-phinf.pstatic.net/20250325_1/americano-0.jpg",
+            ),
+            cafe_crawling_runtime.MenuCardPayload(
+                menu_name="Latte",
+                image_url="https://ldb-phinf.pstatic.net/20250325_1/latte.jpg",
+            ),
+            cafe_crawling_runtime.MenuCardPayload(
+                menu_name="Americano",
+                image_url=None,
+            ),
+        ]
+
+        with patch.object(
+            cafe_crawling_runtime,
+            "parse_menu_text",
+            return_value=[
+                {"menu_name": "Americano", "price": 4500, "menu_description": None},
+                {"menu_name": "Latte", "price": 5000, "menu_description": None},
+                {"menu_name": "Americano", "price": 4700, "menu_description": None},
+                {"menu_name": "Mocha", "price": 5300, "menu_description": None},
+            ],
+        ):
+            menus = cafe_crawling_runtime.build_menus_with_image_candidates("ignored", menu_cards)
+
+        self.assertEqual(
+            [menu[cafe_crawling_runtime.MENU_IMAGE_SOURCE_FIELD] for menu in menus],
+            [
+                "https://ldb-phinf.pstatic.net/20250325_1/americano-0.jpg",
+                "https://ldb-phinf.pstatic.net/20250325_1/latte.jpg",
+                None,
+                None,
+            ],
+        )
+
+    def test_build_menus_with_image_candidates_falls_back_to_menu_cards_when_text_parse_is_empty(self) -> None:
+        menu_cards = [
+            cafe_crawling_runtime.MenuCardPayload(
+                menu_name="Signature Latte",
+                price=6500,
+                menu_description="cream top",
+                image_url="https://ldb-phinf.pstatic.net/20250325_1/signature.jpg",
+            )
+        ]
+
+        with patch.object(cafe_crawling_runtime, "parse_menu_text", return_value=[]):
+            menus = cafe_crawling_runtime.build_menus_with_image_candidates("ignored", menu_cards)
+
+        self.assertEqual(len(menus), 1)
+        self.assertEqual(menus[0]["menu_name"], "Signature Latte")
+        self.assertEqual(menus[0][cafe_crawling_runtime.MENU_IMAGE_SOURCE_FIELD], "https://ldb-phinf.pstatic.net/20250325_1/signature.jpg")
 
     async def test_crawl_cafes_batch_preserves_order_when_tasks_finish_out_of_order(self) -> None:
         request_items = [
@@ -433,6 +536,65 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(uploaded_images[image_rows[0]["image_url"]], ((800, 600), "image/jpeg"))
         self.assertEqual(uploaded_images[image_rows[1]["image_url"]], ((800, 600), "image/jpeg"))
 
+    async def test_upload_menu_images_preserves_order_and_resizes_images(self) -> None:
+        seed = build_seed(CAFE_ID_1)
+        source_data = build_image_bytes(1600, 1200)
+        menus = [
+            {
+                "menu_name": "menu-0",
+                "price": 5000,
+                "menu_description": None,
+                cafe_crawling_runtime.MENU_IMAGE_SOURCE_FIELD: "https://example.com/images/00.jpg",
+            },
+            {
+                "menu_name": "menu-1",
+                "price": 5100,
+                "menu_description": None,
+                cafe_crawling_runtime.MENU_IMAGE_SOURCE_FIELD: "https://example.com/images/01.jpg",
+            },
+            {
+                "menu_name": "menu-2",
+                "price": 5200,
+                "menu_description": None,
+                cafe_crawling_runtime.MENU_IMAGE_SOURCE_FIELD: None,
+            },
+        ]
+
+        async def fake_download_image_bytes(url, http_client):
+            delay_by_index = {"00": 0.03, "01": 0.01}
+            await asyncio.sleep(delay_by_index[url[-6:-4]])
+            return source_data, "image/jpeg"
+
+        fake_s3 = AsyncMock()
+        uploaded_images: dict[str, tuple[tuple[int, int], str]] = {}
+
+        async def fake_upload_bytes(key, data, content_type):
+            with Image.open(BytesIO(data)) as image:
+                uploaded_images[key] = (image.size, content_type)
+            return key
+
+        fake_s3.upload_bytes = AsyncMock(side_effect=fake_upload_bytes)
+
+        with patch.object(cafe_crawling_runtime, "download_image_bytes", side_effect=fake_download_image_bytes):
+            stored_keys = await cafe_crawling_runtime.upload_menu_images(
+                seed,
+                fake_s3,
+                AsyncMock(),
+                menus,
+                max_concurrency=3,
+            )
+
+        self.assertEqual(
+            stored_keys,
+            [
+                f"cafes/{CAFE_ID_1}/menus/00.jpg",
+                f"cafes/{CAFE_ID_1}/menus/01.jpg",
+                None,
+            ],
+        )
+        self.assertEqual(uploaded_images[stored_keys[0]], ((800, 600), "image/jpeg"))
+        self.assertEqual(uploaded_images[stored_keys[1]], ((800, 600), "image/jpeg"))
+
     def test_assign_sequence_ids_preserves_nested_payloads(self) -> None:
         raw_items = [
             build_raw_item(build_seed(CAFE_ID_1), menu_count=2, image_count=2, vibe_count=2),
@@ -449,6 +611,10 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             [[menu.menu_name for menu in item.cafe_menus] for item in first],
             [[menu.menu_name for menu in item.cafe_menus] for item in second],
+        )
+        self.assertEqual(
+            [[menu.menu_img_url for menu in item.cafe_menus] for item in first],
+            [[menu.menu_img_url for menu in item.cafe_menus] for item in second],
         )
         self.assertEqual(
             [[tag.tag_id for tag in item.cafe_vibe_tags] for item in first],

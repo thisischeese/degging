@@ -1356,7 +1356,7 @@ async def enrich_cafe(seed: CafeSeed, runtime_settings: RuntimeSettings, sequenc
     s3_client = S3Client(runtime_settings)
 
     intro = parse_intro(texts["정보"])
-    summarized_intro = await gms_client.summarize_intro(intro) if intro and len(intro) > 40 else intro
+    summarized_intro = await gms_client.summarize_intro(intro) if intro and len(intro) > 500 else intro
     review_metrics = parse_review_metrics(texts["리뷰"], crawl_result.get("visitor_reviews"))
     business_hours = parse_business_hours(texts["홈"], texts["정보"])
 
