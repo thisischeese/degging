@@ -13,6 +13,8 @@ import com.degging.be.global.exception.errorcode.AuthErrorCode;
 
 import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.user.entity.UserEntity;
+import com.degging.be.user.entity.UserProfileEntity;
+import com.degging.be.user.repository.UserProfileRepository;
 import com.degging.be.user.repository.UserRepository;
 
 import com.degging.be.user.service.MemberService;
@@ -41,6 +43,7 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final MemberService memberService;
     private final RedisTemplate<Object, Object> redisTemplate;
+    private final UserProfileRepository userProfileRepository;
 
     /**
      * 사용자의 이메일과 비밀번호를 검증 후 액세스 토큰 발급
@@ -56,6 +59,9 @@ public class AuthService {
         UserEntity user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
+        UserProfileEntity profile = userProfileRepository.findById(user.getUserId())
+                .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
+
         // 비밀번호 일치 여부 확인
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BaseException(UserErrorCode.PASSWORD_INVALID);
@@ -67,8 +73,9 @@ public class AuthService {
 
         RefreshToken tokenEntity = new RefreshToken(user.getUserId(), refreshToken);
         refreshTokenRepository.save(tokenEntity);
-
-        return LoginResponse.of(accessToken, refreshToken);
+        
+        // 온보딩 여부와 함께 반환 -> 온보딩 진행 안 했을 경우 프론트에서 온보딩으로 연결
+        return LoginResponse.of(accessToken, refreshToken, profile.isOnboarded());
     }
 
     /**

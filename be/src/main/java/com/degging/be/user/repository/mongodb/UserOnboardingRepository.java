@@ -11,5 +11,5 @@ import java.util.UUID;
  */
 public interface UserOnboardingRepository extends MongoRepository<UserOnboarding, String> {
     // 특정 유저의 데이터 조회 (취향 태그 추출용)
-    Optional<UserOnboarding> findByUserId(UUID userId);
+    Optional<UserOnboarding> findByUserId(String userId);
 }

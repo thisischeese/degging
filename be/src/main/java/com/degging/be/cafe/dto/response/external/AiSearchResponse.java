@@ -29,4 +29,13 @@ public class AiSearchResponse {
     public List<UUID> getCafeIds() {
         return cafes == null ? Collections.emptyList() : new ArrayList<>(cafes.keySet());
     }
+
+    // 빈 리스트 반환하는 메서드
+    public static AiSearchResponse empty() {
+        return AiSearchResponse.builder()
+                .cafes(Collections.emptyMap()) //  Map이므로 emptyMap()
+                .extractedMenus(Collections.emptyMap())
+                .menuCount(0)
+                .build();
+    }
 }

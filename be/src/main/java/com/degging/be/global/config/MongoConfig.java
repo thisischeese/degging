@@ -12,8 +12,8 @@ import org.springframework.data.mongodb.MongoTransactionManager;
 public class MongoConfig {
 
     @Bean
-    public MongoTransactionManager transactionManager(MongoDatabaseFactory dbFactory) {
-        // MongoDB는 설정이 없으면 서비스 레이어에서 트랜잭션 어노테이션 사용 불가
+    public MongoTransactionManager mongoTransactionManager(MongoDatabaseFactory dbFactory) {
+        // 이름을 mongoTransactionManager로 지정하여 기본 JPA transactionManager를 덮어쓰지 않도록 함
         return new MongoTransactionManager(dbFactory);
     }
 }

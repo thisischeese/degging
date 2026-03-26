@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -34,6 +35,21 @@ public class SecurityConfig {
     private final JwtExceptionFilter jwtExceptionFilter;
 
     /**
+     * 스웨거 관련 경로는 보안 필터 체인 자체를 거치지 않도록 설정
+     */
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers(
+                "/v3/api-docs",
+                "/v3/api-docs/**",
+                "/swagger-ui/**",
+                "/swagger-ui.html",
+                "/swagger-resources/**",
+                "/webjars/**"
+        );
+    }
+
+    /**
      * 보안 필터 체인을 정의하고 HTTP 보안 설정 구성
      * Stateless API 방식에 최적화됨
      *
@@ -54,7 +70,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 // 로그인, 회원가입 등 인증 관련 API 허용
                                 "/api/auth/**",
+                                "/api/users/password/find",
                                 "/api/manage/cafes/**",
+                                "/api/users/password-find",
 
                                 // WebSocket 핸드셰이크 허용
                                 "/wss",

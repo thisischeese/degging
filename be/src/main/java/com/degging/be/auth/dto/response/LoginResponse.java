@@ -14,6 +14,7 @@ public class LoginResponse {
 
     private String accessToken;
     private String refreshToken;
+    private boolean isOnboarded; // 온보딩 유무
 
     /**
      * 액세스 토큰과 리프레시 토큰을 받아 LoginResponse 객체 생성
@@ -22,10 +23,11 @@ public class LoginResponse {
      * @param refreshToken 발급된 리프레시 토큰
      * @return 생성된 LoginResponse 객체
      */
-    public static LoginResponse of(String accessToken, String refreshToken) {
+    public static LoginResponse of(String accessToken, String refreshToken, boolean isOnboarded) {
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .isOnboarded(isOnboarded)
                 .build();
     }
 

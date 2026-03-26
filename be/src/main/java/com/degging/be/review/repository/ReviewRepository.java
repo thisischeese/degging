@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,4 +49,5 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
             "LEFT JOIN FETCH r.reviewImages " +
             "WHERE r.user.userId = :userId " +
             "ORDER BY r.createdAt DESC")
-    Slice<ReviewEntity> findAllByUserIdWithImages(UUID userId, Pageable pageable);}
+    Slice<ReviewEntity> findAllByUserIdWithImages(UUID userId, Pageable pageable);
+}

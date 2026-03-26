@@ -1,8 +1,10 @@
 package com.degging.be.user.controller;
 
+import com.degging.be.auth.dto.request.ResetPasswordRequest;
 import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.user.dto.request.OneTimeTagRequest;
 import com.degging.be.user.dto.request.UserOnboardingRequest;
 import com.degging.be.user.dto.request.UserUpdateRequest;
 import com.degging.be.user.dto.response.UserDetailResponse;
@@ -11,10 +13,12 @@ import com.degging.be.user.service.UserOnboardingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -55,6 +59,41 @@ public class UserController {
     }
 
     /**
+     * 사용자의 현재 취향 태그 목록 조회 (영구 + 임시 병합)
+     *
+     * @param user 인증 객체로 부터 추출된 유저
+     * @return 취향 태그 리스트
+     */
+    @GetMapping("/preferences")
+    public BaseResponse<List<String>> getUserPreference(
+            @AuthenticationPrincipal UserDetails user) {
+
+        UUID userId = getUserId(user);
+        List<String> tags = memberService.getUserPreferred(userId);
+
+        return BaseResponse.success(tags);
+    }
+
+    /**
+     * 사용자가 추가적으로 더 사용하고 싶은 임시 취향 태그 수집 (+ 버튼)
+     * 24시간 동안 유지됨
+     *
+     * @param user 인증 객체로 부터 추출된 유저
+     * @param request 선택한 임시 태그 리스트
+     * @return 수집 성공 여부 응답
+     */
+    @PostMapping("/tags/temporary")
+    public BaseResponse<String> collectTemporaryTags(
+            @AuthenticationPrincipal UserDetails user,
+            @Valid @RequestBody OneTimeTagRequest request) {
+
+        UUID userId = getUserId(user);
+        memberService.saveTemporaryTags(userId, request.getTags());
+
+        return BaseResponse.success();
+    }
+
+    /**
      * 특정 회원 정보(내정보)를 조회하는 메서드
      * 
      * @param user 인증 객체로 부터 추출된 유저
@@ -75,9 +114,9 @@ public class UserController {
      * @param user 인증 객체로 부터 추출된 유저
      * @return 200
      */
-    @PatchMapping
+    @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<?> updateUser(
-            @RequestBody @Valid UserUpdateRequest request,
+            @ModelAttribute @Valid UserUpdateRequest request,
             @AuthenticationPrincipal UserDetails user){
         UUID userId = getUserId(user);
         memberService.updateUser(userId, request);
@@ -95,6 +134,24 @@ public class UserController {
             @AuthenticationPrincipal UserDetails user){
         UUID userId = getUserId(user);
         memberService.removeUser(userId);
+        return BaseResponse.success();
+    }
+
+    /**
+     * 비밀번호 재설정
+     * 로그인한 사용자가 본인의 비밀번호를 변경
+     *
+     * @param user 현재 인증된 사용자의 정보
+     * @return 성공 응답 객체
+     */
+    @PatchMapping("/password/reset")
+    public BaseResponse<Void> resetPassword(
+            @AuthenticationPrincipal UserDetails user,
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        UUID userId = getUserId(user);
+
+        memberService.resetPassword(userId, request);
         return BaseResponse.success();
     }
 }

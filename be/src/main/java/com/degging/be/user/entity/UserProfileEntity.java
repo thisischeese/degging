@@ -45,9 +45,7 @@ public class UserProfileEntity extends BaseEntity {
      */
     public void updateUser(String nickname, String profileImageUrl) {
         this.nickname = nickname;
-        if (profileImageUrl != null && !profileImageUrl.isBlank()){
-            this.profileImageUrl = profileImageUrl;
-        }
+        this.profileImageUrl = profileImageUrl;
     }
 
     /**
@@ -55,5 +53,11 @@ public class UserProfileEntity extends BaseEntity {
      */
     public void setUser(UserEntity user) {this.user = user;}
 
+    /**
+     * 유저 온보딩 여부를 갱신하는 메서드
+     */
+    public void updateIsOnboarding(){
+        this.isOnboarded = true;
+    }
 
 }

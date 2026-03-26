@@ -18,9 +18,11 @@ public class CafeMenuEntity {
     @Column(nullable = false, length = 100)
     private String menuName;    // 메뉴명
 
+    private String menuImageUrl;    // 메뉴 이미지 URL
+
     private Integer price;  // 금액
 
-    @Column(length = 255)
+    @Column(length = 500)
     private String menuDescription; // 메뉴 설명
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -1,18 +1,13 @@
 package com.degging.be.rank.service;
 
-import com.degging.be.global.event.SearchEvent;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
-import com.degging.be.global.exception.errorcode.RankErrorcode;
 import com.degging.be.rank.dto.response.RankResponse;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -105,32 +100,9 @@ public class RankService {
     }
 
     /**
-     * 검색 이벤트 발생 시 점수 반영 (비동기 갱신)
-     */
-    @Async // 검색 쓰레드와 점수 올리는 쓰레드를 분리
-    @EventListener // 이벤트 발행 시 자동 실행
-    public void handleSearchEvent(SearchEvent event){
-        Map<String, Integer> menus = event.extractedMenus();
-        if (menus == null || menus.isEmpty()) return;
-
-        try {
-            // 최종 점수 = 기본 점수(1.0) + 시간 가중치
-            double baseScore = calculateBaseScore();
-
-            // 메뉴별 점수 반영 로직을 별도 메서드로 분리하여 중첩 제거
-            menus.forEach((menuIdStr, aiCount) -> processMenuScore(menuIdStr, aiCount, baseScore));
-
-        } catch (Exception e) {
-            log.error("[Rank Error] {} : {}",
-                    RankErrorcode.RANKING_PROCESS_ERROR.getCode(),
-                    RankErrorcode.RANKING_PROCESS_ERROR.getMessage(), e);
-        }
-    }
-
-    /**
      * 기준점 대비 시간 가중치가 적용된 기본 점수 계산
      */
-    private double calculateBaseScore() {
+    public double calculateBaseScore() {
         long nowSeconds = System.currentTimeMillis() / 1000;
         long referenceTime = 1767225600L; // 2026-01-01
         double timeWeight = (nowSeconds - referenceTime) / 100000.0;
@@ -140,7 +112,7 @@ public class RankService {
     /**
      * 개별 메뉴의 ID 변환 및 Redis 점수 업데이트 처리
      */
-    private void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
+    public void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
         try {
             // String -> Integer 검증
             Integer.parseInt(menuIdStr);

@@ -48,6 +48,7 @@ public class CafeEntity extends BaseEntity {
 
     private String phone; // 전화번호
 
+    @Column
     private String thumbnailUrl; // 썸네일 이미지 url
 
     @Enumerated(EnumType.STRING)
@@ -61,6 +62,7 @@ public class CafeEntity extends BaseEntity {
     @Column(columnDefinition = "geography(Point,4326)", nullable = false)
     private Point location; // 카페 위치 PostGIS
 
+    @Column(length = 500)
     private String cafeIntro; // 카페 한줄 소개
 
     @OneToOne(mappedBy = "cafe", cascade = CascadeType.ALL)
@@ -165,5 +167,13 @@ public class CafeEntity extends BaseEntity {
     public void updateCrawledData(String thumbnailUrl, String cafeIntro) {
         this.thumbnailUrl = thumbnailUrl;
         this.cafeIntro = cafeIntro;
+    }
+
+    public void setBusinessHoursEntity(CafeBusinessHoursEntity businessHoursEntity) {
+        this.businessHoursEntity = businessHoursEntity;
+    }
+
+    public void setRatingStats(CafeRatingStatsEntity ratingStats) {
+        this.ratingStats = ratingStats;
     }
 }
