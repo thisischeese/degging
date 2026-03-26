@@ -25,10 +25,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import com.degging.be.infra.cache.redis.RedisService;
 
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 회원가입, 닉네임 중복 검사, 비밀번호 찾기 및 재설정 관리 클래스
@@ -46,6 +48,7 @@ public class MemberService {
     private final VibeRepository vibeRepository;
     private final UserProfileRepository userProfileRepository;
     private final ImageService imageService;
+    private final RedisService redisService;
 
     // 랜덤 생성기
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -133,41 +136,67 @@ public class MemberService {
 
     /**
      * 취향 태그 매핑 후 반환하는 메서드
-
+     *
      * MongoDB 에서 회원 취향 태그 UUID 를 조회하여 Top3 를 뽑아
      * 해당 UUID 에 맞는 tagName 을 조회해 반환함
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public List<String> getUserPreferred(UUID userId){
-        // 회원 취향 태그 조회 (없을 경우 온보딩 미실행을 고려하여 null 값으로 초기화)
-        UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId.toString())
+        // 1. MongoDB에서 영구 취향 태그 조회 (Top 3)
+        List<String> permanentTags = getPermanentPreferredTags(userId);
+
+        // 2. Redis에서 일회성(임시) 취향 태그 조회
+        List<String> temporaryTags = redisService.getListValues("user:preference:temp:" + userId);
+
+        // 3. 두 리스트 병합 (중복 제거 및 순서 유지)
+        Set<String> mergedTags = new LinkedHashSet<>(permanentTags);
+        if (temporaryTags != null) {
+            mergedTags.addAll(temporaryTags);
+        }
+
+        return new ArrayList<>(mergedTags);
+    }
+
+    /**
+     * MongoDB에서 상위 3개의 영구 취향 태그를 조회합니다.
+     */
+    private List<String> getPermanentPreferredTags(UUID userId) {
+        UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId)
                 .orElse(null);
         log.info("회원 취향 태그 DB 로드 결과: {}", onboardingData);
 
-        // 온보딩 데이터 자체가 없거나, 있더라도 태그 Map이 비어있으면 빈 리스트 반환
         if (onboardingData == null || onboardingData.getPreferredTags() == null || onboardingData.getPreferredTags().isEmpty()) {
-            return Collections.emptyList(); // [] 반환
+            return Collections.emptyList();
         }
 
-        // 취향 태그들 가져와서
+        // 취향 태그들 가져와서 (Map<String, Integer> 형식)
         Map<String, Integer> tags = onboardingData.getPreferredTags();
-        log.info("취향 태그 내용: {}", onboardingData.getPreferredTags());
+        log.info("취향 태그 내용: {}", tags);
 
-        // 상위 3개의 태그 조회
+        // 상위 3개의 태그 조회 (가중치 순)
         List<UUID> top3 = tags.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .limit(3) // 3개만
+                .limit(3)
                 .map(entry -> UUID.fromString(entry.getKey()))
                 .toList();
 
-        // top3가 비어있을 경우 빈 리스트 반환
         if (top3.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 해당 태그 UUID 를 이용해 태그명을 조회 (조회 결과가 없으면 자동으로 빈 리스트 처리)
         List<String> tagNames = vibeRepository.findTagNameByTagIds(top3);
+        return (tagNames != null) ? tagNames : Collections.emptyList();
+    }
 
-        return (tagNames != null && !tagNames.isEmpty()) ? tagNames : Collections.emptyList();
+    /**
+     * 임시 취향 태그를 Redis에 저장하는 메서드
+     * @param userId 유저 식별자
+     * @param tags 추가로 선택한 태그 리스트
+     */
+    public void saveTemporaryTags(UUID userId, List<String> tags) {
+        // Redis에 24시간 동안 저장
+        redisService.setValues("user:preference:temp:" + userId, tags, 24, TimeUnit.HOURS);
+        log.info("[Redis] 임시 취향 태그 저장 완료 - UserId: {}, Tags: {}", userId, tags);
     }
 
     /**

@@ -19,6 +19,8 @@ public class MenuResponse {
 
     private String menuName;    // 메뉴명
 
+    private String menuImageUrl;    // 메뉴 이미지 URL
+
     private Integer price;  // 금액
 
     private String menuDescription; // 메뉴 설명
@@ -33,6 +35,7 @@ public class MenuResponse {
         return MenuResponse.builder()
                 .menuId(entity.getMenuId())
                 .menuName(entity.getMenuName())
+                .menuImageUrl(entity.getMenuImageUrl())
                 .price(entity.getPrice())
                 .menuDescription(entity.getMenuDescription())
                 .build();
