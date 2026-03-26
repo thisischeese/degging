@@ -7,14 +7,19 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 /**
  * 특정 리뷰 상세 정보 조회에 사용하는 응답 DTO
  */
+@Slf4j
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
@@ -36,9 +41,23 @@ public class ReviewDetailResponse {
 
     // Entity -> DTO
     public static ReviewDetailResponse toDto(ReviewEntity entity){
-        // 이미지가 null 일 경우 빈 리스트를 할당
-        List<ReviewImageEntity> images = entity.getReviewImages() != null ?
-                entity.getReviewImages() : List.of();
+        // 리뷰 이미지 엔티티 리스트를 먼저 가져옴
+        List<ReviewImageEntity> reviewImages = entity.getReviewImages();
+        List<String> imageUrls; // 초기화 없이 선언만
+
+        // 리뷰 이미지가 아예 없거나 리스트가 빈 경우
+        if (reviewImages != null && !reviewImages.isEmpty() && reviewImages.getFirst().getThumbnailImageUrl() != null) {
+            // 카페 썸네일을 리스트에 담음 (Null 방어 로직 추가 권장)
+            String cafeThumbnail = entity.getCafe().getThumbnailUrl();
+            imageUrls = (cafeThumbnail != null) ? List.of(cafeThumbnail) : Collections.emptyList();
+        }
+        // 리뷰 이미지가 있는 경우
+        else {
+            String cafeThumbnail = entity.getCafe().getThumbnailUrl();
+            // 카페 썸네일마저 없다면 빈 리스트 반환
+            imageUrls = (cafeThumbnail != null) ? List.of(cafeThumbnail) : Collections.emptyList();
+            log.info("[카페 썸네일 대체] reviewId = {}, url = {}", entity.getReviewId(), cafeThumbnail);
+        }
 
         return ReviewDetailResponse.builder()
                 .reviewId(entity.getReviewId())
@@ -46,9 +65,7 @@ public class ReviewDetailResponse {
                 .content(entity.getContent())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .imageUrls(images.stream()
-                        .map(ReviewImageEntity::getImageUrl)
-                        .toList())
+                .imageUrls(imageUrls)
                 .nickname(entity.getUser().getProfile().getNickname())
                  .name(entity.getCafe().getName())
                  .cafeIntro(entity.getCafe().getCafeIntro())
