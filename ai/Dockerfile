@@ -36,17 +36,21 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV TZ=Asia/Seoul
-ENV WEB_CONCURRENCY=4
+# Keep WEB_CONCURRENCY unset so uvicorn stays single-process.
+# ENV WEB_CONCURRENCY=4
 ENV GUNICORN_TIMEOUT=300
 ENV GUNICORN_GRACEFUL_TIMEOUT=60
 ENV GUNICORN_KEEPALIVE=5
 ENV GUNICORN_MAX_REQUESTS=200
 ENV GUNICORN_MAX_REQUESTS_JITTER=20
-ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus
+# Single-process uvicorn does not need Prometheus multiprocess mode.
+# ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus
 ENV POSTGRES_POOL_MIN_SIZE=1
 ENV POSTGRES_POOL_MAX_SIZE=5
 ENV MONGO_MAX_POOL_SIZE=20
-ENV CAFE_BATCH_CONCURRENCY=2
+# 베어메탈 방식으로 구현 시, 주석 해제할 것 
+# ENV CAFE_BATCH_CONCURRENCY=2
+ENV CAFE_BATCH_CONCURRENCY=3
 
 # Install Chromium and its OS dependencies into the runtime image
 RUN playwright install --with-deps chromium
@@ -55,8 +59,10 @@ RUN playwright install --with-deps chromium
 COPY . .
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN chmod +x /app/docker-entrypoint.sh
+# 베어메탈 방식으로 구현 시, 주석 해제할 것 
+# RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 8000
-
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# 베어메탈 방식으로 구현 시, 주석 해제할 것 
+# ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
