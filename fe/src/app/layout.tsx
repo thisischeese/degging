@@ -32,8 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko" className={`${pretendard.variable} ${nanumB.variable} ${nanumR.variable}`}>
       <head>
-        {/* 카카오 지도 스크립트 추가 */}
-        <Script src={KAKAO_SDK_URL} strategy="beforeInteractive" />
+        {/* 기존: <Script src={KAKAO_SDK_URL} strategy="beforeInteractive" /> */}
+        {/* 카카오 지도 스크립트 로드 최적화 */}
+        <Script src={KAKAO_SDK_URL} strategy="afterInteractive" />
         {/* Google Tag Manager */}
         <Script id="gtm-head" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
