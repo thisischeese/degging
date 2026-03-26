@@ -36,7 +36,7 @@ interface CurationTheme {
 const CURATION_DATA: Record<string, CurationTheme> = {
   "1": {
     themeId: "1",
-    heroImage: "/images/curation/duzzonku.png", // 홈 화면 큐레이션 썸네일과 동일한 이미지
+    heroImage: "/images/curation/duzzonku.jpg", // 홈 화면 큐레이션 썸네일과 동일한 이미지
     title: "두툼하고 쫀득한\n마성의 두쫀쿠 단면 모음",
     introTitle: "한 입 베어 물면 멈출 수 없는\n두껍고 쫀득한 쿠키의 매력\n",
     introDescription: "스트레스 받는 날, 진한 아메리카노와 함께 먹는 두툼한 쿠키는 완벽한 위로가 된다. 겉은 바삭하고 속은 쫀득한, 일명 '두쫀쿠' 맛집 4곳을 엄선했다. 각기 다른 매력을 자랑하는 빈틈없는 쿠키 성지들을 지금 바로 만나보자.",
@@ -48,10 +48,10 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         shortDescription: "묵직한 위로가 필요한 날, 두께감부터 남다른 정석의 맛",
         address: "서울 강남구 논현로 520 청송빌딩 1층 101호",
         description1: "스트레스가 턱끝까지 차오른 날, 매장 문을 열자마자 풍기는 진한 버터 향기가 마음을 어루만진다. 투박하지만 한 손에 꽉 차는 두툼한 두께는 보는 것만으로도 든든한 위로가 된다.",
-        imageSrc: "/images/curation/duzzonku1.png",
+        imageSrc: "/images/curation/duzzonku1.jpg",
         description2: "반으로 가르면 꾸덕하게 늘어나는 밀도 높은 반죽이 '두쫀쿠'의 정석을 보여준다. 큼지막하게 박힌 초콜릿 청크가 오독오독 씹히며, 진득한 쫀득함과 어우러져 완벽한 식감을 선사한다.",
         mapImageSrc: "/images/curation/duzzonku_map1.png",
-        listImageSrc: "/images/curation/duzzonku1.png", // 리스트용 이미지 (동일한 이미지 활용 가능)
+        listImageSrc: "/images/curation/duzzonku1.jpg", // 리스트용 이미지 (동일한 이미지 활용 가능)
       },
       {
         id: 2,
@@ -59,10 +59,10 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         shortDescription: "다양한 크림치즈 필링이 들어간 쿠키",
         address: "서울 노원구 공릉로37길 13 1층",
         description1: "두 번째 카페는 쿠키 안에 듬뿍 들어간 크림치즈 필링으로 유명한 곳입니다. 한 입 베어 물면 풍부한 치즈의 풍미가 입안 가득 퍼집니다.",
-        imageSrc: "/images/curation/duzzonku2.png",
+        imageSrc: "/images/curation/duzzonku2.jpg",
         description2: "황치즈, 로투스, 오레오 등 다채로운 라인업이 준비되어 있어 취향에 맞게 골라 먹는 재미가 쏠쏠합니다.",
         mapImageSrc: "/images/curation/duzzonku_map2.png",
-        listImageSrc: "/images/curation/duzzonku2.png",
+        listImageSrc: "/images/curation/duzzonku2.jpg",
       },
       {
         id: 3,
@@ -81,16 +81,16 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         shortDescription: "견과류가 듬뿍 들어간 고소한 쿠키",
         address: "서울 용산구 이태원로49길 37",
         description1: "마지막으로 소개할 곳은 고소한 견과류와 마카다미아가 통째로 들어간 프리미엄 쿠키 전문점입니다.",
-        imageSrc: "/images/curation/duzzonku4.png",
-        description2: "아낌없이 재료를 넣어 식감이 뛰어나며, 너무 달지 않아 누구나 부담 없이 담백하게 즐길 수 있습니다.",
+        imageSrc: "/images/curation/duzzonku4.jpg",
+        description2: "아낌없이 재료를 넣어식감이 뛰어나며, 너무 달지 않아 누구나 부담 없이 담백하게 즐길 수 있습니다.",
         mapImageSrc: "/images/curation/duzzonku_map4.png",
-        listImageSrc: "/images/curation/duzzonku4.png",
+        listImageSrc: "/images/curation/duzzonku4.jpg",
       }
     ]
   },
   "2": {
     themeId: "2",
-    heroImage: "/images/curation/soguem.png",
+    heroImage: "/images/curation/soguem.jpg",
     title: "겉바속촉 고소함의 끝\n인생 소금빵 모음",
     introTitle: "버터의 풍미와 짭짤함의 완벽한 밸런스\n놓치지 말아야 할 소금빵 맛집\n",
     introDescription: "담백하면서도 짭조름한 매력으로 꾸준한 인기를 끌고 있는 소금빵. 버터 홀이 뻥 뚫려있는 부드러운 식감부터 겉이 바삭한 바게트 스타일까지, 서울에서 꼽히는 인생 소금빵 맛집 4곳을 모았다.",
@@ -102,10 +102,10 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         shortDescription: "파삭한 크러스트와 쫄깃한 결이 빚어낸 소금빵의 정석",
         address: "서울 종로구 율곡로 45 1층",
         description1: "소금빵의 생명인 '겉바속촉'의 대비를 가장 훌륭하게 구현해 낸 곳이다. 굵은 소금이 얹혀진 겉면은 기분 좋게 파삭하고, 반으로 가르면 촉촉하게 숨어있던 버터 동굴이 모습을 드러낸다.",
-        imageSrc: "/images/curation/soguem1.png",
+        imageSrc: "/images/curation/soguem1.jpg",
         description2: "팬에 눌어붙어 구워진 밑면의 바삭함과 결대로 찢어지는 부드러운 속살이 입안에서 완벽한 조화를 이룬다. 기본기에 얼마나 충실했는지 한 입만으로도 고스란히 전해진다.",
         mapImageSrc: "/images/curation/soguem_map1.png",
-        listImageSrc: "/images/curation/soguem1.png",
+        listImageSrc: "/images/curation/soguem1.jpg",
       },
       {
         id: 6,
@@ -113,10 +113,10 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         shortDescription: "부드러운 빵결 사이로 스며든 프랑스 버터의 깊은 풍미",
         address: "서울 광진구 능동로 177 1-3층",
         description1: "최고급 프랑스 버터를 아낌없이 넣어, 빵을 굽는 시간마다 골목 전체에 농밀한 향기가 피어오른다. 첫입부터 마지막 입까지 버터의 짙은 풍미가 입안을 가득 채우는 소금빵이다.",
-        imageSrc: "/images/curation/soguem2.png",
+        imageSrc: "/images/curation/soguem2.jpg",
         description2: "입술에 묻어나는 부드러운 버터의 질감과 짭조름한 소금의 조화는 단순하지만 가장 깊은 여운을 남긴다. 따뜻하게 데워 먹으면 갓 구워낸 듯한 식감과 향을 온전히 느낄 수 있다.",
         mapImageSrc: "/images/curation/soguem_map2.png",
-        listImageSrc: "/images/curation/soguem2.png",
+        listImageSrc: "/images/curation/soguem2.jpg",
       },
       {
         id: 7,
@@ -124,10 +124,10 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         shortDescription: "질깃하고 단단한 매력, 입안에서 부서지는 크랙 소금빵",
         address: "서울 중구 다산로20길 32 1층",
         description1: "부드럽고 푹신한 모닝빵 스타일의 소금빵에 익숙해졌다면, 거칠고 매력적인 크랙 소금빵의 세계를 경험해 볼 차례다. 바게트처럼 단단하고 질깃한 식감이 씹는 즐거움을 선사한다.",
-        imageSrc: "/images/curation/soguem3.png",
+        imageSrc: "/images/curation/soguem3.jpg",
         description2: "묵직하게 씹히는 빵결 사이로 스며든 짭짤함은 진한 커피와 페어링했을 때 비로소 완성된다. 천천히 씹을수록 밀가루의 구수함과 버터의 향이 올라와 자꾸만 손이 간다.",
         mapImageSrc: "/images/curation/soguem_map3.png",
-        listImageSrc: "/images/curation/soguem3.png",
+        listImageSrc: "/images/curation/soguem3.jpg",
       },
       {
         id: 8,
@@ -135,10 +135,10 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         shortDescription: "독특한 모양새 속에 꽉 찬 쫄깃함, 다채로운 퓨전 소금빵",
         address: "서울 성동구 연무장7가길 8",
         description1: "익숙한 초승달 모양을 탈피한 특유의 통통한 비주얼로 시선을 끈다. 소금빵을 캔버스 삼아 명란, 우유크림 등 다양한 속재료를 채워 넣어 다채로운 미식의 세계를 그려낸다.",
-        imageSrc: "/images/curation/soguem4.png",
+        imageSrc: "/images/curation/soguem4.jpg",
         description2: "화려한 변주 속에서도 결코 잃지 않은 것은 소금빵 본연의 쫄깃한 식감이다. 떡처럼 찰기 있는 반죽과 짭짤한 겉면이 어떤 재료와 만나도 훌륭한 균형을 유지한다.",
         mapImageSrc: "/images/curation/soguem_map4.png",
-        listImageSrc: "/images/curation/soguem4.png",
+        listImageSrc: "/images/curation/soguem4.jpg",
       }
     ]
   },
