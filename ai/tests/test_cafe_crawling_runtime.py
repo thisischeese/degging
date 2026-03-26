@@ -281,6 +281,29 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(category, "\uce74\ud398,\ub514\uc800\ud2b8")
         page.evaluate.assert_awaited_once()
 
+    def test_build_structured_business_hours_maps_day_rows(self) -> None:
+        business_hours = cafe_crawling_runtime.build_structured_business_hours(
+            [
+                {"day": "\uc6d4", "time": "08:00 - 20:00"},
+                {"day": "\ud654\uc694\uc77c", "time": "\ud734\ubb34"},
+                {"day": "\ud1a0", "time": "10:00 - 18:00"},
+                {"day": "", "time": "ignore"},
+            ]
+        )
+
+        self.assertEqual(
+            business_hours,
+            {
+                "mon_hours": "08:00 - 20:00",
+                "tues_hours": "\ud734\ubb34",
+                "wed_hours": None,
+                "thur_hours": None,
+                "fri_hours": None,
+                "sat_hours": "10:00 - 18:00",
+                "sun_hours": None,
+            },
+        )
+
     def test_build_menus_with_image_candidates_matches_exact_names_fifo(self) -> None:
         menu_cards = [
             cafe_crawling_runtime.MenuCardPayload(
@@ -336,16 +359,58 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(menus[0]["menu_name"], "Signature Latte")
         self.assertEqual(menus[0][cafe_crawling_runtime.MENU_IMAGE_SOURCE_FIELD], "https://ldb-phinf.pstatic.net/20250325_1/signature.jpg")
 
+    async def test_fetch_home_tab_data_expands_when_structured_hours_are_initially_missing(self) -> None:
+        page = AsyncMock()
+        page.evaluate = AsyncMock(side_effect=["collapsed text", "expanded text"])
+        expanded_hours = {
+            "mon_hours": "08:00 - 20:00",
+            "tues_hours": None,
+            "wed_hours": None,
+            "thur_hours": None,
+            "fri_hours": None,
+            "sat_hours": None,
+            "sun_hours": None,
+        }
+
+        with (
+            patch.object(cafe_crawling_runtime, "wait_for_page_ready", AsyncMock()),
+            patch.object(cafe_crawling_runtime, "scroll_page", AsyncMock()),
+            patch.object(
+                cafe_crawling_runtime,
+                "extract_structured_business_hours",
+                AsyncMock(side_effect=[cafe_crawling_runtime.empty_business_hours(), expanded_hours]),
+            ),
+            patch.object(cafe_crawling_runtime, "expand_business_hours_section", AsyncMock(return_value=True)) as expand_mock,
+        ):
+            home_text, business_hours = await cafe_crawling_runtime.fetch_home_tab_data(
+                page,
+                "https://example.com/home",
+            )
+
+        self.assertEqual(home_text, "expanded text")
+        self.assertEqual(business_hours, expanded_hours)
+        expand_mock.assert_awaited_once()
+
     async def test_fetch_place_tabs_includes_extracted_place_category(self) -> None:
         seed = build_seed(CAFE_ID_1)
         page = AsyncMock()
         close_tracked_page = AsyncMock()
         worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
+        structured_business_hours = {
+            "mon_hours": "08:00 - 20:00",
+            "tues_hours": None,
+            "wed_hours": None,
+            "thur_hours": None,
+            "fri_hours": None,
+            "sat_hours": None,
+            "sun_hours": None,
+        }
 
         with (
             patch.object(cafe_crawling_runtime, "open_tracked_page", AsyncMock(return_value=page)),
             patch.object(cafe_crawling_runtime, "close_tracked_page", close_tracked_page),
             patch.object(cafe_crawling_runtime, "configure_page", AsyncMock()),
+            patch.object(cafe_crawling_runtime, "fetch_home_tab_data", AsyncMock(return_value=("home text", structured_business_hours))),
             patch.object(cafe_crawling_runtime, "fetch_review_tab_data", AsyncMock(return_value=("review text", []))),
             patch.object(cafe_crawling_runtime, "fetch_menu_tab_data", AsyncMock(return_value=("menu text", []))),
             patch.object(cafe_crawling_runtime, "fetch_photo_tab_data", AsyncMock(return_value=("photo text", []))),
@@ -361,6 +426,7 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertEqual(result["place_category"], "\uce74\ud398")
+        self.assertEqual(result["structured_business_hours"], structured_business_hours)
         self.assertEqual(result["texts"][cafe_crawling_runtime.tab_name_for_slug("menu")], "menu text")
         self.assertEqual(close_tracked_page.await_count, len(cafe_crawling_runtime.TAB_CONFIG))
 
@@ -390,6 +456,123 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         upload_images.assert_not_awaited()
         upload_menu_images.assert_not_awaited()
         resolve_gms.assert_not_awaited()
+
+    async def test_crawl_single_cafe_prefers_structured_business_hours(self) -> None:
+        seed = build_seed(CAFE_ID_1)
+        resources = SimpleNamespace(
+            http_client=AsyncMock(),
+            gms_client=AsyncMock(),
+            s3_client=AsyncMock(),
+            tab_concurrency=2,
+            image_concurrency=3,
+        )
+        worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
+        structured_business_hours = {
+            "mon_hours": "08:00 - 20:00",
+            "tues_hours": "08:00 - 20:00",
+            "wed_hours": None,
+            "thur_hours": None,
+            "fri_hours": None,
+            "sat_hours": None,
+            "sun_hours": None,
+        }
+        crawl_result = {
+            "place_category": "\uce74\ud398",
+            "texts": {
+                cafe_crawling_runtime.tab_name_for_slug("home"): "home text",
+                cafe_crawling_runtime.tab_name_for_slug("menu"): "menu text",
+                cafe_crawling_runtime.tab_name_for_slug("review"): "review text",
+                cafe_crawling_runtime.tab_name_for_slug("information"): "info text",
+            },
+            "structured_business_hours": structured_business_hours,
+            "menu_cards": [],
+            "photo_urls": [],
+            "visitor_reviews": [],
+        }
+
+        with (
+            patch.object(cafe_crawling_runtime, "crawl_place", AsyncMock(return_value=crawl_result)),
+            patch.object(cafe_crawling_runtime, "parse_intro", return_value=""),
+            patch.object(
+                cafe_crawling_runtime,
+                "parse_review_metrics",
+                return_value={
+                    "review_count": 0,
+                    "rating_sum": 0,
+                    "solo_ratio": None,
+                    "date_ratio": None,
+                    "friends_ratio": None,
+                    "reviews": [],
+                },
+            ),
+            patch.object(cafe_crawling_runtime, "parse_business_hours", side_effect=AssertionError("fallback should not run")),
+            patch.object(cafe_crawling_runtime, "build_menus_with_image_candidates", return_value=[]),
+            patch.object(cafe_crawling_runtime, "upload_images_with_metrics", AsyncMock(return_value=(None, []))),
+            patch.object(cafe_crawling_runtime, "upload_menu_images_with_metrics", AsyncMock(return_value=[])),
+            patch.object(cafe_crawling_runtime, "resolve_gms_enrichment", AsyncMock(return_value=("", [cafe_crawling_runtime.DEFAULT_VIBE_TAG_ID]))),
+        ):
+            result = await cafe_crawling_runtime.crawl_single_cafe(seed, resources, worker_state)
+
+        self.assertEqual(result["cafe_business_hours"], structured_business_hours)
+
+    async def test_crawl_single_cafe_falls_back_to_text_business_hours_when_structured_hours_are_empty(self) -> None:
+        seed = build_seed(CAFE_ID_1)
+        resources = SimpleNamespace(
+            http_client=AsyncMock(),
+            gms_client=AsyncMock(),
+            s3_client=AsyncMock(),
+            tab_concurrency=2,
+            image_concurrency=3,
+        )
+        worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
+        fallback_business_hours = {
+            "mon_hours": "09:00 - 18:00",
+            "tues_hours": "09:00 - 18:00",
+            "wed_hours": "09:00 - 18:00",
+            "thur_hours": "09:00 - 18:00",
+            "fri_hours": "09:00 - 18:00",
+            "sat_hours": None,
+            "sun_hours": None,
+        }
+        crawl_result = {
+            "place_category": "\uce74\ud398",
+            "texts": {
+                cafe_crawling_runtime.tab_name_for_slug("home"): "home text",
+                cafe_crawling_runtime.tab_name_for_slug("menu"): "menu text",
+                cafe_crawling_runtime.tab_name_for_slug("review"): "review text",
+                cafe_crawling_runtime.tab_name_for_slug("information"): "info text",
+            },
+            "structured_business_hours": cafe_crawling_runtime.empty_business_hours(),
+            "menu_cards": [],
+            "photo_urls": [],
+            "visitor_reviews": [],
+        }
+
+        with (
+            patch.object(cafe_crawling_runtime, "crawl_place", AsyncMock(return_value=crawl_result)),
+            patch.object(cafe_crawling_runtime, "parse_intro", return_value=""),
+            patch.object(
+                cafe_crawling_runtime,
+                "parse_review_metrics",
+                return_value={
+                    "review_count": 0,
+                    "rating_sum": 0,
+                    "solo_ratio": None,
+                    "date_ratio": None,
+                    "friends_ratio": None,
+                    "reviews": [],
+                },
+            ),
+            patch.object(cafe_crawling_runtime, "parse_business_hours", return_value=fallback_business_hours) as parse_hours_mock,
+            patch.object(cafe_crawling_runtime, "build_menus_with_image_candidates", return_value=[]),
+            patch.object(cafe_crawling_runtime, "upload_images_with_metrics", AsyncMock(return_value=(None, []))),
+            patch.object(cafe_crawling_runtime, "upload_menu_images_with_metrics", AsyncMock(return_value=[])),
+            patch.object(cafe_crawling_runtime, "resolve_gms_enrichment", AsyncMock(return_value=("", [cafe_crawling_runtime.DEFAULT_VIBE_TAG_ID]))),
+        ):
+            result = await cafe_crawling_runtime.crawl_single_cafe(seed, resources, worker_state)
+
+        parse_hours_mock.assert_called_once_with("home text", "info text")
+        self.assertEqual(result["cafe_business_hours"], fallback_business_hours)
 
     async def test_crawl_cafes_batch_preserves_order_when_tasks_finish_out_of_order(self) -> None:
         request_items = [

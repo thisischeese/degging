@@ -15,6 +15,7 @@ from app.services.cafe_crawling_service import (
     build_cafe_reviews,
     is_allowed_place_category,
     normalize_place_category,
+    parse_business_hours,
     parse_review_metrics,
     parse_structured_visitor_reviews,
     parse_total_review_count,
@@ -247,6 +248,32 @@ class CafeCrawlingReviewMetricsTest(unittest.TestCase):
 
         self.assertEqual(len(cafe_reviews), 1)
         self.assertEqual(cafe_reviews[0]["rating"], 3)
+
+
+class CafeCrawlingBusinessHoursParsingTest(unittest.TestCase):
+    def test_parse_business_hours_supports_daily_schedule(self) -> None:
+        parsed = parse_business_hours("\uc601\uc5c5\uc2dc\uac04\n\ub9e4\uc77c 08:00 - 20:00")
+
+        self.assertEqual(
+            parsed,
+            {
+                "mon_hours": "08:00 - 20:00",
+                "tues_hours": "08:00 - 20:00",
+                "wed_hours": "08:00 - 20:00",
+                "thur_hours": "08:00 - 20:00",
+                "fri_hours": "08:00 - 20:00",
+                "sat_hours": "08:00 - 20:00",
+                "sun_hours": "08:00 - 20:00",
+            },
+        )
+
+    def test_parse_business_hours_supports_weekday_and_weekend_schedule(self) -> None:
+        parsed = parse_business_hours("\uc601\uc5c5\uc2dc\uac04\n\ud3c9\uc77c 09:00 - 18:00\n\uc8fc\ub9d0 \ud734\ubb34")
+
+        self.assertEqual(parsed["mon_hours"], "09:00 - 18:00")
+        self.assertEqual(parsed["fri_hours"], "09:00 - 18:00")
+        self.assertEqual(parsed["sat_hours"], "\ud734\ubb34")
+        self.assertEqual(parsed["sun_hours"], "\ud734\ubb34")
 
 
 class CafeCrawlingPlaceCategoryTest(unittest.TestCase):

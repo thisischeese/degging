@@ -22,6 +22,8 @@ from app.services.cafe_crawling_service import (
     COMPANION_WORDS,
     DEFAULT_IMAGE_MAX_EDGE_PX,
     DEFAULT_UA,
+    DAY_FIELD_MAP,
+    DAY_FIELDS,
     DEFAULT_VIBE_TAG_ID,
     GMS_CHAT_COMPLETIONS_URL,
     LABEL_TOKENS,
@@ -701,6 +703,40 @@ def normalize_optional_text(value: Any) -> str | None:
     return text or None
 
 
+def empty_business_hours() -> dict[str, str | None]:
+    return {field: None for field in DAY_FIELDS}
+
+
+def normalize_business_hours_day_label(value: Any) -> str | None:
+    normalized = normalize_optional_text(value)
+    if normalized is None:
+        return None
+
+    compact = normalized.replace("\uC694\uC77C", "").replace("\uB9E4\uC8FC", "").replace(" ", "")
+    return DAY_FIELD_MAP.get(compact)
+
+
+def build_structured_business_hours(raw_rows: Any) -> dict[str, str | None]:
+    business_hours = empty_business_hours()
+    if not isinstance(raw_rows, list):
+        return business_hours
+
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, dict):
+            continue
+        field = normalize_business_hours_day_label(raw_row.get("day"))
+        value = normalize_optional_text(raw_row.get("time"))
+        if field is None or value is None:
+            continue
+        business_hours[field] = value
+
+    return business_hours
+
+
+def has_any_business_hours_value(business_hours: dict[str, str | None] | None) -> bool:
+    return bool(business_hours) and any(value is not None for value in business_hours.values())
+
+
 def normalize_menu_name_key(value: Any) -> str:
     return normalize_compact_text(value).casefold()
 
@@ -919,6 +955,110 @@ async def fetch_review_tab_data(page: Page, tab_url: str) -> tuple[str, list[dic
     return review_text, parsed_reviews
 
 
+async def extract_structured_business_hours(page: Page) -> dict[str, str | None]:
+    raw_rows = await page.evaluate(
+        """
+        () => {
+            const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+            const sectionRoots = Array.from(
+                document.querySelectorAll('.PIbes .O8qbU.pSavy, #app-root .place_section_content .O8qbU.pSavy')
+            );
+            const section = sectionRoots.find((root) => {
+                const text = normalize(root.textContent || '');
+                return (
+                    text.includes('\\uc601\\uc5c5\\uc2dc\\uac04') ||
+                    text.includes('\\uc601\\uc5c5 \\uc911') ||
+                    text.includes('\\ud3bc\\uccd0\\ubcf4\\uae30')
+                );
+            });
+            if (!section) {
+                return [];
+            }
+
+            const pickText = (row, selectors) => {
+                for (const selector of selectors) {
+                    const text = normalize(row.querySelector(selector)?.textContent || '');
+                    if (text) {
+                        return text;
+                    }
+                }
+                return '';
+            };
+
+            return Array.from(section.querySelectorAll('.w9QyJ')).map((row) => ({
+                day: pickText(row, ['.A_cdD .i8cJw', '.i8cJw']),
+                time: pickText(row, ['.A_cdD .H3ua4', '.H3ua4']),
+                text: normalize(row.textContent || ''),
+            }));
+        }
+        """
+    )
+    return build_structured_business_hours(raw_rows)
+
+
+async def expand_business_hours_section(page: Page) -> bool:
+    expanded = bool(
+        await page.evaluate(
+            """
+            () => {
+                const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+                const sectionRoots = Array.from(
+                    document.querySelectorAll('.PIbes .O8qbU.pSavy, #app-root .place_section_content .O8qbU.pSavy')
+                );
+                const section = sectionRoots.find((root) => {
+                    const text = normalize(root.textContent || '');
+                    return (
+                        text.includes('\\uc601\\uc5c5\\uc2dc\\uac04') ||
+                        text.includes('\\uc601\\uc5c5 \\uc911') ||
+                        text.includes('\\ud3bc\\uccd0\\ubcf4\\uae30')
+                    );
+                });
+                if (!section) {
+                    return false;
+                }
+
+                const candidates = Array.from(
+                    section.querySelectorAll('a[role="button"], button[role="button"], a, button, [aria-expanded], [aria-expander]')
+                );
+                for (const candidate of candidates) {
+                    const text = normalize(candidate.textContent || '');
+                    const ariaExpanded = candidate.getAttribute('aria-expanded');
+                    const ariaExpander = candidate.getAttribute('aria-expander');
+                    if (
+                        text.includes('\\ud3bc\\uccd0\\ubcf4\\uae30') ||
+                        ariaExpanded === 'false' ||
+                        ariaExpander === 'true'
+                    ) {
+                        candidate.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            """
+        )
+    )
+    if expanded:
+        with suppress(Exception):
+            await page.wait_for_load_state("networkidle", timeout=int(SETTLE_WAIT_SECONDS * 1000))
+        await asyncio.sleep(SETTLE_WAIT_SECONDS)
+    return expanded
+
+
+async def fetch_home_tab_data(page: Page, tab_url: str) -> tuple[str, dict[str, str | None]]:
+    await page.goto(tab_url, wait_until="domcontentloaded", timeout=30000)
+    await wait_for_page_ready(page, ready_selectors=TAB_READY_SELECTORS["home"])
+    await scroll_page(page, max_rounds=TAB_SCROLL_STEPS.get("home", 0))
+
+    home_text = (await page.evaluate("() => document.body.innerText")).strip()
+    structured_business_hours = await extract_structured_business_hours(page)
+    if not has_any_business_hours_value(structured_business_hours) and await expand_business_hours_section(page):
+        home_text = (await page.evaluate("() => document.body.innerText")).strip()
+        structured_business_hours = await extract_structured_business_hours(page)
+
+    return home_text, structured_business_hours
+
+
 async def collect_cdn_images(page: Page, *, scroll_steps: int = 0) -> list[str]:
     collected: set[str] = set()
 
@@ -991,18 +1131,21 @@ async def fetch_place_tabs(
     menu_cards: list[MenuCardPayload] = []
     photo_urls: list[str] = []
     visitor_reviews: list[dict[str, Any]] = []
+    structured_business_hours = empty_business_hours()
     place_category: str | None = None
     tab_semaphore = asyncio.Semaphore(tab_concurrency)
 
     async def fetch_single_tab(tab_name: str, slug: str) -> None:
-        nonlocal menu_cards, photo_urls, visitor_reviews, place_category
+        nonlocal menu_cards, photo_urls, visitor_reviews, structured_business_hours, place_category
         async with tab_semaphore:
             async with track_inflight("tab"):
                 page = await open_tracked_page(context)
                 try:
                     await configure_page(page, search_mode=False)
                     tab_url = f"{place_base_url}/{slug}"
-                    if slug == "review":
+                    if slug == "home":
+                        texts[tab_name], structured_business_hours = await fetch_home_tab_data(page, tab_url)
+                    elif slug == "review":
                         texts[tab_name], visitor_reviews = await fetch_review_tab_data(page, tab_url)
                     elif slug == "menu":
                         texts[tab_name], menu_cards = await fetch_menu_tab_data(page, tab_url)
@@ -1018,13 +1161,14 @@ async def fetch_place_tabs(
                     if place_category is None:
                         place_category = await extract_place_category(page)
                     logger.info(
-                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s menu_cards=%s photo_urls=%s visitor_reviews=%s place_category=%s",
+                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s menu_cards=%s photo_urls=%s visitor_reviews=%s business_hours=%s place_category=%s",
                         seed.cafe_id,
                         tab_name,
                         len(texts[tab_name]),
                         len(menu_cards),
                         len(photo_urls),
                         len(visitor_reviews),
+                        sum(1 for value in structured_business_hours.values() if value),
                         place_category,
                     )
                 finally:
@@ -1044,6 +1188,7 @@ async def fetch_place_tabs(
         "menu_cards": menu_cards,
         "photo_urls": photo_urls,
         "visitor_reviews": visitor_reviews,
+        "structured_business_hours": structured_business_hours,
         "place_category": place_category,
         "place_base_url": place_base_url,
     }
@@ -1378,7 +1523,12 @@ async def crawl_single_cafe(
 
         intro = parse_intro(info_text)
         review_metrics = parse_review_metrics(review_text, crawl_result.get("visitor_reviews"))
-        business_hours = parse_business_hours(home_text, info_text)
+        structured_business_hours = crawl_result.get("structured_business_hours") or empty_business_hours()
+        business_hours = (
+            structured_business_hours
+            if has_any_business_hours_value(structured_business_hours)
+            else parse_business_hours(home_text, info_text)
+        )
         menus = build_menus_with_image_candidates(menu_text, crawl_result.get("menu_cards", []))
 
         review_texts = [review["review_text"] for review in review_metrics["reviews"] if review.get("review_text")]
