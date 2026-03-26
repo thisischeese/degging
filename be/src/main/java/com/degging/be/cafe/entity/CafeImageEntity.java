@@ -19,7 +19,7 @@ public class CafeImageEntity extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long imageId;   // 이미지 ID
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String imageUrl;    // 이미지 URL
 
     @Column(nullable = false)

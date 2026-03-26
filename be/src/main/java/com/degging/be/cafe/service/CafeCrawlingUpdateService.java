@@ -57,9 +57,14 @@ public class CafeCrawlingUpdateService {
         }
 
         // 기본 정보 업데이트 (전제: 현재 비어있음)
+        String intro = dto.getCafes().getCafeIntro();
+        if (intro != null && intro.length() > 495) {
+            intro = intro.substring(0, 495);
+        }
+
         cafe.updateCrawledData(
                 dto.getCafes().getThumbnailUrl(),
-                dto.getCafes().getCafeIntro());
+                intro);
         log.info("기본 정보 업데이트 완료 (thumbnail: {}, intro: {})",
                 cafe.getThumbnailUrl() != null ? "O" : "X",
                 cafe.getCafeIntro() != null ? "O" : "X");
@@ -106,10 +111,10 @@ public class CafeCrawlingUpdateService {
             
             List<CafeImageEntity> imagesToSave = dto.getCafeImages().stream()
                     .map(imgDto -> CafeImageEntity.builder()
-                            .cafe(cafe)
-                            .imageUrl(imgDto.getImageUrl())
-                            .sortOrder(imgDto.getSortOrder() != null ? imgDto.getSortOrder() : 0)
-                            .build())
+                                .cafe(cafe)
+                                .imageUrl(imgDto.getImageUrl())
+                                .sortOrder(imgDto.getSortOrder() != null ? imgDto.getSortOrder() : 0)
+                                .build())
                     .collect(Collectors.toList());
             
             cafeImageRepository.saveAll(imagesToSave);
@@ -121,12 +126,22 @@ public class CafeCrawlingUpdateService {
             cafeMenuRepository.deleteAllByCafe(cafe); // 기존 메뉴 삭제
             
             List<CafeMenuEntity> menusToSave = dto.getCafeMenus().stream()
-                    .map(menuDto -> CafeMenuEntity.builder()
+                    .map(menuDto -> {
+                        String desc = menuDto.getMenuDescription();
+                        if (desc != null && desc.length() > 495) {
+                            desc = desc.substring(0, 495);
+                        }
+                        String name = menuDto.getMenuName();
+                        if (name != null && name.length() > 95) {
+                            name = name.substring(0, 95);
+                        }
+                        return CafeMenuEntity.builder()
                             .cafe(cafe)
-                            .menuName(menuDto.getMenuName())
+                            .menuName(name)
                             .price(menuDto.getPrice())
-                            .menuDescription(menuDto.getMenuDescription())
-                            .build())
+                            .menuDescription(desc)
+                            .build();
+                    })
                     .collect(Collectors.toList());
             
             cafeMenuRepository.saveAll(menusToSave);
@@ -165,7 +180,9 @@ public class CafeCrawlingUpdateService {
                 Map<String, AiCrawlerItemResponse.CafeReviewDto> reviewDtoMap = new HashMap<>();
                 for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
                     if (reviewDto.getUserId() != null && reviewDto.getUserReview() != null) {
-                        String dummyEmail = "crawler_" + reviewDto.getUserId() + "@degging.com";
+                        String userIdStr = reviewDto.getUserId();
+                        String emailId = userIdStr.substring(0, Math.min(userIdStr.length(), 20));
+                        String dummyEmail = "crawler_" + emailId + "@degging.com";
                         reviewDtoMap.put(dummyEmail, reviewDto);
                     }
                 }
@@ -180,10 +197,10 @@ public class CafeCrawlingUpdateService {
                     List<UserEntity> newUsersToSave = new ArrayList<>();
                     for (String email : reviewDtoMap.keySet()) {
                         if (!userCache.containsKey(email)) {
-                            AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
-
                             UserEntity newUser = UserEntity.of(email, "dummy_crawler_password", 'A');
-                            String shortId = reviewDto.getUserId().substring(0, Math.min(reviewDto.getUserId().length(), 8));
+                            // email: crawler_{emailId}@degging.com 에서 emailId 추출
+                            String idPart = email.substring(8, email.indexOf("@"));
+                            String shortId = idPart.substring(0, Math.min(idPart.length(), 15));
 
                             UserProfileEntity profile = UserProfileEntity.builder()
                                     .user(newUser)
