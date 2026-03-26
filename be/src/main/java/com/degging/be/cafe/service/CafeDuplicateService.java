@@ -187,17 +187,61 @@ public class CafeDuplicateService {
             return null;
         }
 
-        // 검색 결과는 있으나 주소가 일치하는 항목이 없는 경우
+        // 검색 결과는 있으나 주소 또는 카테고리가 일치하는 항목이 없는 경우
         for (KakaoPlaceItem document : response.getDocuments()) {
-            if (isAddressMatch(item.getRdnmAdr(), document.getRoadAddressName()) ||
-                    isAddressMatch(item.getLnoAdr(), document.getAddressName())) {
-                return document;
+            // 1. 주소 매칭 확인
+            boolean addressMatched = isAddressMatch(item.getRdnmAdr(), document.getRoadAddressName()) ||
+                    isAddressMatch(item.getLnoAdr(), document.getAddressName());
+
+            if (addressMatched) {
+                // 2. 카테고리 매칭 확인 (카페, 제과, 디저트 계열인지 검증)
+                if (isCafeCategory(document)) {
+                    return document;
+                } else {
+                    log.warn("매칭 무시: 주소는 일치하나 카테고리가 부적절함 - 카페명: [{}], 카테고리: [{}]", 
+                             item.getBizesNm(), document.getCategoryName());
+                }
             }
         }
 
-        log.warn("매칭 실패 [{}]: 주소 불일치 - 카페명: [{}], 카카오 검색결과 {}건 중 일치항목 없음", 
+        log.warn("매칭 실패 [{}]: 일치하는 결과 없음 - 카페명: [{}], 카카오 검색결과 {}건 중 유효항목 없음", 
                 CafeErrorCode.KAKAO_PLACE_NOT_FOUND.getCode(), item.getBizesNm(), response.getDocuments().size());
         return null;
+    }
+
+    /**
+     * 카카오 카테고리 정보가 카페 계열인지 확인
+     */
+    private boolean isCafeCategory(KakaoPlaceItem document) {
+        String category = document.getCategoryName();
+        String groupCode = document.getCategoryGroupCode();
+
+        // 1. 카카오 카테고리 그룹 코드가 'CE7(카페)'인 경우
+        if ("CE7".equals(groupCode)) {
+            return true;
+        }
+
+        // 2. 카테고리 경로명에 카페, 커피, 제과, 베이커리, 디저트 등이 포함된 경우
+        if (category != null) {
+            boolean isCafePath = category.contains("카페") || 
+                                 category.contains("커피") || 
+                                 category.contains("제과") || 
+                                 category.contains("베이커리") || 
+                                 category.contains("디저트") || 
+                                 category.contains("아이스크림") || 
+                                 category.contains("도넛");
+
+            // 술집, 포차, 이자카야 등은 카페 키워드가 있어도 제외 (ex. 술집 > 이색카페 등 방지)
+            boolean isExcludedPath = category.contains("술집") || 
+                                     category.contains("호프") || 
+                                     category.contains("포차") || 
+                                     category.contains("이자카야") || 
+                                     category.contains("주점");
+
+            return isCafePath && !isExcludedPath;
+        }
+
+        return false;
     }
 
     /**

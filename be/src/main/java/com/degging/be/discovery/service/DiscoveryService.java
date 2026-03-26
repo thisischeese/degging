@@ -32,7 +32,7 @@ public class DiscoveryService {
     public Slice<DiscoveryResponse> getDailyDiscoveryCafes(int page, int size) {
         
         // 충분한 풀(Pool) 조회를 위해 썸네일 있는 상위 500개 확보
-        List<CafeEntity> cafes = cafeRepository.findTop500ByThumbnailUrlIsNotNullAndStatus(CafeStatus.OPEN);
+        List<CafeEntity> cafes = cafeRepository.findTop500ByThumbnailUrlIsNotNullAndStatusAndIsCafeTrue(CafeStatus.OPEN);
 
         // 오늘 날짜를 기준으로 Seed 고정
         long seed = LocalDate.now().toEpochDay();

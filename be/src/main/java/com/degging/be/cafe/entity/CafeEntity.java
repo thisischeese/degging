@@ -8,6 +8,7 @@ import lombok.*;
 import org.locationtech.jts.geom.Point;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,26 @@ import java.util.UUID;
 @AllArgsConstructor
 @Table(name = "cafes")
 public class CafeEntity extends BaseEntity {
+
+    // 프랜차이즈 판별을 위한 브랜드명 목록
+    private static final List<String> FRANCHISE_NAMES = Arrays.asList(
+            "바나프레소", "테라로사", "텐퍼센트", "매머드커피", "빽다방", "커피빈", "폴바셋", "할리스", "엔제리너스",
+            "파스쿠찌", "탐앤탐스", "드롭탑", "만랩커피", "커피에반하다", "브루다커피", "카페인중독", "와플대학",
+            "메가MGC커피", "팀홀튼", "컴포즈커피", "던킨도너츠", "파리바게트", "배스킨라빈스", "이디야", "스타벅스");
+
+    /**
+     * 이름에 포함된 프랜차이즈 명칭을 반환
+     */
+    public static String getMatchedFranchiseName(String name) {
+        if (name == null)
+            return null;
+        for (String fName : FRANCHISE_NAMES) {
+            if (name.contains(fName)) {
+                return fName;
+            }
+        }
+        return null;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -72,6 +93,10 @@ public class CafeEntity extends BaseEntity {
     @Builder.Default
     private boolean franchise = false; // 프랜차이즈 여부
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean isCafe = true; // 실제 카페 여부 (부적절한 데이터 필터링용)
+
     // 평점 통계 연관관계 추가
     @OneToOne(mappedBy = "cafe", cascade = CascadeType.ALL)
     private CafeRatingStatsEntity ratingStats;
@@ -100,7 +125,8 @@ public class CafeEntity extends BaseEntity {
      * @param category  판별된 카페 카테고리 (커피, 제과, 디저트)
      * @return 생성된 CafeEntity 객체
      */
-    public static CafeEntity of(StoreListInUpjongItem item, KakaoPlaceItem kakaoItem, Point location, CafeCategory category) {
+    public static CafeEntity of(StoreListInUpjongItem item, KakaoPlaceItem kakaoItem, Point location,
+            CafeCategory category) {
         // 기존 소상공인 데이터명 대신 카카오 API 기반 업소 적용
         String originalName = kakaoItem != null && kakaoItem.getPlaceName() != null
                 ? kakaoItem.getPlaceName()
@@ -109,6 +135,26 @@ public class CafeEntity extends BaseEntity {
 
         // 상호명에서 지점명을 제거하여 브랜드명 추출
         String brandName = originalName;
+        boolean isFranchise = false;
+
+        // 프랜차이즈 목록에 포함되어 있는지 확인
+        for (String fName : FRANCHISE_NAMES) {
+            if (originalName.contains(fName)) {
+                brandName = fName;
+                isFranchise = true;
+
+                // 지점명이 비어있는 경우, 상호명에서 브랜드명을 제외한 나머지를 지점명으로 추출 시도
+                if (branchName == null && !originalName.equals(fName)) {
+                    String extractedBranch = originalName.replace(fName, "").replaceAll("\\s+", " ").trim();
+                    if (!extractedBranch.isEmpty()) {
+                        branchName = extractedBranch;
+                    }
+                }
+                break;
+            }
+        }
+
+        // 지점명이 존재하면 지점명 제거 시도
         if (branchName != null) {
             brandName = originalName.replace(branchName, "").replaceAll("\\s+", " ").trim();
         }
@@ -127,6 +173,8 @@ public class CafeEntity extends BaseEntity {
                 .category(category)
                 .location(location)
                 .cafeIntro(null)
+                .franchise(isFranchise)
+                .isCafe(true)
                 .build();
     }
 
@@ -153,11 +201,15 @@ public class CafeEntity extends BaseEntity {
     }
 
     /**
-     * 프렌차이즈 여부 업데이트
+     * 프렌차이즈 정보 일괄 업데이트
      * 
+     * @param brandName   정제된 브랜드명
+     * @param branchName  지점명
      * @param isFranchise 프렌차이즈 여부
      */
-    public void updateFranchise(boolean isFranchise) {
+    public void updateFranchiseInfo(String brandName, String branchName, boolean isFranchise) {
+        this.brandName = brandName;
+        this.branchName = branchName;
         this.franchise = isFranchise;
     }
 
@@ -167,6 +219,13 @@ public class CafeEntity extends BaseEntity {
     public void updateCrawledData(String thumbnailUrl, String cafeIntro) {
         this.thumbnailUrl = thumbnailUrl;
         this.cafeIntro = cafeIntro;
+    }
+
+    /**
+     * 비카페성 시설로 판별된 경우 상태 변경
+     */
+    public void markAsNonCafe() {
+        this.isCafe = false;
     }
 
     public void setBusinessHoursEntity(CafeBusinessHoursEntity businessHoursEntity) {
