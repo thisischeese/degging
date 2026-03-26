@@ -13,15 +13,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * 카페 크롤링 데이터를 처리하고 대량 수집 프로세스를 관리하는 서비스
@@ -34,21 +30,22 @@ public class CafeCrawlingService {
     private final CafeRepository cafeRepository;
     private final AiCrawlerApiClient aiCrawlerApiClient;
     private final CafeCrawlingUpdateService cafeCrawlingUpdateService;
+    private final CrawlingBackupService crawlingBackupService;
 
     // 프록시를 통한 자기 자신 호출을 위한 지연 주입
     private final ObjectProvider<CafeCrawlingService> cafeCrawlingServiceProvider;
 
-    // 동시에 4개 배치를 처리하기 위한 전용 스레드 풀
-    private final Executor crawlingExecutor = Executors.newFixedThreadPool(4);
-
-    private static final int BATCH_SIZE = 100;
+    private static final int BATCH_SIZE = 50;
 
     /**
      * 수집된 데이터를 DB에 저장 (배치 단위로 트랜잭션 처리)
+     * 
+     * @param dataList 저장할 데이터 목록
+     * @return 저장을 시도했지만 실패한 데이터 목록
      */
-    @Transactional
-    public void saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
+    public List<AiCrawlerItemResponse> saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
         log.info("크롤링된 카페: {}개, 업데이트 진행 중...", dataList.size());
+        List<AiCrawlerItemResponse> failedItems = new ArrayList<>();
 
         int count = 0;
         for (AiCrawlerItemResponse dto : dataList) {
@@ -64,24 +61,25 @@ public class CafeCrawlingService {
             } catch (Exception e) {
                 log.error("저장 실패 (cafeId: {}): {}",
                         (dto.getCafes() != null ? dto.getCafes().getCafeId() : "unknown"), e.getMessage());
+                failedItems.add(dto);
             }
         }
         log.info("배치 저장 완료! (성공: {}/전체: {})", count, dataList.size());
+        return failedItems;
     }
 
     /**
      * 전체 카페에 대한 AI 크롤링 실행 (비동기)
-     * DB에서 썸네일이 없는 카페 목록을 400개(4개 워커 분량)씩 읽어와 AI 서버에 병렬로 크롤링 요청
+     * DB에서 썸네일이 없는 카페 목록을 배치 단위로 읽어와 AI 서버에 크롤링 요청
      */
     @Async
     public void crawling() {
-        // [기존 코드] 전체 데이터 개수 확인
-        // long totalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
-        // log.info("크롤링 프로세스 시작 (전체 대상: {}개)", totalToCrawl);
+        // [추가] 크롤링 시작 전 백업 폴더를 확인하여 누락된 데이터 자동 복구
+        autoBackfillFromBackups();
 
-        // [테스트용] 1000개 제한 적용
+        // [테스트용] 50개 제한 적용 (필요 시 조절)
         long actualTotalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
-        long totalToCrawl = Math.min(actualTotalToCrawl, 1000); 
+        long totalToCrawl = Math.min(actualTotalToCrawl, 50);
         log.info("크롤링 프로세스 시작 (테스트 모드: {}개 제한 / 실제 대상: {}개)", totalToCrawl, actualTotalToCrawl);
 
         if (totalToCrawl == 0) {
@@ -96,78 +94,120 @@ public class CafeCrawlingService {
             return;
         }
 
-        // 한 루프에서 처리할 양 (4개 워커 * 배치 사이즈 100)
-        final int WORKERS = 4;
-        final int TOTAL_PER_LOOP = BATCH_SIZE * WORKERS;
-        
-        int totalLoops = (int) Math.ceil((double) totalToCrawl / TOTAL_PER_LOOP);
+        // 전체 배치 수 계산 (단일 배치 흐름)
+        int totalBatches = (int) Math.ceil((double) totalToCrawl / BATCH_SIZE);
 
-        for (int loop = 0; loop < totalLoops; loop++) {
-            log.info("[루프 {}/{}] 데이터 {}개 조회 중...", loop + 1, totalLoops, TOTAL_PER_LOOP);
+        for (int i = 0; i < totalBatches; i++) {
+            int currentBatchNum = i + 1;
+            log.info("[배치 {}/{}] 데이터 {}개 조회 중...", currentBatchNum, totalBatches, BATCH_SIZE);
 
-            // 잔여 대상 중 상위 400개 조회
-            Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, TOTAL_PER_LOOP));
-            List<CafeEntity> allCafesInLoop = cafePage.getContent();
+            // 잔여 대상 중 상위 BATCH_SIZE(50)개 조회
+            Page<CafeEntity> cafePage = cafeRepository.findAllByThumbnailUrlIsNull(PageRequest.of(0, BATCH_SIZE));
+            List<CafeEntity> currentBatch = cafePage.getContent();
 
-            if (allCafesInLoop.isEmpty()) {
+            if (currentBatch.isEmpty()) {
                 log.info("더 이상 수집할 데이터 없음.");
                 break;
             }
 
-            // 조회된 데이터를 100개씩 4개 배치로 분할
-            List<List<CafeEntity>> batches = IntStream.range(0, (allCafesInLoop.size() + BATCH_SIZE - 1) / BATCH_SIZE)
-                    .mapToObj(i -> allCafesInLoop.subList(i * BATCH_SIZE, Math.min(allCafesInLoop.size(), (i + 1) * BATCH_SIZE)))
+            // AI 서버 요청용 DTO 변환
+            List<AiCrawlerRequestDto> requestBatch = currentBatch.stream()
+                    .map(AiCrawlerRequestDto::from)
                     .collect(Collectors.toList());
 
-            log.info("[루프 {}/{}] {}개의 워커로 병렬 요청 시작 (총 {}건)", loop + 1, totalLoops, batches.size(), allCafesInLoop.size());
+            try {
+                log.info("[배치 {}/{}] AI 서버 요청 전송... ({}건)", currentBatchNum, totalBatches, requestBatch.size());
+                AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
 
-            // 각 배치를 병렬로 처리
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            for (int i = 0; i < batches.size(); i++) {
-                final int batchIdx = i + 1;
-                final List<CafeEntity> currentBatch = batches.get(i);
-                final int currentLoop = loop + 1;
+                if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                    log.info("[배치 {}/{}] {}건 수신 성공, DB 저장을 시작합니다.", currentBatchNum, totalBatches,
+                            response.getItems().size());
 
-                futures.add(CompletableFuture.runAsync(() -> {
-                    // AI 서버 요청용 DTO 변환
-                    List<AiCrawlerRequestDto> requestBatch = currentBatch.stream()
-                            .map(AiCrawlerRequestDto::from)
-                            .collect(Collectors.toList());
+                    // AI 응답 즉시 JSON 백업
+                    crawlingBackupService.backup(response, 1, currentBatchNum);
 
-                    try {
-                        log.info("[루프 {}/워커 {}] AI 서버 요청 전송... ({}건)", currentLoop, batchIdx, requestBatch.size());
-                        AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
+                    // 프록시 객체(self)를 통해 트랜잭션 보장하며 저장
+                    self.saveCrawlingData(response.getItems());
 
-                        if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
-                            log.info("[루프 {}/워커 {}] {}건 수신 성공, DB 저장을 시작합니다.", currentLoop, batchIdx, response.getItems().size());
-                            
-                            // 프록시 객체(self)를 통해 트랜잭션 보장하며 저장
-                            self.saveCrawlingData(response.getItems());
-
-                            // 누락된 카페 ID 로깅 (카페명 포함)
-                            if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
-                                List<CafeEntity> missingCafes = cafeRepository.findAllById(response.getMissingCafeIds());
-                                List<String> missingCafeInfo = missingCafes.stream()
-                                        .map(c -> c.getName() + "(" + c.getCafeId() + ")")
-                                        .collect(Collectors.toList());
-                                log.warn("[루프 {}/워커 {}] AI 크롤링 누락 대상 ({}건): {}", 
-                                        currentLoop, batchIdx, missingCafeInfo.size(), missingCafeInfo);
-                            }
-                        } else {
-                            log.warn("[루프 {}/워커 {}] AI 서버 응답이 없거나 비어있습니다.", currentLoop, batchIdx);
-                        }
-                    } catch (Exception e) {
-                        log.error("[루프 {}/워커 {}] 크롤링 작업 중 예외 발생: {}", currentLoop, batchIdx, e.getMessage());
+                    if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
+                        List<CafeEntity> missingCafes = cafeRepository.findAllById(response.getMissingCafeIds());
+                        List<String> missingCafeInfo = missingCafes.stream()
+                                .map(c -> c.getName() + "(" + c.getCafeId() + ")")
+                                .collect(Collectors.toList());
+                        log.warn("[배치 {}/{}] AI 크롤링 누락 대상 ({}건): {}",
+                                currentBatchNum, totalBatches, missingCafeInfo.size(), missingCafeInfo);
                     }
-                }, crawlingExecutor));
+                } else {
+                    log.warn("[배치 {}/{}] AI 서버 응답이 없거나 비어있습니다.", currentBatchNum, totalBatches);
+                }
+            } catch (Exception e) {
+                log.error("[배치 {}/{}] 크롤링 작업 중 예외 발생: {}", currentBatchNum, totalBatches, e.getMessage());
             }
 
-            // 모든 워커가 이 루프의 작업을 마칠 때까지 대기
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            
-            log.info("[루프 {}/{}] 모든 워커 작업 완료", loop + 1, totalLoops);
+            // 배치 간 지연 시간 추가 (AI 서버 부하 방지용, 필요 시 조절)
+            if (i < totalBatches - 1) {
+                try {
+                    log.info("다음 배치를 위해 2초간 대기합니다...");
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("대기 중 인터럽트 발생: {}", e.getMessage());
+                }
+            }
         }
 
-        log.info("모든 크롤링 병렬 작업이 종료되었습니다.");
+        log.info("모든 크롤링 작업이 종료되었습니다.");
+    }
+
+    /**
+     * 백업 폴더의 모든 JSON 파일을 읽어 DB를 업데이트 (Backfill)
+     * 처리가 완료된 파일은 success 폴더로 이동합니다.
+     */
+    public void autoBackfillFromBackups() {
+        log.info("[복구] 백업 데이터를 이용한 자동 복구 프로세스 시작");
+        
+        File[] backupFiles = crawlingBackupService.loadAllBackupFiles();
+        if (backupFiles == null || backupFiles.length == 0) {
+            log.info("[복구] 처리할 백업 파일이 없습니다.");
+            return;
+        }
+
+        log.info("[복구] 총 {}개의 백업 파일 발견", backupFiles.length);
+
+        int fileCount = 0;
+        for (File file : backupFiles) {
+            fileCount++;
+            try {
+                log.info("[복구 {}/{}] 파일 처리 중: {}", fileCount, backupFiles.length, file.getName());
+                
+                AiCrawlerResponse response = crawlingBackupService.loadResponse(file);
+                if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                    // 기존 저장 로직 재사용 (트랜잭션 보장 위해 self 호출)
+                    CafeCrawlingService self = cafeCrawlingServiceProvider.getIfAvailable();
+                    if (self != null) {
+                        List<AiCrawlerItemResponse> failedItems = self.saveCrawlingData(response.getItems());
+                        
+                        if (failedItems.isEmpty()) {
+                            // 100% 성공 시 아카이빙
+                            crawlingBackupService.archiveBackupFile(file);
+                        } else {
+                            // 일부 실패 시, 실패한 항목들로 파일 갱신 (점차 줄여나감)
+                            log.warn("[복구] 파일 내 {}건 저장 실패로 파일 내용을 갱신합니다: {}", failedItems.size(), file.getName());
+                            response.setItems(failedItems);
+                            response.setTotal(failedItems.size()); // 남은 개수 갱신
+                            crawlingBackupService.updateBackupFile(file, response);
+                        }
+                    }
+                } else {
+                    log.warn("[복구] 파일 내용이 비어있어 아카이빙합니다: {}", file.getName());
+                    crawlingBackupService.archiveBackupFile(file);
+                }
+            } catch (Exception e) {
+                log.error("[복구] 파일 처리 중 오류 발생 ({}): {}", file.getName(), e.getMessage());
+            }
+        }
+        log.info("[복구] 모든 백업 파일 처리 완료");
     }
 }
+
+
