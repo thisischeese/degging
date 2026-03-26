@@ -11,7 +11,7 @@ import { Input } from '@/common/components/Input';
 import { StarColor, ScrapList } from '@/features/scraps/types';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { getCafeDetail } from '@/features/cafes/api/cafeApi';
-import { getScraps, postCreateScrap, postScrapCafe } from '@/features/scraps/api/scrapApi';
+import { getScraps, postCreateScrap, postScrapCafe, getScrapDetail } from '@/features/scraps/api/scrapApi';
 import { Chip } from '@/common/components/Chip';
 
 
@@ -175,11 +175,11 @@ function ScrapCategoryOverlay({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // 모달이 열릴 때마다 이전에 저장된 상태로 초기화 (저장 안 하고 닫았을 때 대비)
-  // useEffect(() => {
-  //   if (isOpen) {
-  //     setSelectedIds(initialSelectedIds);
-  //   }
-  // }, [isOpen, initialSelectedIds]);
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedIds(initialSelectedIds);
+    }
+  }, [isOpen, initialSelectedIds]);
 
   const toggleCategory = (id: string) => {
     setSelectedIds((prev) =>
@@ -302,10 +302,10 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  // 카페 상세 진입 시 또는 모달 열 시 카테고리 로딩
+  // 카페 상세 진입 시 또는 모달 열 시 카테고리 로딩 및 해당하는지 검사
   useEffect(() => {
     if (isScrapOpen && scrapCategories.length === 0) {
-      getScraps().then(data => {
+      getScraps().then(async data => {
         // null을 갖는 기본 스크랩을 포함하여 가져오고 맨 앞으로 정렬
         const sorted = [...data].sort((a, b) => {
           if (a.scrapId === null) return -1;
@@ -313,9 +313,26 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
           return 0;
         });
         setScrapCategories(sorted);
+
+        // 해당 카페가 이미 저장된 스크랩 카테고리 ID들을 찾기 위해 각 카테고리 상세 조회
+        const activeIds: string[] = [];
+        await Promise.all(
+          data.filter(c => c.scrapId !== null).map(async (cat) => {
+            try {
+              const detail = await getScrapDetail(cat.scrapId as string);
+              if (detail.cafes.some(c => String(c.cafeId) === String(cafeid))) {
+                activeIds.push(cat.scrapId as string);
+              }
+            } catch (err) {
+              console.error(`스크랩 상세 로드 실패 (ID: ${cat.scrapId})`, err);
+            }
+          })
+        );
+        setSavedCategoryIds(activeIds);
+
       }).catch(err => console.error('스크랩 카테고리 로드 실패', err));
     }
-  }, [isScrapOpen, scrapCategories.length]);
+  }, [isScrapOpen, scrapCategories.length, cafeid]);
 
   const handleScrapSave = async (selectedIds: string[]) => {
     setSavedCategoryIds(selectedIds);
