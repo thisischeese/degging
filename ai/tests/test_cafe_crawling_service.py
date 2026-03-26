@@ -9,6 +9,9 @@ from app.services import cafe_crawling_service
 from app.services.cafe_crawling_service import (
     CafeCrawlingSourceError,
     CafeSeed,
+    build_vibe_selection_messages,
+    extract_vibe_label_from_response,
+    INTRO_MAX_CHARS,
     MAX_REVIEWS,
     RuntimeSettings,
     SequenceState,
@@ -22,6 +25,7 @@ from app.services.cafe_crawling_service import (
     resolve_runtime_settings,
     tokenize_place_category,
     upload_cafe_images,
+    vibe_tag_id_from_label,
 )
 
 
@@ -274,6 +278,56 @@ class CafeCrawlingBusinessHoursParsingTest(unittest.TestCase):
         self.assertEqual(parsed["fri_hours"], "09:00 - 18:00")
         self.assertEqual(parsed["sat_hours"], "\ud734\ubb34")
         self.assertEqual(parsed["sun_hours"], "\ud734\ubb34")
+
+
+class CafeCrawlingVibeSelectionTest(unittest.TestCase):
+    def test_build_vibe_selection_messages_prefers_intro_over_reviews(self) -> None:
+        messages = build_vibe_selection_messages(
+            intro="따뜻한 조명과 우드톤 가구가 많은 카페",
+            reviews=["review 0", "review 1"],
+        )
+
+        self.assertIsNotNone(messages)
+        user_prompt = messages[1]["content"]
+        self.assertIn("\uce74\ud398 \uc18c\uac1c", user_prompt)
+        self.assertIn("따뜻한 조명과 우드톤 가구가 많은 카페", user_prompt)
+        self.assertNotIn("review 0", user_prompt)
+
+    def test_build_vibe_selection_messages_limits_reviews_to_max(self) -> None:
+        reviews = [f"review {index}" for index in range(MAX_REVIEWS + 2)]
+
+        messages = build_vibe_selection_messages(intro="", reviews=reviews)
+
+        self.assertIsNotNone(messages)
+        user_prompt = messages[1]["content"]
+        self.assertIn("1. review 0", user_prompt)
+        self.assertIn(f"{MAX_REVIEWS}. review {MAX_REVIEWS - 1}", user_prompt)
+        self.assertNotIn(f"review {MAX_REVIEWS}", user_prompt)
+
+    def test_build_vibe_selection_messages_clips_intro_to_500_chars(self) -> None:
+        intro = "a" * (INTRO_MAX_CHARS + 25)
+
+        messages = build_vibe_selection_messages(intro=intro, reviews=[])
+
+        self.assertIsNotNone(messages)
+        self.assertIn("a" * INTRO_MAX_CHARS, messages[1]["content"])
+        self.assertNotIn("a" * (INTRO_MAX_CHARS + 1), messages[1]["content"])
+
+    def test_extract_vibe_label_from_response_supports_json_and_text_fallback(self) -> None:
+        self.assertEqual(
+            extract_vibe_label_from_response('{"selected_label":"\ud799\ud55c"}'),
+            "\ud799\ud55c",
+        )
+        self.assertEqual(
+            extract_vibe_label_from_response("\ubd84\uc704\uae30\ub294 \uc870\uc6a9\ud55c/\ucc28\ubd84\ud55c \uc785\ub2c8\ub2e4."),
+            "\uc870\uc6a9\ud55c/\ucc28\ubd84\ud55c",
+        )
+
+    def test_vibe_tag_id_from_label_normalizes_spaces(self) -> None:
+        self.assertEqual(
+            vibe_tag_id_from_label("\uc6b0\ub4dc\ud1a4 / \ub530\ub73b\ud568"),
+            "7ab663df-31be-43f8-b06a-2e8979806d89",
+        )
 
 
 class CafeCrawlingPlaceCategoryTest(unittest.TestCase):

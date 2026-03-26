@@ -203,6 +203,81 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         cafe_crawling_runtime.reset_resource_counters_for_test()
 
+    async def test_gms_chat_uses_model_and_messages_only(self) -> None:
+        response = SimpleNamespace(
+            status_code=200,
+            text="ok",
+            raise_for_status=lambda: None,
+            json=lambda: {"choices": [{"message": {"content": "ok"}}]},
+        )
+        http_client = SimpleNamespace(post=AsyncMock(return_value=response))
+        client = cafe_crawling_runtime.GMSClient("gms-key", http_client)
+        messages = [{"role": "user", "content": "hello"}]
+
+        result = await client.chat(messages)
+
+        self.assertEqual(result, "ok")
+        post_kwargs = http_client.post.await_args.kwargs
+        self.assertEqual(post_kwargs["json"], {"model": cafe_crawling_runtime.GMS_MODEL, "messages": messages})
+        self.assertEqual(post_kwargs["headers"]["Authorization"], "Bearer gms-key")
+        self.assertNotIn("temperature", post_kwargs["json"])
+        self.assertNotIn("max_tokens", post_kwargs["json"])
+
+    async def test_gms_chat_logs_response_body_before_raising(self) -> None:
+        def raise_for_status() -> None:
+            raise RuntimeError("bad request")
+
+        response = SimpleNamespace(
+            status_code=400,
+            text="payload invalid",
+            raise_for_status=raise_for_status,
+            json=lambda: {"choices": []},
+        )
+        http_client = SimpleNamespace(post=AsyncMock(return_value=response))
+        client = cafe_crawling_runtime.GMSClient("gms-key", http_client)
+
+        with self.assertLogs("uvicorn.error", level="WARNING") as logs:
+            with self.assertRaises(RuntimeError):
+                await client.chat([{"role": "user", "content": "hello"}])
+
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("status=400", joined_logs)
+        self.assertIn("payload invalid", joined_logs)
+
+    async def test_gms_client_choose_vibe_tag_ids_prefers_intro(self) -> None:
+        client = cafe_crawling_runtime.GMSClient("gms-key", SimpleNamespace(post=AsyncMock()))
+
+        with patch.object(client, "chat", AsyncMock(return_value='{"selected_label":"\\ud799\\ud55c"}')) as chat_mock:
+            tag_ids = await client.choose_vibe_tag_ids(intro="큰 창과 금속 가구가 있는 공간", reviews=["review one"])
+
+        self.assertEqual(tag_ids, [cafe_crawling_runtime.vibe_tag_id_from_label("\ud799\ud55c")])
+        user_prompt = chat_mock.await_args.args[0][1]["content"]
+        self.assertIn("\uce74\ud398 \uc18c\uac1c", user_prompt)
+        self.assertIn("큰 창과 금속 가구가 있는 공간", user_prompt)
+        self.assertNotIn("review one", user_prompt)
+
+    async def test_gms_client_choose_vibe_tag_ids_uses_review_fallback_and_limits_max_reviews(self) -> None:
+        client = cafe_crawling_runtime.GMSClient("gms-key", SimpleNamespace(post=AsyncMock()))
+        reviews = [f"review {index}" for index in range(cafe_crawling_runtime.MAX_REVIEWS + 2)]
+
+        with patch.object(client, "chat", AsyncMock(return_value="\uc870\uc6a9\ud55c/\ucc28\ubd84\ud55c")) as chat_mock:
+            tag_ids = await client.choose_vibe_tag_ids(intro="", reviews=reviews)
+
+        self.assertEqual(tag_ids, [cafe_crawling_runtime.DEFAULT_VIBE_TAG_ID])
+        user_prompt = chat_mock.await_args.args[0][1]["content"]
+        self.assertIn("1. review 0", user_prompt)
+        self.assertIn(f"{cafe_crawling_runtime.MAX_REVIEWS}. review {cafe_crawling_runtime.MAX_REVIEWS - 1}", user_prompt)
+        self.assertNotIn(f"review {cafe_crawling_runtime.MAX_REVIEWS}", user_prompt)
+
+    async def test_gms_client_choose_vibe_tag_ids_returns_default_without_prompt_source(self) -> None:
+        client = cafe_crawling_runtime.GMSClient("gms-key", SimpleNamespace(post=AsyncMock()))
+
+        with patch.object(client, "chat", AsyncMock()) as chat_mock:
+            tag_ids = await client.choose_vibe_tag_ids(intro="", reviews=[])
+
+        self.assertEqual(tag_ids, [cafe_crawling_runtime.DEFAULT_VIBE_TAG_ID])
+        chat_mock.assert_not_awaited()
+
     def test_is_allowed_image_url_only_accepts_real_image_hosts(self) -> None:
         self.assertTrue(
             cafe_crawling_runtime.is_allowed_image_url(
@@ -573,6 +648,81 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
         parse_hours_mock.assert_called_once_with("home text", "info text")
         self.assertEqual(result["cafe_business_hours"], fallback_business_hours)
+
+    async def test_resolve_gms_enrichment_clips_intro_to_500_and_uses_intro_prompt(self) -> None:
+        seed = build_seed(CAFE_ID_1)
+        worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
+        gms_client = SimpleNamespace(
+            choose_vibe_tag_ids=AsyncMock(return_value=["tag-1"]),
+            summarize_intro=AsyncMock(),
+        )
+
+        summarized_intro, vibe_tag_ids = await cafe_crawling_runtime.resolve_gms_enrichment(
+            intro="a" * 550,
+            review_texts=["review 1", "review 2"],
+            gms_client=gms_client,
+            worker_state=worker_state,
+            seed=seed,
+        )
+
+        self.assertEqual(len(summarized_intro), cafe_crawling_runtime.INTRO_MAX_CHARS)
+        self.assertEqual(vibe_tag_ids, ["tag-1"])
+        gms_client.choose_vibe_tag_ids.assert_awaited_once_with(
+            intro="a" * cafe_crawling_runtime.INTRO_MAX_CHARS,
+            reviews=["review 1", "review 2"],
+        )
+        gms_client.summarize_intro.assert_not_called()
+
+    async def test_crawl_single_cafe_clips_intro_to_500_in_response(self) -> None:
+        seed = build_seed(CAFE_ID_1)
+        resources = SimpleNamespace(
+            http_client=AsyncMock(),
+            gms_client=AsyncMock(),
+            s3_client=AsyncMock(),
+            tab_concurrency=2,
+            image_concurrency=3,
+        )
+        worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
+        crawl_result = {
+            "place_category": "\uce74\ud398",
+            "texts": {
+                cafe_crawling_runtime.tab_name_for_slug("home"): "home text",
+                cafe_crawling_runtime.tab_name_for_slug("menu"): "menu text",
+                cafe_crawling_runtime.tab_name_for_slug("review"): "review text",
+                cafe_crawling_runtime.tab_name_for_slug("information"): "info text",
+            },
+            "structured_business_hours": cafe_crawling_runtime.empty_business_hours(),
+            "menu_cards": [],
+            "photo_urls": [],
+            "visitor_reviews": [],
+        }
+        resolve_gms = AsyncMock(side_effect=lambda **kwargs: (kwargs["intro"], [cafe_crawling_runtime.DEFAULT_VIBE_TAG_ID]))
+
+        with (
+            patch.object(cafe_crawling_runtime, "crawl_place", AsyncMock(return_value=crawl_result)),
+            patch.object(cafe_crawling_runtime, "parse_intro", return_value="b" * 600),
+            patch.object(
+                cafe_crawling_runtime,
+                "parse_review_metrics",
+                return_value={
+                    "review_count": 0,
+                    "rating_sum": 0,
+                    "solo_ratio": None,
+                    "date_ratio": None,
+                    "friends_ratio": None,
+                    "reviews": [],
+                },
+            ),
+            patch.object(cafe_crawling_runtime, "parse_business_hours", return_value=cafe_crawling_runtime.empty_business_hours()),
+            patch.object(cafe_crawling_runtime, "build_menus_with_image_candidates", return_value=[]),
+            patch.object(cafe_crawling_runtime, "upload_images_with_metrics", AsyncMock(return_value=(None, []))),
+            patch.object(cafe_crawling_runtime, "upload_menu_images_with_metrics", AsyncMock(return_value=[])),
+            patch.object(cafe_crawling_runtime, "resolve_gms_enrichment", resolve_gms),
+        ):
+            result = await cafe_crawling_runtime.crawl_single_cafe(seed, resources, worker_state)
+
+        self.assertEqual(len(resolve_gms.await_args.kwargs["intro"]), cafe_crawling_runtime.INTRO_MAX_CHARS)
+        self.assertEqual(len(result["cafes"]["cafe_intro"]), cafe_crawling_runtime.INTRO_MAX_CHARS)
 
     async def test_crawl_cafes_batch_preserves_order_when_tasks_finish_out_of_order(self) -> None:
         request_items = [

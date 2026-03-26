@@ -26,6 +26,8 @@ from app.services.cafe_crawling_service import (
     DAY_FIELDS,
     DEFAULT_VIBE_TAG_ID,
     GMS_CHAT_COMPLETIONS_URL,
+    GMS_MODEL,
+    INTRO_MAX_CHARS,
     LABEL_TOKENS,
     MAX_PHOTOS,
     MAX_REVIEWS,
@@ -43,7 +45,6 @@ from app.services.cafe_crawling_service import (
     TAB_CONFIG,
     TAB_READY_SELECTORS,
     TAB_SCROLL_STEPS,
-    VIBE_TAGS,
     WINDOWS_PLAYWRIGHT_LOOP_ERROR,
     _BLOCK_SEARCH,
     _BLOCK_TAB,
@@ -53,10 +54,11 @@ from app.services.cafe_crawling_service import (
     CafeSeed,
     RuntimeSettings,
     build_cafe_reviews,
+    build_vibe_selection_messages,
     clip_text,
     ensure_playwright_runtime_supported,
     extract_review_card_payloads as base_extract_review_card_payloads,
-    extract_json_object,
+    extract_vibe_label_from_response,
     is_allowed_image_url,
     is_allowed_place_category,
     normalize_request_item,
@@ -71,6 +73,7 @@ from app.services.cafe_crawling_service import (
     random_ua,
     resolve_runtime_settings,
     THUMBNAIL_MAX_EDGE_PX,
+    vibe_tag_id_from_label,
 )
 
 if TYPE_CHECKING:
@@ -172,10 +175,16 @@ class GMSClient:
         self.api_key = api_key
         self.http_client = http_client
 
-    async def chat(self, messages: list[dict[str, str]], *, temperature: float = 0.2, max_tokens: int = 300) -> str:
-        payload = {"model": "gpt-5-nano", "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+    async def chat(self, messages: list[dict[str, str]]) -> str:
+        payload = {"model": GMS_MODEL, "messages": messages}
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         response = await self.http_client.post(GMS_CHAT_COMPLETIONS_URL, headers=headers, json=payload)
+        if response.status_code >= 400:
+            logger.warning(
+                "GMS chat request failed: status=%s body=%s",
+                response.status_code,
+                clip_text(response.text, 500),
+            )
         response.raise_for_status()
         data = response.json()
         content = data["choices"][0]["message"]["content"]
@@ -188,66 +197,22 @@ class GMSClient:
     async def summarize_intro(self, intro: str) -> str:
         if not intro:
             return ""
-        if len(intro) <= 40:
-            return intro
+        return clip_text(intro, INTRO_MAX_CHARS)
 
-        developer_prompt = "Summarize the cafe introduction in 40 characters or fewer and return only the summary."
-        user_prompt = f"Summarize this cafe introduction in 40 characters or fewer.\n\n{intro}"
-        for _ in range(2):
-            try:
-                response = await self.chat(
-                    [
-                        {"role": "developer", "content": developer_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.2,
-                    max_tokens=120,
-                )
-                compact = clip_text(response, 40)
-                if compact:
-                    return compact
-            except Exception:
-                continue
-        return clip_text(intro, 40)
-
-    async def choose_vibe_tag_ids(self, reviews: list[str]) -> list[str]:
-        if not reviews:
+    async def choose_vibe_tag_ids(self, *, intro: str, reviews: list[str]) -> list[str]:
+        messages = build_vibe_selection_messages(intro=intro, reviews=reviews)
+        if messages is None:
             return [DEFAULT_VIBE_TAG_ID]
 
-        tag_lines = "\n".join(f"- {tag_id}: {tag_name}" for tag_id, tag_name in VIBE_TAGS.items())
-        review_lines = "\n".join(f"{idx + 1}. {review}" for idx, review in enumerate(reviews[:MAX_REVIEWS]))
-        developer_prompt = (
-            "Choose 1 to 3 vibe tags that best match the cafe reviews. "
-            'Return JSON only in the form {"tag_ids": ["uuid1", "uuid2"]}.'
-        )
-        user_prompt = (
-            "Available tags:\n"
-            f"{tag_lines}\n\n"
-            "Select 1 to 3 matching tag_ids from these reviews and return JSON only.\n"
-            f"{review_lines}"
-        )
-
         for _ in range(2):
             try:
-                response = await self.chat(
-                    [
-                        {"role": "developer", "content": developer_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.2,
-                    max_tokens=200,
-                )
+                response = await self.chat(messages)
             except Exception:
                 continue
 
-            parsed = extract_json_object(response)
-            if not parsed or not isinstance(parsed.get("tag_ids"), list):
-                continue
-
-            valid = [tag_id for tag_id in parsed["tag_ids"] if tag_id in VIBE_TAGS]
-            valid = list(dict.fromkeys(valid))[:3]
-            if valid:
-                return valid
+            tag_id = vibe_tag_id_from_label(extract_vibe_label_from_response(response))
+            if tag_id is not None:
+                return [tag_id]
 
         return [DEFAULT_VIBE_TAG_ID]
 
@@ -1379,29 +1344,24 @@ async def resolve_gms_enrichment(
     worker_state: WorkerBrowserState,
     seed: CafeSeed,
 ) -> tuple[str, list[str]]:
+    normalized_intro = clip_text(intro, INTRO_MAX_CHARS) if intro else ""
+    prompt_source = "intro" if normalized_intro else "reviews" if review_texts else "default"
     logger.info(
-        "Cafe crawling GMS start: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s intro_chars=%s review_texts=%s",
+        "Cafe crawling GMS start: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s intro_chars=%s review_texts=%s prompt_source=%s",
         seed.cafe_id,
         seed.name,
         worker_state.worker_id,
         worker_state.browser_generation,
         _current_browser_cafe_index(worker_state),
-        len(intro),
+        len(normalized_intro),
         len(review_texts),
+        prompt_source,
     )
-    summarized_intro = intro
+    summarized_intro = normalized_intro
     vibe_tag_ids = [DEFAULT_VIBE_TAG_ID]
 
     with track_stage("gms"):
-        intro_task = asyncio.create_task(gms_client.summarize_intro(intro)) if intro and len(intro) > 40 else None
-        vibe_task = asyncio.create_task(gms_client.choose_vibe_tag_ids(review_texts)) if review_texts else None
-
-        if intro_task and vibe_task:
-            summarized_intro, vibe_tag_ids = await asyncio.gather(intro_task, vibe_task)
-        elif intro_task:
-            summarized_intro = await intro_task
-        elif vibe_task:
-            vibe_tag_ids = await vibe_task
+        vibe_tag_ids = await gms_client.choose_vibe_tag_ids(intro=normalized_intro, reviews=review_texts)
 
     logger.info(
         "Cafe crawling GMS complete: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s summarized_intro_chars=%s vibe_tag_count=%s",
@@ -1521,7 +1481,7 @@ async def crawl_single_cafe(
         review_text = texts[tab_name_for_slug("review")]
         info_text = texts[tab_name_for_slug("information")]
 
-        intro = parse_intro(info_text)
+        intro = clip_text(parse_intro(info_text), INTRO_MAX_CHARS)
         review_metrics = parse_review_metrics(review_text, crawl_result.get("visitor_reviews"))
         structured_business_hours = crawl_result.get("structured_business_hours") or empty_business_hours()
         business_hours = (
