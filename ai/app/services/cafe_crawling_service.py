@@ -672,7 +672,7 @@ def extract_json_object(text: str) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def clip_text(text: str, limit: int = 40) -> str:
+def clip_text(text: str, limit: int = 500) -> str:
     compact = re.sub(r"\s+", " ", text).strip()
     return compact if len(compact) <= limit else compact[:limit].rstrip()
 
