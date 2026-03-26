@@ -41,7 +41,7 @@ public class UserOnboardingService {
                 .orElseThrow(()-> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
         // 분위기 태그 빈도 분석
-        Map<UUID, Integer> preferredTags = analyzePreferredTags(request.getCafeIds());
+        Map<String, Integer> preferredTags = analyzePreferredTags(request.getCafeIds());
 
         // MongoDB 도큐먼트 생성
         UserOnboarding onboarding = UserOnboarding.of(
@@ -63,7 +63,7 @@ public class UserOnboardingService {
      * @param cafeIds 사용자가 선택한 카페 식별자 목록
      * @return 태그 식별자별 중복 횟수를 담은 맵
      */
-    private Map<UUID, Integer> analyzePreferredTags(List<UUID> cafeIds) {
+    private Map<String, Integer> analyzePreferredTags(List<UUID> cafeIds) {
 
         // 해당 카페가 가지고 있는 분위기 태그 전부 가져옴
         List<CafeEntity> cafes = cafeRepository.findAllWithVibesById(cafeIds);
@@ -71,7 +71,7 @@ public class UserOnboardingService {
         return cafes.stream()
                 .flatMap(cafe -> cafe.getVibeTags().stream())
                 .map(cafeVibeTag -> cafeVibeTag.getVibe().getTagId())
-                .collect(Collectors.groupingBy(tagId -> tagId, Collectors.summingInt(id -> 1)));
+                .collect(Collectors.groupingBy(UUID::toString, Collectors.summingInt(id -> 1)));
     }
 
 }
