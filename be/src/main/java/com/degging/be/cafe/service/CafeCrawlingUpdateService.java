@@ -142,6 +142,7 @@ public class CafeCrawlingUpdateService {
                 CafeMenuEntity menu = CafeMenuEntity.builder()
                         .cafe(cafe)
                         .menuName(name)
+                        .menuImageUrl(menuDto.getMenuImgUrl())
                         .price(menuDto.getPrice())
                         .menuDescription(desc)
                         .build();

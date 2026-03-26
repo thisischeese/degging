@@ -65,6 +65,7 @@ public class AiCrawlerItemResponse {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class CafeMenuDto {
         private String menuName; // 메뉴명 (ex. 아메리카노)
+        private String menuImgUrl; // 메뉴 이미지 URL
         private Integer price; // 메뉴 가격 (원 단위)
         private String menuDescription; // 메뉴에 대한 설명
     }
