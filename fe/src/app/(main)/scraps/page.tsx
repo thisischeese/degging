@@ -10,6 +10,7 @@ import { Input } from "@/common/components/Input";
 import { ScrapList, StarColor } from "@/features/scraps/types";
 import { getScraps, postCreateScrap, patchUpdateScrap, deleteScrap } from "@/features/scraps/api/scrapApi";
 import { Plus, MoreVertical, Star, Pencil, Trash2 } from "lucide-react";
+import { getImageUrl } from "@/common/utils/image";
 
 // ─────────────────────────────────────────────────────────
 // 별 색상 매핑
@@ -45,17 +46,17 @@ function ThumbnailGrid({ thumbnails = [] }: { thumbnails?: string[] }) {
     return (
         <div className="w-full aspect-square rounded-[20px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-[5px]">
             <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[4px]">
-                <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[0] && <Image src={slots[0]} alt="스크랩 1" fill className="object-cover" />}
+                <div className="relative overflow-hidden rounded-[12px] bg-[#F5F0E8]">
+                    {slots[0] && <Image src={getImageUrl(slots[0])} alt="스크랩 1" fill className="object-cover" unoptimized />}
                 </div>
-                <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[1] && <Image src={slots[1]} alt="스크랩 2" fill className="object-cover" />}
+                <div className="relative overflow-hidden rounded-[12px] bg-[#F5F0E8]">
+                    {slots[1] && <Image src={getImageUrl(slots[1])} alt="스크랩 2" fill className="object-cover" unoptimized />}
                 </div>
-                <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[2] && <Image src={slots[2]} alt="스크랩 3" fill className="object-cover" />}
+                <div className="relative overflow-hidden rounded-[12px] bg-[#F5F0E8]">
+                    {slots[2] && <Image src={getImageUrl(slots[2])} alt="스크랩 3" fill className="object-cover" unoptimized />}
                 </div>
-                <div className="relative overflow-hidden rounded-[12px] bg-white">
-                    {slots[3] && <Image src={slots[3]} alt="스크랩 4" fill className="object-cover" />}
+                <div className="relative overflow-hidden rounded-[12px] bg-[#F5F0E8]">
+                    {slots[3] && <Image src={getImageUrl(slots[3])} alt="스크랩 4" fill className="object-cover" unoptimized />}
                 </div>
             </div>
         </div>

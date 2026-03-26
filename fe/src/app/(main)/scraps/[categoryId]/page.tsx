@@ -9,6 +9,7 @@ import Modal from "@/common/components/Modal";
 import Button from "@/common/components/Button";
 import { ScrapCafeItem, ScrapDetail } from "@/features/scraps/types";
 import { getScrapDetail, deleteScrapCafe, postShareLink } from "@/features/scraps/api/scrapApi";
+import { getImageUrl } from "@/common/utils/image";
 
 
 // ─────────────────────────────────────────────────────────
@@ -72,10 +73,10 @@ function ScrapCafeCard({
             className="flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm active:bg-gray-50 transition-colors cursor-pointer"
         >
             {/* 썸네일 */}
-            <div className="relative w-[76px] h-[76px] shrink-0 rounded-xl overflow-hidden bg-gray-100">
+            <div className="relative w-[76px] h-[76px] shrink-0 rounded-xl overflow-hidden bg-[#F5F0E8]">
                 {cafe.thumbnailUrl && (
                     <Image
-                        src={cafe.thumbnailUrl}
+                        src={getImageUrl(cafe.thumbnailUrl)}
                         alt={cafe.name}
                         fill
                         className="object-cover"
