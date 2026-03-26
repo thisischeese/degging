@@ -259,10 +259,66 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             patch.object(cafe_crawling_runtime, "open_crawl_request_resources", fake_resources_context),
             patch.object(cafe_crawling_runtime, "crawl_single_cafe", side_effect=fake_crawl_single_cafe),
         ):
-            with self.assertRaises(CafeCrawlingSourceError):
-                await cafe_crawling_runtime.crawl_cafes_batch(request_items)
+            with self.assertLogs("uvicorn.error", level="WARNING") as logs:
+                with self.assertRaises(CafeCrawlingSourceError):
+                    await cafe_crawling_runtime.crawl_cafes_batch(request_items)
 
         self.assertTrue(cancelled.is_set())
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("Cafe crawling item cancelled", joined_logs)
+        self.assertIn(CAFE_ID_1, joined_logs)
+
+    async def test_crawl_cafes_batch_counts_unexpected_item_failures_without_dropping_them(self) -> None:
+        request_items = [
+            CafeCrawlingRequestItem(cafeId=CAFE_ID_1, name="alpha"),
+            CafeCrawlingRequestItem(cafeId=CAFE_ID_2, name="beta"),
+        ]
+
+        async def fake_crawl_single_cafe(seed, resources):
+            if seed.cafe_id == CAFE_ID_2:
+                raise ValueError("boom")
+            return build_raw_item(seed)
+
+        with (
+            patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", fake_resources_context),
+            patch.object(cafe_crawling_runtime, "crawl_single_cafe", side_effect=fake_crawl_single_cafe),
+        ):
+            with self.assertLogs("uvicorn.error", level="INFO") as logs:
+                response = await cafe_crawling_runtime.crawl_cafes_batch(request_items)
+
+        self.assertEqual([item.cafe_id for item in response.items], [CAFE_ID_1])
+        self.assertEqual(response.missing_cafe_ids, [])
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("Cafe crawling item unexpected failure", joined_logs)
+        self.assertIn("Cafe crawling failed items: count=1", joined_logs)
+        self.assertIn("requested=2 succeeded=1 missing=0 failed=1", joined_logs)
+
+    async def test_crawl_cafes_batch_logs_unresolved_result_slots_before_aggregation(self) -> None:
+        request_items = [
+            CafeCrawlingRequestItem(cafeId=CAFE_ID_1, name="alpha"),
+            CafeCrawlingRequestItem(cafeId=CAFE_ID_2, name="beta"),
+        ]
+
+        async def fake_crawl_batch_item(*, index, seed, ordered_results, **kwargs):
+            if seed.cafe_id == CAFE_ID_1:
+                ordered_results[index] = cafe_crawling_runtime.OrderedCrawlResult(item=build_raw_item(seed))
+
+        with (
+            patch.object(cafe_crawling_runtime, "resolve_runtime_settings", return_value=build_runtime_settings()),
+            patch.object(cafe_crawling_runtime, "open_crawl_request_resources", fake_resources_context),
+            patch.object(cafe_crawling_runtime, "_crawl_batch_item", side_effect=fake_crawl_batch_item),
+        ):
+            with self.assertLogs("uvicorn.error", level="INFO") as logs:
+                response = await cafe_crawling_runtime.crawl_cafes_batch(request_items)
+
+        self.assertEqual([item.cafe_id for item in response.items], [CAFE_ID_1])
+        self.assertEqual(response.missing_cafe_ids, [])
+        joined_logs = "\n".join(logs.output)
+        self.assertIn("Cafe crawling unresolved results before aggregation: count=1", joined_logs)
+        self.assertIn(CAFE_ID_2, joined_logs)
+        self.assertIn("Cafe crawling failed items: count=1", joined_logs)
+        self.assertIn("requested=2 succeeded=1 missing=0 failed=1", joined_logs)
 
     async def test_upload_cafe_images_preserves_thumbnail_and_sort_order(self) -> None:
         seed = build_seed(CAFE_ID_1)

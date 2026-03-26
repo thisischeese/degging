@@ -90,6 +90,8 @@ class CrawlRequestResources:
 class OrderedCrawlResult:
     item: dict[str, Any] | None = None
     missing_cafe_id: str | None = None
+    failed_cafe_id: str | None = None
+    failure_reason: str | None = None
 
 
 class GMSClient:
@@ -678,6 +680,11 @@ async def resolve_gms_enrichment(
     review_texts: list[str],
     gms_client: GMSClient,
 ) -> tuple[str, list[str]]:
+    logger.info(
+        "Cafe crawling GMS start: intro_chars=%s review_texts=%s",
+        len(intro),
+        len(review_texts),
+    )
     summarized_intro = intro
     vibe_tag_ids = [DEFAULT_VIBE_TAG_ID]
 
@@ -692,6 +699,11 @@ async def resolve_gms_enrichment(
         elif vibe_task:
             vibe_tag_ids = await vibe_task
 
+    logger.info(
+        "Cafe crawling GMS complete: summarized_intro_chars=%s vibe_tag_count=%s",
+        len(summarized_intro),
+        len(vibe_tag_ids),
+    )
     return summarized_intro, vibe_tag_ids
 
 
@@ -700,14 +712,28 @@ async def upload_images_with_metrics(
     resources: CrawlRequestResources,
     photo_urls: list[str],
 ) -> tuple[str | None, list[dict[str, Any]]]:
+    logger.info(
+        "Cafe crawling image upload start: cafe_id=%s name=%s source_photo_count=%s",
+        seed.cafe_id,
+        seed.name,
+        len(photo_urls),
+    )
     with track_stage("images"):
-        return await upload_cafe_images(
+        thumbnail_url, cafe_images = await upload_cafe_images(
             seed,
             resources.s3_client,
             resources.http_client,
             photo_urls,
             max_concurrency=resources.image_concurrency,
         )
+    logger.info(
+        "Cafe crawling image upload complete: cafe_id=%s name=%s thumbnail_present=%s stored_image_count=%s",
+        seed.cafe_id,
+        seed.name,
+        bool(thumbnail_url),
+        len(cafe_images),
+    )
+    return thumbnail_url, cafe_images
 
 
 def assign_sequence_ids(items: list[dict[str, Any]]) -> list[CafeCrawlingMergedItem]:
@@ -737,6 +763,14 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
         ]
 
         review_texts = [review["review_text"] for review in review_metrics["reviews"] if review.get("review_text")]
+        logger.info(
+            "Cafe crawling gather setup: cafe_id=%s name=%s photo_urls=%s review_texts=%s intro_chars=%s",
+            seed.cafe_id,
+            seed.name,
+            len(crawl_result["photo_urls"]),
+            len(review_texts),
+            len(intro),
+        )
         image_task = asyncio.create_task(upload_images_with_metrics(seed, resources, crawl_result["photo_urls"]))
         gms_task = asyncio.create_task(
             resolve_gms_enrichment(
@@ -745,7 +779,25 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
                 gms_client=resources.gms_client,
             )
         )
+        logger.info(
+            "Cafe crawling gather waiting: cafe_id=%s name=%s image_task_done=%s gms_task_done=%s",
+            seed.cafe_id,
+            seed.name,
+            image_task.done(),
+            gms_task.done(),
+        )
         (thumbnail_url, cafe_images), (summarized_intro, vibe_tag_ids) = await asyncio.gather(image_task, gms_task)
+        logger.info(
+            "Cafe crawling gather complete: cafe_id=%s name=%s image_task_done=%s gms_task_done=%s thumbnail_present=%s image_count=%s summarized_intro_chars=%s vibe_tag_count=%s",
+            seed.cafe_id,
+            seed.name,
+            image_task.done(),
+            gms_task.done(),
+            bool(thumbnail_url),
+            len(cafe_images),
+            len(summarized_intro),
+            len(vibe_tag_ids),
+        )
 
         cafes = {
             "cafe_id": seed.cafe_id,
@@ -764,7 +816,18 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
         cafe_business_hours = {**business_hours}
         cafe_vibe_tags = [{"tag_id": tag_id} for tag_id in vibe_tag_ids]
 
-        return {
+        logger.info(
+            "Cafe crawling item assembled before return: cafe_id=%s name=%s thumbnail_present=%s image_count=%s menu_count=%s review_count=%s vibe_tag_count=%s",
+            seed.cafe_id,
+            seed.name,
+            bool(thumbnail_url),
+            len(cafe_images),
+            len(menus),
+            len(review_metrics["reviews"]),
+            len(cafe_vibe_tags),
+        )
+
+        result = {
             "cafe_id": seed.cafe_id,
             "cafes": cafes,
             "cafe_rating_stats": cafe_rating_stats,
@@ -774,6 +837,13 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
             "cafe_vibe_tags": cafe_vibe_tags,
             "cafe_reviews": build_cafe_reviews(seed, review_metrics["reviews"]),
         }
+        logger.info(
+            "Cafe crawling item return payload: cafe_id=%s type=%s keys=%s",
+            seed.cafe_id,
+            type(result).__name__,
+            sorted(result.keys()),
+        )
+        return result
 
 
 async def _crawl_batch_item(
@@ -785,18 +855,54 @@ async def _crawl_batch_item(
     ordered_results: list[OrderedCrawlResult | None],
 ) -> None:
     logger.info("Cafe crawling item start: [%d/%d] cafe_id=%s name=%s", index + 1, total, seed.cafe_id, seed.name)
-    async with resources.batch_semaphore:
-        async with track_inflight("cafe"):
-            try:
-                crawled = await crawl_single_cafe(seed, resources)
-            except CafeCrawlingItemError:
-                record_result(scope="item", status="item_failure")
-                logger.warning("Cafe crawling item missing: cafe_id=%s name=%s", seed.cafe_id, seed.name)
-                ordered_results[index] = OrderedCrawlResult(missing_cafe_id=seed.cafe_id)
-                return
-            except CafeCrawlingSourceError:
-                record_result(scope="item", status="source_failure")
-                raise
+    crawled: dict[str, Any] | None = None
+
+    try:
+        async with resources.batch_semaphore:
+            async with track_inflight("cafe"):
+                try:
+                    crawled = await crawl_single_cafe(seed, resources)
+                    logger.info(
+                        "Cafe crawling item await returned: cafe_id=%s name=%s type=%s is_none=%s keys=%s",
+                        seed.cafe_id,
+                        seed.name,
+                        type(crawled).__name__ if crawled is not None else "NoneType",
+                        crawled is None,
+                        sorted(crawled.keys()) if isinstance(crawled, dict) else None,
+                    )
+                except CafeCrawlingItemError:
+                    record_result(scope="item", status="item_failure")
+                    logger.warning("Cafe crawling item missing: cafe_id=%s name=%s", seed.cafe_id, seed.name)
+                    ordered_results[index] = OrderedCrawlResult(missing_cafe_id=seed.cafe_id)
+                    return
+                except CafeCrawlingSourceError:
+                    record_result(scope="item", status="source_failure")
+                    raise
+                except Exception:
+                    record_result(scope="item", status="unexpected_failure")
+                    logger.exception("Cafe crawling item unexpected failure: cafe_id=%s name=%s", seed.cafe_id, seed.name)
+                    ordered_results[index] = OrderedCrawlResult(
+                        failed_cafe_id=seed.cafe_id,
+                        failure_reason="unexpected_failure",
+                    )
+                    return
+    except asyncio.CancelledError:
+        record_result(scope="item", status="cancelled")
+        logger.warning("Cafe crawling item cancelled: cafe_id=%s name=%s", seed.cafe_id, seed.name)
+        ordered_results[index] = OrderedCrawlResult(
+            failed_cafe_id=seed.cafe_id,
+            failure_reason="cancelled",
+        )
+        raise
+
+    if crawled is None:
+        record_result(scope="item", status="empty_result")
+        logger.error("Cafe crawling item produced empty result: cafe_id=%s name=%s", seed.cafe_id, seed.name)
+        ordered_results[index] = OrderedCrawlResult(
+            failed_cafe_id=seed.cafe_id,
+            failure_reason="empty_result",
+        )
+        return
 
     record_result(scope="item", status="success")
     ordered_results[index] = OrderedCrawlResult(item=crawled)
@@ -836,15 +942,32 @@ async def crawl_cafes_batch(request_items: list[CafeCrawlingRequestItem]) -> Caf
         except CafeCrawlingSourceError:
             raise
 
+    unresolved_cafe_ids = [seed.cafe_id for seed, result in zip(seeds, ordered_results) if result is None]
+    if unresolved_cafe_ids:
+        logger.warning(
+            "Cafe crawling unresolved results before aggregation: count=%s cafe_ids=%s",
+            len(unresolved_cafe_ids),
+            unresolved_cafe_ids,
+        )
+
     raw_items: list[dict[str, Any]] = []
     missing_cafe_ids: list[str] = []
-    for result in ordered_results:
+    failed_cafe_ids: list[str] = []
+    failed_details: list[dict[str, str]] = []
+    for seed, result in zip(seeds, ordered_results):
         if result is None:
+            failed_cafe_ids.append(seed.cafe_id)
+            failed_details.append({"cafe_id": seed.cafe_id, "reason": "unresolved_result"})
             continue
         if result.missing_cafe_id is not None:
             missing_cafe_ids.append(result.missing_cafe_id)
         elif result.item is not None:
             raw_items.append(result.item)
+        else:
+            failed_cafe_id = result.failed_cafe_id or seed.cafe_id
+            failure_reason = result.failure_reason or "unknown_failure"
+            failed_cafe_ids.append(failed_cafe_id)
+            failed_details.append({"cafe_id": failed_cafe_id, "reason": failure_reason})
 
     items = assign_sequence_ids(raw_items)
     response = CafeCrawlingResponse(
@@ -852,11 +975,25 @@ async def crawl_cafes_batch(request_items: list[CafeCrawlingRequestItem]) -> Caf
         total=len(items),
         missing_cafe_ids=missing_cafe_ids,
     )
+    if failed_cafe_ids:
+        logger.warning("Cafe crawling failed items: count=%s details=%s", len(failed_cafe_ids), failed_details)
+
+    accounted_count = response.total + len(response.missing_cafe_ids) + len(failed_cafe_ids)
+    if accounted_count != len(request_items):
+        logger.error(
+            "Cafe crawling batch accounting mismatch: requested=%s succeeded=%s missing=%s failed=%s",
+            len(request_items),
+            response.total,
+            len(response.missing_cafe_ids),
+            len(failed_cafe_ids),
+        )
+
     record_result(scope="batch", status="success")
     logger.info(
-        "Cafe crawling batch complete: requested=%s succeeded=%s missing=%s",
+        "Cafe crawling batch complete: requested=%s succeeded=%s missing=%s failed=%s",
         len(request_items),
         response.total,
         len(response.missing_cafe_ids),
+        len(failed_cafe_ids),
     )
     return response
