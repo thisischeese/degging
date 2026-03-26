@@ -39,6 +39,10 @@ MAX_PHOTOS = 6
 MAX_REVIEWS = 10
 THUMBNAIL_MAX_EDGE_PX = 200
 DEFAULT_IMAGE_MAX_EDGE_PX = 800
+FALLBACK_IMAGE_MAX_EDGE_PX = 640
+MAX_UPLOAD_IMAGE_BYTES = 512 * 1024
+JPEG_QUALITY = 75
+PNG_QUANTIZE_COLORS = 256
 WINDOWS_PLAYWRIGHT_LOOP_ERROR = (
     "Playwright cannot launch Chromium under the current Windows asyncio event loop. "
     "The server is running a selector loop, which does not support subprocesses. "
@@ -1234,6 +1238,43 @@ def _image_has_transparency(image: Image.Image) -> bool:
     return False
 
 
+def _resize_image_preserving_aspect(image: Image.Image, *, max_edge_px: int) -> Image.Image:
+    width, height = image.size
+    longest_edge = max(width, height)
+    if longest_edge <= max_edge_px:
+        return image.copy()
+
+    scale = max_edge_px / longest_edge
+    resized_size = (
+        max(1, int(round(width * scale))),
+        max(1, int(round(height * scale))),
+    )
+    return image.resize(resized_size, Image.Resampling.LANCZOS)
+
+
+def _encode_image(image: Image.Image, *, has_transparency: bool) -> tuple[bytes, str, str]:
+    output = BytesIO()
+    if has_transparency:
+        rgba_image = image.convert("RGBA")
+        quantized_image = rgba_image.quantize(
+            colors=PNG_QUANTIZE_COLORS,
+            method=Image.Quantize.FASTOCTREE,
+            dither=Image.Dither.NONE,
+        )
+        quantized_image.save(output, format="PNG", optimize=True, compress_level=9)
+        return output.getvalue(), "image/png", ".png"
+
+    rgb_image = image.convert("RGB")
+    rgb_image.save(
+        output,
+        format="JPEG",
+        quality=JPEG_QUALITY,
+        optimize=True,
+        progressive=True,
+    )
+    return output.getvalue(), "image/jpeg", ".jpg"
+
+
 def prepare_image_for_upload(data: bytes, *, max_edge_px: int) -> tuple[bytes, str, str]:
     if max_edge_px <= 0:
         raise ValueError("max_edge_px must be positive")
@@ -1244,26 +1285,14 @@ def prepare_image_for_upload(data: bytes, *, max_edge_px: int) -> tuple[bytes, s
             working_image = source_image.copy()
 
     has_transparency = _image_has_transparency(working_image)
-    width, height = working_image.size
-    longest_edge = max(width, height)
+    resized_image = _resize_image_preserving_aspect(working_image, max_edge_px=max_edge_px)
+    encoded = _encode_image(resized_image, has_transparency=has_transparency)
 
-    if longest_edge > max_edge_px:
-        scale = max_edge_px / longest_edge
-        resized_size = (
-            max(1, int(round(width * scale))),
-            max(1, int(round(height * scale))),
-        )
-        working_image = working_image.resize(resized_size, Image.Resampling.LANCZOS)
+    if max_edge_px > FALLBACK_IMAGE_MAX_EDGE_PX and len(encoded[0]) > MAX_UPLOAD_IMAGE_BYTES:
+        fallback_image = _resize_image_preserving_aspect(working_image, max_edge_px=FALLBACK_IMAGE_MAX_EDGE_PX)
+        encoded = _encode_image(fallback_image, has_transparency=has_transparency)
 
-    output = BytesIO()
-    if has_transparency:
-        processed_image = working_image if working_image.mode in {"RGBA", "LA", "P"} else working_image.convert("RGBA")
-        processed_image.save(output, format="PNG", optimize=True)
-        return output.getvalue(), "image/png", ".png"
-
-    processed_image = working_image.convert("RGB")
-    processed_image.save(output, format="JPEG", quality=85, optimize=True)
-    return output.getvalue(), "image/jpeg", ".jpg"
+    return encoded
 
 
 async def upload_cafe_images(

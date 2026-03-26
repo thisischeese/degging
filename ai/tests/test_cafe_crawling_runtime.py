@@ -122,7 +122,7 @@ async def fake_resources_context(*args, **kwargs):
 
 
 class CafeCrawlingImageProcessingTest(unittest.TestCase):
-    def test_prepare_image_for_upload_resizes_landscape_image(self) -> None:
+    def test_prepare_image_for_upload_resizes_landscape_image_with_progressive_jpeg(self) -> None:
         data = build_image_bytes(1600, 1200)
 
         processed_data, content_type, ext = cafe_crawling_service.prepare_image_for_upload(
@@ -132,6 +132,7 @@ class CafeCrawlingImageProcessingTest(unittest.TestCase):
 
         with Image.open(BytesIO(processed_data)) as image:
             self.assertEqual(image.size, (800, 600))
+            self.assertTrue(image.info.get("progressive") or image.info.get("progression"))
         self.assertEqual(content_type, "image/jpeg")
         self.assertEqual(ext, ".jpg")
 
@@ -166,8 +167,23 @@ class CafeCrawlingImageProcessingTest(unittest.TestCase):
         with Image.open(BytesIO(processed_data)) as image:
             self.assertEqual(image.size, (200, 100))
             self.assertIn("A", image.getbands())
+            self.assertIn(image.mode, {"P", "RGBA"})
         self.assertEqual(content_type, "image/png")
         self.assertEqual(ext, ".png")
+
+    def test_prepare_image_for_upload_falls_back_to_640_when_file_is_too_large(self) -> None:
+        data = build_image_bytes(1600, 1200)
+
+        with patch.object(cafe_crawling_service, "MAX_UPLOAD_IMAGE_BYTES", 1):
+            processed_data, content_type, ext = cafe_crawling_service.prepare_image_for_upload(
+                data,
+                max_edge_px=cafe_crawling_service.DEFAULT_IMAGE_MAX_EDGE_PX,
+            )
+
+        with Image.open(BytesIO(processed_data)) as image:
+            self.assertEqual(image.size, (640, 480))
+        self.assertEqual(content_type, "image/jpeg")
+        self.assertEqual(ext, ".jpg")
 
 
 class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
