@@ -1,6 +1,7 @@
 package com.degging.be.cafe.controller;
 
 import com.degging.be.cafe.service.CafeCollectService;
+import com.degging.be.cafe.service.CafeFranchiseService;
 import com.degging.be.cafe.service.CafeStatusService;
 import com.degging.be.global.dto.BaseResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class CafeManageController {
     private final CafeCollectService cafeCollectService;
     private final CafeStatusService cafeStatusService;
     private final CafeCrawlingService cafeCrawlingService;
+    private final CafeFranchiseService cafeFranchiseService;
 
     /**
      * 카페 데이터 통합 수집 (공공데이터 + 카카오 매칭)
@@ -56,6 +58,19 @@ public class CafeManageController {
     public BaseResponse<Void> crawling() {
         log.info("AI 크롤링 실행 요청 수신");
         cafeCrawlingService.crawling();
+        return BaseResponse.success();
+    }
+
+    /**
+     * 프랜차이즈 식별 정보 일괄 업데이트
+     * 사전 정의된 목록 및 브랜드 출현 빈도를 기반으로 모든 카페의 프랜차이즈 정보를 갱신합니다.
+     *
+     * @return 성공 응답
+     */
+    @PostMapping("/franchise")
+    public BaseResponse<Void> updateFranchise() {
+        log.info("프랜차이즈 식별 및 정보 업데이트 시작");
+        cafeFranchiseService.updateFranchiseStatus();
         return BaseResponse.success();
     }
 }

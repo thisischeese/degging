@@ -51,9 +51,8 @@ public class CafeFilterService {
             "vr카페", "vr게임", "게임카페", "인터넷카페", "VR", "게임",
 
             // 기타 비카페성 시설
-            "휴게실", "매점", "다방", "기원", "편의점", "마트", "슈퍼마켓", "백화점", "아울렛"
-    );
- 
+            "휴게실", "매점", "다방", "기원", "편의점", "마트", "슈퍼마켓", "백화점", "아울렛");
+
     /**
      * 해당 업소가 실제 카페인지 판단
      *
@@ -61,32 +60,31 @@ public class CafeFilterService {
      * @return 실제 카페이면 true, 아니면 false
      */
     public boolean isCafe(StoreListInUpjongItem item) {
- 
+
         if (item == null) {
             return false;
         }
- 
+
         String name = item.getBizesNm();
         String smallCategoryName = item.getIndsSclsNm();
         String ksicName = item.getKsicNm();
- 
+
         if (name == null || name.isBlank()) {
             return false;
         }
- 
+
         // 상호명 소문자 변환
         String normalizedName = name.toLowerCase();
- 
+
         // 제외 키워드가 포함되면 카페가 아님
         for (String keyword : EXCLUDE_KEYWORDS) {
             if (normalizedName.contains(keyword.toLowerCase())) {
                 return false;
             }
         }
- 
+
         // 상권 업종 소분류명이 카페/디저트/제과 계열인지 확인
-        boolean isValidCategory = smallCategoryName != null && (
-                smallCategoryName.contains("카페") ||
+        boolean isValidCategory = smallCategoryName != null && (smallCategoryName.contains("카페") ||
                 smallCategoryName.contains("제과") ||
                 smallCategoryName.contains("빵") ||
                 smallCategoryName.contains("베이커리") ||
@@ -95,18 +93,17 @@ public class CafeFilterService {
                 smallCategoryName.contains("빙수") ||
                 smallCategoryName.contains("도넛") ||
                 smallCategoryName.contains("샌드위치") ||
-                smallCategoryName.contains("토스트")
-        );
- 
+                smallCategoryName.contains("토스트"));
+
         if (!isValidCategory) {
             return false;
         }
- 
+
         // 표준산업분류명이 커피/제과 계열인지 확인
         if (ksicName != null && (ksicName.contains("커피") || ksicName.contains("제과") || ksicName.contains("빵"))) {
             return true;
         }
- 
+
         return false;
     }
 
@@ -125,15 +122,15 @@ public class CafeFilterService {
         }
 
         // 1. 제과/베이커리 판별
-        if (smallCategoryName.contains("제과") || smallCategoryName.contains("빵") || 
-            smallCategoryName.contains("베이커리") || (ksicName != null && ksicName.contains("제과"))) {
+        if (smallCategoryName.contains("제과") || smallCategoryName.contains("빵") ||
+                smallCategoryName.contains("베이커리") || (ksicName != null && ksicName.contains("제과"))) {
             return CafeCategory.BAKERY;
         }
 
         // 2. 디저트/기타 판별
-        if (smallCategoryName.contains("디저트") || smallCategoryName.contains("아이스크림") || 
-            smallCategoryName.contains("빙수") || smallCategoryName.contains("도넛") || 
-            smallCategoryName.contains("샌드위치") || smallCategoryName.contains("토스트")) {
+        if (smallCategoryName.contains("디저트") || smallCategoryName.contains("아이스크림") ||
+                smallCategoryName.contains("빙수") || smallCategoryName.contains("도넛") ||
+                smallCategoryName.contains("샌드위치") || smallCategoryName.contains("토스트")) {
             return CafeCategory.DESSERT;
         }
 
