@@ -11,6 +11,7 @@ import { Input } from '@/common/components/Input';
 import { StarColor, ScrapList } from '@/features/scraps/types';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { getCafeDetail } from '@/features/cafes/api/cafeApi';
+import { getScraps, postCreateScrap, postScrapCafe } from '@/features/scraps/api/scrapApi';
 import { Chip } from '@/common/components/Chip';
 
 
@@ -295,27 +296,44 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  const handleScrapSave = (selectedIds: string[]) => {
+  // 카페 상세 진입 시 또는 모달 열 시 카테고리 로딩
+  useEffect(() => {
+    if (isScrapOpen && scrapCategories.length === 0) {
+      getScraps().then(data => {
+        setScrapCategories(data.filter(c => c.scrapId !== null));
+      }).catch(err => console.error('스크랩 카테고리 로드 실패', err));
+    }
+  }, [isScrapOpen, scrapCategories.length]);
+
+  const handleScrapSave = async (selectedIds: string[]) => {
     setSavedCategoryIds(selectedIds);
     if (selectedIds.length > 0) {
-      setIsScrapped(true);
-      setShowSavedToast(true);
-      setTimeout(() => setShowSavedToast(false), 3000);
+      try {
+        await Promise.all(selectedIds.map(id => postScrapCafe(id, cafeid)));
+        setIsScrapped(true);
+        
+        // Update color
+        const firstCat = scrapCategories.find(c => c.scrapId === selectedIds[0]);
+        if (firstCat && firstCat.color) setScrapColor(firstCat.color);
+        
+        setShowSavedToast(true);
+        setTimeout(() => setShowSavedToast(false), 3000);
+      } catch (err) {
+        console.error('스크랩 저장 실패', err);
+      }
     } else {
       setIsScrapped(false);
     }
-    console.log('Saved to categories:', selectedIds);
   };
 
-  const handleCreateCategory = (name: string, color: StarColor) => {
-    const newCat: ScrapList = {
-      scrapId: String(Date.now()),
-      name,
-      color,
-      thumbnailUrl: [],
-    };
-    setScrapCategories((prev) => [...prev, newCat]);
-    // Optionally automatically select the newly created category if needed later
+  const handleCreateCategory = async (name: string, color: StarColor) => {
+    try {
+      await postCreateScrap({ name, color });
+      const updated = await getScraps();
+      setScrapCategories(updated.filter(c => c.scrapId !== null));
+    } catch (err) {
+      console.error('카테고리 생성 실패', err);
+    }
   };
 
 

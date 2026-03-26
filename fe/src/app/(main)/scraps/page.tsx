@@ -417,9 +417,9 @@ export default function ScrapsPage() {
                     </div>
 
                     {/* 3. 개별 카테고리 카드들 */}
-                    {categories.map((category) => (
+                    {categories.filter(c => c.scrapId !== null).map((category) => (
                         <div
-                            key={category.scrapId}
+                            key={category.scrapId!}
                             onClick={() => {
                                 if (mode === 'edit') {
                                     setEditingCategory(category);
