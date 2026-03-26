@@ -505,7 +505,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
                     description={typedCafe.cafeIntro || ''}
                     address={typedCafe.roadAddress || typedCafe.address || ''}
                     distance=""
-                    imageUrl={typedCafe.thumbnailUrl || ''}
+                    imageUrl={typedCafe.thumbnailUrl ? `${process.env.NEXT_PUBLIC_CLOUDFRONT_URL}/${typedCafe.thumbnailUrl}` : ''}
                     isScrapped={'isScrapped' in typedCafe ? typedCafe.isScrapped : false} // [추가] 스크랩 여부
                     isActive={activeCafeId === typedCafe.cafeId}
                     onClick={() => handleCafeClick(typedCafe)}
