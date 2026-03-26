@@ -75,8 +75,17 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   }, []);
 
   // [수정] 통합 마커 쿼리: 키워드가 있으면 검색 API(searchCafes), 없으면 일반 마커 API 호출
-  // 기존 코드 주석 처리: const { data: cafes } = useSuspenseQuery({ ... })
+  /* 기존 코드 주석 (캐시 문제 해결을 위해 수정)
   const { data: cafes, isLoading: isMapLoading } = useQuery({
+    queryKey: ['map', 'markers', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, keyword, selectedFilters],
+    queryFn: async () => { ... }
+  });
+  */
+  
+  // [수정] 프차 토글 시(true/false) 항상 즉각적인 API 재호출과 UI 반응을 위해 
+  // 1) isLoading 대신 isFetching 바인딩
+  // 2) staleTime: 0 명시하여 캐시 재활용 방지 및 무조건 호출
+  const { data: cafes, isFetching: isMapLoading } = useQuery({
     queryKey: ['map', 'markers', mapCenter.lat, mapCenter.lng, isFranchiseIncluded, keyword, selectedFilters],
     queryFn: async () => {
       if (keyword.trim()) {
@@ -95,6 +104,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
         });
       }
     },
+    staleTime: 0, // 항상 최신 데이터 패칭 보장
   });
 
   const isSearchMode = keyword.trim().length > 0;
@@ -141,6 +151,15 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   const serverFilterTags: string[] = [];
 
   // [추가] 바텀시트 리스트 무한 스크롤 쿼리
+  /* 기존 코드
+  const {
+    data: bottomSheetData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isBottomSheetLoading
+  } = useInfiniteQuery({ ... });
+  */
   const {
     data: bottomSheetData,
     fetchNextPage,
@@ -162,7 +181,8 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.last ? undefined : allPages.length;
     },
-    enabled: !isSearchMode // 검색 모드일 때는 무한 스크롤 API 비활성화
+    enabled: !isSearchMode, // 검색 모드일 때는 무한 스크롤 API 비활성화
+    staleTime: 0, // [수정] 프차 토글 시 즉시 호출 보장
   });
 
   // 검색 모드일 경우 검색된 cafes 자체를 바텀시트 리스트로 사용
@@ -419,38 +439,47 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   }, [activeCafeId]);
 
   // 내 위치 버튼 핸들러 (현 위치 동기화 및 API 재호출)
+  /* 기존 코드 주석 대상 
   const handleLocateMe = () => {
-    // 트래킹 모드가 꺼져있다면 켭니다.
+    ...
+  };
+  */
+  const handleLocateMe = () => {
+    // 1. 이미 사용자 위치(userLocation)가 상태로 존재한다면 GPS 지연 없이 즉시 이동
+    if (userLocation && userLocation.lat !== 0 && mapInstance.current) {
+      const newCenter = new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng);
+      mapInstance.current.panTo(newCenter);
+      setMapCenter(userLocation);
+      sessionStorage.setItem('mapCenterLat', String(userLocation.lat));
+      sessionStorage.setItem('mapCenterLng', String(userLocation.lng));
+      
+      if (!isTracking) {
+        setTracking(true);
+      }
+      return; // 브라우저 API 호출 생략 (딜레이/오류 제거)
+    }
+
+    // 2. 추적이 꺼져있었거나 첫 조회의 경우 강제 활성화 및 API 호출
     if (!isTracking) {
-      toggleTracking();
+      setTracking(true);
     }
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          
-          // 위도/경도 값이 정확한 숫자(Number) 타입인지 확인
           const lat = Number(latitude);
           const lng = Number(longitude);
           
           const newCenter = new window.kakao.maps.LatLng(lat, lng);
 
-          // 1. 지도 시점 이동
           if (mapInstance.current) {
-            // 기존 코드: mapInstance.current.setCenter(newCenter);
-            // [수정] 회색 화면 발생 등 갑작스런 렌더링을 피하고 위치이동 UX 보강을 위해 panTo 사용 
             mapInstance.current.panTo(newCenter);
           }
 
-          // 2. 핵심: API 재호출(마커 & 바텀시트)을 위한 상태 갱신
           setMapCenter({ lat, lng });
-
-          // [추가] 내 위치 이동 시에도 세션 스토리지 위치 최신화
           sessionStorage.setItem('mapCenterLat', String(lat));
           sessionStorage.setItem('mapCenterLng', String(lng));
-          
-          // 3. 전역 사용자 위치 상태 업데이트
           setUserLocation({ lat, lng });
         },
         (error) => {
