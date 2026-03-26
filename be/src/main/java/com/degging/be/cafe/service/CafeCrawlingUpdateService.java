@@ -160,70 +160,86 @@ public class CafeCrawlingUpdateService {
 
         // 콜드스타트용 리뷰 데이터 업데이트
         if (dto.getCafeReviews() != null && !dto.getCafeReviews().isEmpty()) {
-
-            // 이번 카페의 모든 리뷰어 정보 수집 (이메일 맵핑)
-            Map<String, AiCrawlerItemResponse.CafeReviewDto> reviewDtoMap = new HashMap<>();
-            for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
-                if (reviewDto.getUserId() != null && reviewDto.getUserReview() != null) {
-                    String dummyEmail = "crawler_" + reviewDto.getUserId() + "@degging.com";
-                    reviewDtoMap.put(dummyEmail, reviewDto);
+            try {
+                // 이번 카페의 모든 리뷰어 정보 수집 (이메일 맵핑)
+                Map<String, AiCrawlerItemResponse.CafeReviewDto> reviewDtoMap = new HashMap<>();
+                for (AiCrawlerItemResponse.CafeReviewDto reviewDto : dto.getCafeReviews()) {
+                    if (reviewDto.getUserId() != null && reviewDto.getUserReview() != null) {
+                        String dummyEmail = "crawler_" + reviewDto.getUserId() + "@degging.com";
+                        reviewDtoMap.put(dummyEmail, reviewDto);
+                    }
                 }
-            }
 
-            if (reviewDtoMap.isEmpty())
-                return;
+                if (!reviewDtoMap.isEmpty()) {
+                    // 이미 존재하는 유저들을 한꺼번에 조회 (N+1 방지)
+                    List<UserEntity> existingUsers = userRepository.findAllByEmailIn(reviewDtoMap.keySet());
+                    Map<String, UserEntity> userCache = existingUsers.stream()
+                            .collect(Collectors.toMap(UserEntity::getEmail, u -> u));
 
-            // 이미 존재하는 유저들을 한꺼번에 조회 (N+1 방지)
-            List<UserEntity> existingUsers = userRepository.findAllByEmailIn(reviewDtoMap.keySet());
-            Map<String, UserEntity> userCache = existingUsers.stream()
-                    .collect(Collectors.toMap(UserEntity::getEmail, u -> u));
+                    // DB에 없는 유저들을 미리 생성하여 한꺼번에 저장
+                    List<UserEntity> newUsersToSave = new ArrayList<>();
+                    for (String email : reviewDtoMap.keySet()) {
+                        if (!userCache.containsKey(email)) {
+                            AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
 
-            // DB에 없는 유저들을 미리 생성하여 한꺼번에 저장
-            List<UserEntity> newUsersToSave = new ArrayList<>();
-            for (String email : reviewDtoMap.keySet()) {
-                if (!userCache.containsKey(email)) {
-                    AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
+                            UserEntity newUser = UserEntity.of(email, "dummy_crawler_password", 'A');
+                            String shortId = reviewDto.getUserId().substring(0, Math.min(reviewDto.getUserId().length(), 8));
 
-                    UserEntity newUser = UserEntity.of(email, "dummy_crawler_password", 'A');
-                    String shortUuid = reviewDto.getUserId().toString().substring(0, 8);
+                            UserProfileEntity profile = UserProfileEntity.builder()
+                                    .user(newUser)
+                                    .nickname("크롤러_" + shortId)
+                                    .gender(Gender.MALE)
+                                    .birthDate(LocalDate.of(2000, 1, 1))
+                                    .build();
 
-                    UserProfileEntity profile = UserProfileEntity.builder()
-                            .user(newUser)
-                            .nickname("크롤러_" + shortUuid)
-                            .gender(Gender.MALE)
-                            .birthDate(LocalDate.of(2000, 1, 1))
-                            .build();
+                            newUser.setProfile(profile);
+                            newUsersToSave.add(newUser);
+                        }
+                    }
 
-                    newUser.setProfile(profile);
-                    newUsersToSave.add(newUser);
+                    if (!newUsersToSave.isEmpty()) {
+                        try {
+                            List<UserEntity> savedNewUsers = userRepository.saveAll(newUsersToSave);
+                            for (UserEntity u : savedNewUsers) {
+                                userCache.put(u.getEmail(), u);
+                            }
+                        } catch (Exception e) {
+                            log.warn("일부 신규 유저 저장 중 오류 발생 (이미 생성되었을 수 있음): {}", e.getMessage());
+                            // 개별 조회하여 다시 캐시 구성 (충돌 방지)
+                            for (String email : reviewDtoMap.keySet()) {
+                                if (!userCache.containsKey(email)) {
+                                    userRepository.findByEmail(email).ifPresent(u -> userCache.put(email, u));
+                                }
+                            }
+                        }
+                    }
+
+                    // 모든 리뷰 엔티티를 생성하여 한꺼번에 저장
+                    List<ReviewEntity> reviewsToSave = new ArrayList<>();
+                    for (String email : reviewDtoMap.keySet()) {
+                        UserEntity user = userCache.get(email);
+                        if (user == null) continue;
+
+                        AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
+                        ReviewEntity newReview = ReviewEntity.builder()
+                                .cafe(cafe)
+                                .user(user)
+                                .rating(reviewDto.getRating() != null ? reviewDto.getRating() : (short) 5)
+                                .content(reviewDto.getUserReview())
+                                .build();
+
+                        reviewsToSave.add(newReview);
+                    }
+
+                    if (!reviewsToSave.isEmpty()) {
+                        reviewRepository.saveAll(reviewsToSave);
+                        log.info("리뷰 {}건 저장 완료", reviewsToSave.size());
+                    }
                 }
+            } catch (Exception e) {
+                // 리뷰 저장 실패는 전체 카페 정보 업데이트를 중단시키지 않음
+                log.error("리뷰 데이터 처리 중 예외 발생 (카페 ID: {}): {}", cafeId, e.getMessage());
             }
-
-            if (!newUsersToSave.isEmpty()) {
-                List<UserEntity> savedNewUsers = userRepository.saveAll(newUsersToSave);
-                for (UserEntity u : savedNewUsers) {
-                    userCache.put(u.getEmail(), u);
-                }
-            }
-
-            // 5. 모든 리뷰 엔티티를 생성하여 한꺼번에 저장
-            List<ReviewEntity> reviewsToSave = new ArrayList<>();
-            for (String email : reviewDtoMap.keySet()) {
-                UserEntity user = userCache.get(email);
-                AiCrawlerItemResponse.CafeReviewDto reviewDto = reviewDtoMap.get(email);
-
-                ReviewEntity newReview = ReviewEntity.builder()
-                        .cafe(cafe)
-                        .user(user)
-                        .rating(reviewDto.getRating() != null ? reviewDto.getRating() : (short) 5)
-                        .content(reviewDto.getUserReview())
-                        .build();
-
-                reviewsToSave.add(newReview);
-            }
-
-            reviewRepository.saveAll(reviewsToSave);
-            log.info("리뷰 {}건 저장 완료", reviewsToSave.size());
         }
 
         // 최종 반영 (더티 체킹 보완을 위해 명시적 호출)
