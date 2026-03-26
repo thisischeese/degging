@@ -20,7 +20,6 @@ export interface CafeMapResponse {
   message: string;
   data: {
     markers: CafeMarker[];
-    filterTags: string[]; // [추가] 추천 태그 목록
   };
 }
 

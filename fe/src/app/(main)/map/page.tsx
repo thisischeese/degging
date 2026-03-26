@@ -112,20 +112,33 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   */
 
   // [TO-BE] useMemo를 활용한 데이터 메모이제이션
+  /* 기존 코드 주석 (API에서 filterTags 필드 삭제됨)
   const markerItems = React.useMemo(() => {
     return isSearchMode 
       ? (cafes as SearchCafeItem[] || []) 
       : ((cafes as { markers: CafeMarker[]; filterTags: string[] })?.markers || []);
   }, [isSearchMode, cafes]);
+  */
+  // [수정] filterTags 제거 반영된 타입 캐스팅
+  const markerItems = React.useMemo(() => {
+    return isSearchMode 
+      ? (cafes as SearchCafeItem[] || []) 
+      : ((cafes as { markers: CafeMarker[] })?.markers || []);
+  }, [isSearchMode, cafes]);
     
   // 서버에서 받은 추천 필터 태그 (향후 UI 렌더링을 위해 추출)
-  // 기존 코드:
+  // 기존 코드 주석 (filterTags 삭제 반영)
   // const serverFilterTags = !isSearchMode 
   //   ? (cafes as { markers: CafeMarker[]; filterTags: string[] }).filterTags 
   //   : [];
+  /* 
   const serverFilterTags = !isSearchMode 
     ? ((cafes as { markers: CafeMarker[]; filterTags: string[] })?.filterTags || [])
     : [];
+  */
+  
+  // 혹시라도 향후 사용되거나 다른 부분에 의존성이 있을 수 있으므로 빈 배열로 폴백 처리
+  const serverFilterTags: string[] = [];
 
   // [추가] 바텀시트 리스트 무한 스크롤 쿼리
   const {
