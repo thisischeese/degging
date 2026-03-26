@@ -14,11 +14,9 @@ import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CafeErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
-import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.repository.UserRepository;
-import com.degging.be.user.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
@@ -42,7 +40,6 @@ public class CafeService {
     private final UserRepository userRepository;
     private final CafeRepository cafeRepository;
     private final ScrapRepository scrapRepository;
-    private final MemberService memberService;
 
     /**
      * 카페 상세 정보 조회
@@ -117,12 +114,8 @@ public class CafeService {
         // 고정된 반경 2,000미터(2km) 설정
         double radiusInMeters = 2000.0;
 
-        // 태그 추출 (요청에 없으면 사용자 선호 태그 조회)
+        // 태그 추출 (요청에 있는 태그만 사용)
         List<String> tags = request.getTags();
-        if ((tags == null || tags.isEmpty()) && userId != null) {
-            tags = memberService.getUserPreferred(userId);
-            request.setTags(tags);
-        }
 
         // 레포지토리 호출해 리스트 가져오기 (태그 존재 여부에 따라 분기)
         List<CafeEntity> cafes;
@@ -137,8 +130,8 @@ public class CafeService {
                 .map(CafeMapResponse::from)
                 .collect(Collectors.toList());
 
-        // 마커 정보와 사용된 필터 태그를 함께 반환
-        return CafeMapMarkersResponse.of(markers, tags);
+        // 마커 정보만 반환 (필터 태그는 호출부에서 관리하도록 분리)
+        return CafeMapMarkersResponse.of(markers);
     }
 
     /**
@@ -191,12 +184,8 @@ public class CafeService {
         // 정렬 기준이 오지 않았을 경우, 기본 정렬 기준 '추천순(RECOMMEND)'으로 설정
         CafeBottomSheetSort sort = request.getSort() != null ? request.getSort() : CafeBottomSheetSort.RECOMMEND;
 
-        // 태그 추출 (요청에 없으면 사용자 선호 태그 조회)
+        // 태그 추출 (요청에 있는 태그만 사용)
         List<String> tags = request.getTags();
-        if ((tags == null || tags.isEmpty()) && userId != null) {
-            tags = memberService.getUserPreferred(userId);
-            request.setTags(tags);
-        }
 
         // 정렬 기준별 Repository 메서드 분기 호출 (태그 존재 여부에 따라 분기)
         Slice<CafeEntity> cafes;
