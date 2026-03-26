@@ -25,6 +25,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CafeCrawlingUpdateService {
 
+    private static final List<String> ADJECTIVES = List.of("맑은", "고운", "푸른", "깊은", "밝은", "기쁜", "멋진", "착한", "숲속", "새벽");
+    private static final List<String> NOUNS = List.of("하늘", "바다", "나무", "요정", "라떼", "하루", "소망", "미소", "햇살", "구름");
+
     private final CafeRepository cafeRepository;
     private final VibeRepository vibeRepository;
     private final UserRepository userRepository;
@@ -198,13 +201,19 @@ public class CafeCrawlingUpdateService {
                     for (String email : reviewDtoMap.keySet()) {
                         if (!userCache.containsKey(email)) {
                             UserEntity newUser = UserEntity.of(email, "dummy_crawler_password", 'A');
-                            // email: crawler_{emailId}@degging.com 에서 emailId 추출
+                            
+                            // 자연스러운 닉네임 생성 로직 (2자 + 2자 + 6자 = 총 10자)
+                            int adjIndex = Math.abs(email.hashCode()) % ADJECTIVES.size();
+                            int nounIndex = Math.abs((email + "seed").hashCode()) % NOUNS.size();
+                            
+                            // email: crawler_{emailId}@degging.com 에서 emailId 부분 6자리 추출
                             String idPart = email.substring(8, email.indexOf("@"));
-                            String shortId = idPart.substring(0, Math.min(idPart.length(), 15));
+                            String suffix = idPart.substring(0, Math.min(idPart.length(), 6)); 
+                            String naturalNickname = ADJECTIVES.get(adjIndex) + NOUNS.get(nounIndex) + suffix;
 
                             UserProfileEntity profile = UserProfileEntity.builder()
                                     .user(newUser)
-                                    .nickname("크롤러_" + shortId)
+                                    .nickname(naturalNickname)
                                     .gender(Gender.MALE)
                                     .birthDate(LocalDate.of(2000, 1, 1))
                                     .build();
