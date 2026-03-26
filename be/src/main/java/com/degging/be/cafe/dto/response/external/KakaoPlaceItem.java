@@ -19,6 +19,10 @@ public class KakaoPlaceItem {
 
     private String placeName;   // 업소명
 
+    private String categoryName; // 카테고리 이름 (ex. 음식점 > 카페 > 커피전문점)
+
+    private String categoryGroupCode; // 카테고리 그룹 코드 (CE7: 카페)
+
     private String addressName; // 지번주소
 
     private String roadAddressName; // 도로명주소

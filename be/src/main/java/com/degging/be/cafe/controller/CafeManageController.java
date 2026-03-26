@@ -1,6 +1,7 @@
 package com.degging.be.cafe.controller;
 
 import com.degging.be.cafe.service.CafeCollectService;
+import com.degging.be.cafe.service.CafeFilterService;
 import com.degging.be.cafe.service.CafeFranchiseService;
 import com.degging.be.cafe.service.CafeStatusService;
 import com.degging.be.global.dto.BaseResponse;
@@ -23,6 +24,7 @@ public class CafeManageController {
     private final CafeStatusService cafeStatusService;
     private final CafeCrawlingService cafeCrawlingService;
     private final CafeFranchiseService cafeFranchiseService;
+    private final CafeFilterService cafeFilterService;
 
     /**
      * 카페 데이터 통합 수집 (공공데이터 + 카카오 매칭)
@@ -71,6 +73,31 @@ public class CafeManageController {
     public BaseResponse<Void> updateFranchise() {
         log.info("프랜차이즈 식별 및 정보 업데이트 시작");
         cafeFranchiseService.updateFranchiseStatus();
+        return BaseResponse.success();
+    }
+
+    /**
+     * 비카페성 시설(치유센터, 복지관 등) 일괄 삭제
+     *
+     * @return 성공 응답
+     */
+    @PostMapping("/cleanup")
+    public BaseResponse<Void> cleanup() {
+        log.info("비카페성 시설 일괄 식별 요청 수신");
+        cafeFilterService.identifyNonCafes();
+        return BaseResponse.success();
+    }
+
+    /**
+     * 카카오 API 기반 비카페 시설 재검증 및 표시 (isCafe = false)
+     *
+     * @param limit 최대 처리 건수 (기본 1000건)
+     * @return 성공 응답
+     */
+    @PostMapping("/revalidate")
+    public BaseResponse<Void> revalidate(@RequestParam(defaultValue = "1000") int limit) {
+        log.info("카카오 API 기반 비카페 시설 재검증 요청 수신 (limit: {})", limit);
+        cafeFilterService.revalidateWithKakao(limit);
         return BaseResponse.success();
     }
 }
