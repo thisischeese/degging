@@ -29,7 +29,7 @@ except ImportError:  # pragma: no cover - fallback for environments without the 
     multiprocess = None
 
 
-_PROMETHEUS_ENABLED = all(
+_PROMETHEUS_ENABLED = settings.prometheus_metrics_enabled and all(
     dependency is not None
     for dependency in (CollectorRegistry, Counter, Gauge, Histogram, generate_latest)
 )
@@ -44,8 +44,15 @@ if _PROMETHEUS_ENABLED:
         "cafe_crawling_inflight",
         "In-flight cafe crawling work.",
         labelnames=("scope",),
-        multiprocess_mode="livesum",
     )
+    # Multiprocess Prometheus mode is intentionally disabled for the current
+    # single-process uvicorn deployment.
+    # _INFLIGHT = Gauge(
+    #     "cafe_crawling_inflight",
+    #     "In-flight cafe crawling work.",
+    #     labelnames=("scope",),
+    #     multiprocess_mode="livesum",
+    # )
     _RESULTS_TOTAL = Counter(
         "cafe_crawling_results_total",
         "Count of crawl outcomes by scope and status.",
@@ -62,10 +69,13 @@ else:
 def _metrics_registry() -> CollectorRegistry | None:
     if not _PROMETHEUS_ENABLED:
         return None
-    if settings.prometheus_multiproc_dir and multiprocess is not None:
-        registry = CollectorRegistry()
-        multiprocess.MultiProcessCollector(registry)
-        return registry
+
+    # Multiprocess Prometheus collection is intentionally disabled for the
+    # current single-process uvicorn deployment.
+    # if settings.prometheus_multiproc_dir and multiprocess is not None:
+    #     registry = CollectorRegistry()
+    #     multiprocess.MultiProcessCollector(registry)
+    #     return registry
     return None
 
 
