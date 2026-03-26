@@ -63,4 +63,80 @@ public class CrawlingBackupService {
             log.error("[백업] JSON 저장 실패 (loop={}, worker={}): {}", loop, batchIdx, e.getMessage());
         }
     }
+
+    /**
+     * 기존 백업 파일의 내용을 업데이트 (부분 성공 시 내용 축소용)
+     *
+     * @param file     업데이트할 파일
+     * @param response 새로운 응답 객체
+     */
+    public void updateBackupFile(File file, AiCrawlerResponse response) {
+        try {
+            objectMapper.writeValue(file, response);
+            log.info("[백업] 파일 내용 갱신 완료 (남은 항목: {}건)", 
+                    response.getItems() != null ? response.getItems().size() : 0);
+        } catch (IOException e) {
+            log.error("[백업] 파일 내용 갱신 실패 ({}): {}", file.getName(), e.getMessage());
+        }
+    }
+
+    /**
+     * 아직 처리되지 않은 모든 백업 파일 목록을 반환
+     *
+     * @return 백업 파일 목록
+     */
+    public File[] loadAllBackupFiles() {
+        File dir = new File(backupDir);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return new File[0];
+        }
+        // .json 파일만 필터링하여 반환
+        return dir.listFiles((d, name) -> name.endsWith(".json"));
+    }
+
+    /**
+     * 특정 백업 파일을 AiCrawlerResponse 객체로 로드
+     *
+     * @param file 백업 파일
+     * @return 역직렬화된 응답 객체 (실패 시 null)
+     */
+    public AiCrawlerResponse loadResponse(File file) {
+        try {
+            return objectMapper.readValue(file, AiCrawlerResponse.class);
+        } catch (IOException e) {
+            log.error("[백업] JSON 파일 로드 실패 ({}): {}", file.getName(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 처리가 완료된 백업 파일을 success 폴더로 이동 (아카이빙)
+     *
+     * @param file 이동할 파일
+     */
+    public void archiveBackupFile(File file) {
+        try {
+            File successDir = new File(backupDir, "success");
+            if (!successDir.exists() && !successDir.mkdirs()) {
+                log.warn("[백업] success 디렉토리 생성 실패");
+                return;
+            }
+
+            File destFile = new File(successDir, file.getName());
+            
+            // 만약 동일한 이름의 파일이 이미 있다면 타임스탬프를 붙여 중복 방지
+            if (destFile.exists()) {
+                String newName = System.currentTimeMillis() + "_" + file.getName();
+                destFile = new File(successDir, newName);
+            }
+
+            if (file.renameTo(destFile)) {
+                log.info("[백업] 파일 아카이빙 완료: {} -> success/{}", file.getName(), destFile.getName());
+            } else {
+                log.warn("[백업] 파일 이동 실패: {}", file.getName());
+            }
+        } catch (Exception e) {
+            log.error("[백업] 아카이빙 중 예외 발생: {}", e.getMessage());
+        }
+    }
 }

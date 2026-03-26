@@ -14,6 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,9 +39,13 @@ public class CafeCrawlingService {
 
     /**
      * 수집된 데이터를 DB에 저장 (배치 단위로 트랜잭션 처리)
+     * 
+     * @param dataList 저장할 데이터 목록
+     * @return 저장을 시도했지만 실패한 데이터 목록
      */
-    public void saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
+    public List<AiCrawlerItemResponse> saveCrawlingData(List<AiCrawlerItemResponse> dataList) {
         log.info("크롤링된 카페: {}개, 업데이트 진행 중...", dataList.size());
+        List<AiCrawlerItemResponse> failedItems = new ArrayList<>();
 
         int count = 0;
         for (AiCrawlerItemResponse dto : dataList) {
@@ -55,9 +61,11 @@ public class CafeCrawlingService {
             } catch (Exception e) {
                 log.error("저장 실패 (cafeId: {}): {}",
                         (dto.getCafes() != null ? dto.getCafes().getCafeId() : "unknown"), e.getMessage());
+                failedItems.add(dto);
             }
         }
         log.info("배치 저장 완료! (성공: {}/전체: {})", count, dataList.size());
+        return failedItems;
     }
 
     /**
@@ -66,6 +74,9 @@ public class CafeCrawlingService {
      */
     @Async
     public void crawling() {
+        // [추가] 크롤링 시작 전 백업 폴더를 확인하여 누락된 데이터 자동 복구
+        autoBackfillFromBackups();
+
         // [테스트용] 50개 제한 적용 (필요 시 조절)
         long actualTotalToCrawl = cafeRepository.countByThumbnailUrlIsNull();
         long totalToCrawl = Math.min(actualTotalToCrawl, 50);
@@ -136,8 +147,8 @@ public class CafeCrawlingService {
             // 배치 간 지연 시간 추가 (AI 서버 부하 방지용, 필요 시 조절)
             if (i < totalBatches - 1) {
                 try {
-                    log.info("다음 배치를 위해 5초간 대기합니다...");
-                    Thread.sleep(5000);
+                    log.info("다음 배치를 위해 2초간 대기합니다...");
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     log.warn("대기 중 인터럽트 발생: {}", e.getMessage());
@@ -146,6 +157,56 @@ public class CafeCrawlingService {
         }
 
         log.info("모든 크롤링 작업이 종료되었습니다.");
+    }
+
+    /**
+     * 백업 폴더의 모든 JSON 파일을 읽어 DB를 업데이트 (Backfill)
+     * 처리가 완료된 파일은 success 폴더로 이동합니다.
+     */
+    public void autoBackfillFromBackups() {
+        log.info("[복구] 백업 데이터를 이용한 자동 복구 프로세스 시작");
+        
+        File[] backupFiles = crawlingBackupService.loadAllBackupFiles();
+        if (backupFiles == null || backupFiles.length == 0) {
+            log.info("[복구] 처리할 백업 파일이 없습니다.");
+            return;
+        }
+
+        log.info("[복구] 총 {}개의 백업 파일 발견", backupFiles.length);
+
+        int fileCount = 0;
+        for (File file : backupFiles) {
+            fileCount++;
+            try {
+                log.info("[복구 {}/{}] 파일 처리 중: {}", fileCount, backupFiles.length, file.getName());
+                
+                AiCrawlerResponse response = crawlingBackupService.loadResponse(file);
+                if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                    // 기존 저장 로직 재사용 (트랜잭션 보장 위해 self 호출)
+                    CafeCrawlingService self = cafeCrawlingServiceProvider.getIfAvailable();
+                    if (self != null) {
+                        List<AiCrawlerItemResponse> failedItems = self.saveCrawlingData(response.getItems());
+                        
+                        if (failedItems.isEmpty()) {
+                            // 100% 성공 시 아카이빙
+                            crawlingBackupService.archiveBackupFile(file);
+                        } else {
+                            // 일부 실패 시, 실패한 항목들로 파일 갱신 (점차 줄여나감)
+                            log.warn("[복구] 파일 내 {}건 저장 실패로 파일 내용을 갱신합니다: {}", failedItems.size(), file.getName());
+                            response.setItems(failedItems);
+                            response.setTotal(failedItems.size()); // 남은 개수 갱신
+                            crawlingBackupService.updateBackupFile(file, response);
+                        }
+                    }
+                } else {
+                    log.warn("[복구] 파일 내용이 비어있어 아카이빙합니다: {}", file.getName());
+                    crawlingBackupService.archiveBackupFile(file);
+                }
+            } catch (Exception e) {
+                log.error("[복구] 파일 처리 중 오류 발생 ({}): {}", file.getName(), e.getMessage());
+            }
+        }
+        log.info("[복구] 모든 백업 파일 처리 완료");
     }
 }
 

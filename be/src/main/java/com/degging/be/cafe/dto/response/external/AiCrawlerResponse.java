@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import java.util.UUID;
  *   "missing_cafe_ids": [ "uuid1", "uuid2" ]
  * }
  */
+@Setter
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
