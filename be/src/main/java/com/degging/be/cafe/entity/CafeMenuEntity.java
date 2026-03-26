@@ -20,7 +20,7 @@ public class CafeMenuEntity {
 
     private Integer price;  // 금액
 
-    @Column(length = 255)
+    @Column(length = 500)
     private String menuDescription; // 메뉴 설명
 
     @ManyToOne(fetch = FetchType.LAZY)
