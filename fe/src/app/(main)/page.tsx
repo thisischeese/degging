@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import { RankingItem } from "@/features/ranks/types";
-import { pushGtmEvent, getAbGroup, setAbGroup } from "@/lib/abTest";
+import { pushGtmEvent, getAbGroup, setAbGroup, initAbGroupTracking } from "@/lib/abTest";
 import searchIcon from "@/assets/icons/searchIcon.png";
 import SurveyModal from "@/features/ranks/components/SurveyModal";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +19,9 @@ export default function MainPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // 페이지 진입 시 현재 할당된 AB 그룹 정보를 GTM/GA4에 다시 알립니다.
+    initAbGroupTracking();
+
     const startTime = Date.now();
     const timer = setTimeout(() => {
       // abGroup 상태를 여기서 세팅하던 로직은 activeGroup 변수로 대체되었습니다.
