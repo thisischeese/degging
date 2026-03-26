@@ -139,7 +139,7 @@ public class MemberService {
      */
     public List<String> getUserPreferred(UUID userId){
         // 회원 취향 태그 조회 (없을 경우 온보딩 미실행을 고려하여 null 값으로 초기화)
-        UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId)
+        UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId.toString())
                 .orElse(null);
         log.info("회원 취향 태그 DB 로드 결과: {}", onboardingData);
 

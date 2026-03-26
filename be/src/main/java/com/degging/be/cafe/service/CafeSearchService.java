@@ -164,16 +164,12 @@ public class CafeSearchService {
      * 유저의 특정 태그 점수를 1점 올림
      */
     public void incrementTagScore(String userId, String tagId) {
-        // 해당 유저의 문서를 찾기 위한 쿼리
-        Query query = new Query(Criteria.where("userId").is(userId));
+        // 필드명을 엔티티의 @Field 값인 "user_id"와 "preferred_tags"로 맞춰주세요.
+        Query query = new Query(Criteria.where("user_id").is(userId));
+        Update update = new Update().inc("preferred_tags." + tagId, 1);
 
-        // preferred_tags 맵 내부의 특정 tagId 키의 값을 1 증가시킴
-        // "preferred_tags.tagId" 경로를 동적으로 생성
-        Update update = new Update().inc("preferredTags." + tagId, 1);
-
-        // upsert: 문서가 없으면 생성(Insert), 있으면 업데이트(Update)
         mongoTemplate.upsert(query, update, UserOnboarding.class);
-
         log.info("[MongoDB] 취향 점수 반영 완료 - User: {}, Tag: {}", userId, tagId);
     }
+
 }
