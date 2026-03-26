@@ -161,7 +161,7 @@ public class MemberService {
      * MongoDB에서 상위 3개의 영구 취향 태그를 조회합니다.
      */
     private List<String> getPermanentPreferredTags(UUID userId) {
-        UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId)
+        UserOnboarding onboardingData = userOnboardingRepository.findByUserId(userId.toString())
                 .orElse(null);
         log.info("회원 취향 태그 DB 로드 결과: {}", onboardingData);
 

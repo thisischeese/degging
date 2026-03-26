@@ -9,15 +9,21 @@ import com.degging.be.cafe.repository.CafeRepository;
 import com.degging.be.cafe.repository.VibeRepository;
 import com.degging.be.global.event.KafkaProducer;
 import com.degging.be.global.event.SearchEvent;
+import com.degging.be.user.entity.mongodb.UserOnboarding;
+import com.degging.be.user.repository.mongodb.UserOnboardingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import org.springframework.data.mongodb.core.query.Query;
 import java.time.Duration;
 import java.util.*;
 
@@ -34,8 +40,10 @@ public class CafeSearchService {
     private final CafeRepository cafeRepository;
     private final VibeRepository vibeRepository;
     private final KafkaProducer kafkaProducer;
+    private final UserOnboardingRepository userOnboardingRepository;
 
     private final String TOPIC_NAME = "degging.cafe.search.events"; // kafka topic 명
+    private final MongoTemplate mongoTemplate;
 
     @Value("${ai.server.url}")
     private String aiServerUrl;
@@ -49,6 +57,14 @@ public class CafeSearchService {
         // request 속 mood 를 tag_name (자연어) -> tag_id (UUID) 로 맵핑
         List<UUID> tagIds = vibeRepository.findTagIdByTagNames(request.getMood());
         AiSearchRequest aiSearchRequest = AiSearchRequest.of(userId, request, tagIds);
+
+        // 검색된 분위기 태그를 유저 취향에 반영 (MongoDB)
+        for (int i = 0; i < tagIds.size(); i++){
+            // String 으로 변환해 MongoDB 에 넣어줌
+            String tagId = tagIds.get(i).toString();
+            String stringUserId = userId.toString();
+            incrementTagScore(stringUserId, tagId);
+        }
 
         // AI 서버 호출
         AiSearchResponse res = aiWebClient.post()
@@ -106,8 +122,6 @@ public class CafeSearchService {
 
         // 비동기로 추천 결과 캐싱  10분 저장
         saveRecommendCache(userId, items);
-
-        // TODO : 유저 취향 태그 반영
         return CafeSearchResponse.builder()
                 .cafes(items)
                 .build();
@@ -145,4 +159,17 @@ public class CafeSearchService {
             log.error("[Redis Error] 개인 로그 저장 실패. 유저: {}, 사유: {}", userId, e.getMessage());
         }
     }
+
+    /**
+     * 유저의 특정 태그 점수를 1점 올림
+     */
+    public void incrementTagScore(String userId, String tagId) {
+        // 필드명을 엔티티의 @Field 값인 "user_id"와 "preferred_tags"로 맞춰주세요.
+        Query query = new Query(Criteria.where("user_id").is(userId));
+        Update update = new Update().inc("preferred_tags." + tagId, 1);
+
+        mongoTemplate.upsert(query, update, UserOnboarding.class);
+        log.info("[MongoDB] 취향 점수 반영 완료 - User: {}, Tag: {}", userId, tagId);
+    }
+
 }
