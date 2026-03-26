@@ -680,6 +680,11 @@ async def resolve_gms_enrichment(
     review_texts: list[str],
     gms_client: GMSClient,
 ) -> tuple[str, list[str]]:
+    logger.info(
+        "Cafe crawling GMS start: intro_chars=%s review_texts=%s",
+        len(intro),
+        len(review_texts),
+    )
     summarized_intro = intro
     vibe_tag_ids = [DEFAULT_VIBE_TAG_ID]
 
@@ -694,6 +699,11 @@ async def resolve_gms_enrichment(
         elif vibe_task:
             vibe_tag_ids = await vibe_task
 
+    logger.info(
+        "Cafe crawling GMS complete: summarized_intro_chars=%s vibe_tag_count=%s",
+        len(summarized_intro),
+        len(vibe_tag_ids),
+    )
     return summarized_intro, vibe_tag_ids
 
 
@@ -702,14 +712,28 @@ async def upload_images_with_metrics(
     resources: CrawlRequestResources,
     photo_urls: list[str],
 ) -> tuple[str | None, list[dict[str, Any]]]:
+    logger.info(
+        "Cafe crawling image upload start: cafe_id=%s name=%s source_photo_count=%s",
+        seed.cafe_id,
+        seed.name,
+        len(photo_urls),
+    )
     with track_stage("images"):
-        return await upload_cafe_images(
+        thumbnail_url, cafe_images = await upload_cafe_images(
             seed,
             resources.s3_client,
             resources.http_client,
             photo_urls,
             max_concurrency=resources.image_concurrency,
         )
+    logger.info(
+        "Cafe crawling image upload complete: cafe_id=%s name=%s thumbnail_present=%s stored_image_count=%s",
+        seed.cafe_id,
+        seed.name,
+        bool(thumbnail_url),
+        len(cafe_images),
+    )
+    return thumbnail_url, cafe_images
 
 
 def assign_sequence_ids(items: list[dict[str, Any]]) -> list[CafeCrawlingMergedItem]:
@@ -739,6 +763,14 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
         ]
 
         review_texts = [review["review_text"] for review in review_metrics["reviews"] if review.get("review_text")]
+        logger.info(
+            "Cafe crawling gather setup: cafe_id=%s name=%s photo_urls=%s review_texts=%s intro_chars=%s",
+            seed.cafe_id,
+            seed.name,
+            len(crawl_result["photo_urls"]),
+            len(review_texts),
+            len(intro),
+        )
         image_task = asyncio.create_task(upload_images_with_metrics(seed, resources, crawl_result["photo_urls"]))
         gms_task = asyncio.create_task(
             resolve_gms_enrichment(
@@ -747,7 +779,25 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
                 gms_client=resources.gms_client,
             )
         )
+        logger.info(
+            "Cafe crawling gather waiting: cafe_id=%s name=%s image_task_done=%s gms_task_done=%s",
+            seed.cafe_id,
+            seed.name,
+            image_task.done(),
+            gms_task.done(),
+        )
         (thumbnail_url, cafe_images), (summarized_intro, vibe_tag_ids) = await asyncio.gather(image_task, gms_task)
+        logger.info(
+            "Cafe crawling gather complete: cafe_id=%s name=%s image_task_done=%s gms_task_done=%s thumbnail_present=%s image_count=%s summarized_intro_chars=%s vibe_tag_count=%s",
+            seed.cafe_id,
+            seed.name,
+            image_task.done(),
+            gms_task.done(),
+            bool(thumbnail_url),
+            len(cafe_images),
+            len(summarized_intro),
+            len(vibe_tag_ids),
+        )
 
         cafes = {
             "cafe_id": seed.cafe_id,
@@ -766,7 +816,18 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
         cafe_business_hours = {**business_hours}
         cafe_vibe_tags = [{"tag_id": tag_id} for tag_id in vibe_tag_ids]
 
-        return {
+        logger.info(
+            "Cafe crawling item assembled before return: cafe_id=%s name=%s thumbnail_present=%s image_count=%s menu_count=%s review_count=%s vibe_tag_count=%s",
+            seed.cafe_id,
+            seed.name,
+            bool(thumbnail_url),
+            len(cafe_images),
+            len(menus),
+            len(review_metrics["reviews"]),
+            len(cafe_vibe_tags),
+        )
+
+        result = {
             "cafe_id": seed.cafe_id,
             "cafes": cafes,
             "cafe_rating_stats": cafe_rating_stats,
@@ -776,6 +837,13 @@ async def crawl_single_cafe(seed: CafeSeed, resources: CrawlRequestResources) ->
             "cafe_vibe_tags": cafe_vibe_tags,
             "cafe_reviews": build_cafe_reviews(seed, review_metrics["reviews"]),
         }
+        logger.info(
+            "Cafe crawling item return payload: cafe_id=%s type=%s keys=%s",
+            seed.cafe_id,
+            type(result).__name__,
+            sorted(result.keys()),
+        )
+        return result
 
 
 async def _crawl_batch_item(
@@ -794,6 +862,14 @@ async def _crawl_batch_item(
             async with track_inflight("cafe"):
                 try:
                     crawled = await crawl_single_cafe(seed, resources)
+                    logger.info(
+                        "Cafe crawling item await returned: cafe_id=%s name=%s type=%s is_none=%s keys=%s",
+                        seed.cafe_id,
+                        seed.name,
+                        type(crawled).__name__ if crawled is not None else "NoneType",
+                        crawled is None,
+                        sorted(crawled.keys()) if isinstance(crawled, dict) else None,
+                    )
                 except CafeCrawlingItemError:
                     record_result(scope="item", status="item_failure")
                     logger.warning("Cafe crawling item missing: cafe_id=%s name=%s", seed.cafe_id, seed.name)
