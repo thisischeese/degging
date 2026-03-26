@@ -13,6 +13,7 @@ from tests.asgi_test_client import ASGITestClient
 CAFE_ID_1 = "c5383afd-48e0-48f1-863b-33ccd638b410"
 CAFE_ID_2 = "bd297883-2f0e-4f5d-bea0-813af23aacd9"
 MISSING_CAFE_ID = "11111111-1111-1111-1111-111111111111"
+FILTERED_CAFE_ID = "33333333-1111-1111-1111-111111111111"
 
 
 def build_item(cafe_id: str, name: str, review_count: int) -> dict:
@@ -76,7 +77,7 @@ class FakeCafeCrawlingService:
         items = []
         missing_cafe_ids = []
         for request_item in request_items:
-            if request_item.cafeId == MISSING_CAFE_ID:
+            if request_item.cafeId in {MISSING_CAFE_ID, FILTERED_CAFE_ID}:
                 missing_cafe_ids.append(request_item.cafeId)
                 continue
 
@@ -143,6 +144,23 @@ class CafeCrawlingAPITest(unittest.TestCase):
         self.assertEqual(payload["total"], 2)
         self.assertEqual(payload["missing_cafe_ids"], [MISSING_CAFE_ID])
         self.assertEqual([item["cafe_id"] for item in payload["items"]], [CAFE_ID_1, CAFE_ID_2])
+
+    def test_cafe_crawling_reports_category_filtered_ids_as_missing(self) -> None:
+        client = self.build_client()
+
+        response = client.post(
+            "/ai/cafes/crawling",
+            [
+                {"cafeId": FILTERED_CAFE_ID, "name": "\ud559\uc6d0 \uc608\uc2dc"},
+                {"cafeId": CAFE_ID_1, "name": "\ud14c\uc2a4\ud2b8\uce74\ud398"},
+            ],
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["missing_cafe_ids"], [FILTERED_CAFE_ID])
+        self.assertEqual([item["cafe_id"] for item in payload["items"]], [CAFE_ID_1])
 
     def test_cafe_crawling_rejects_non_array_body(self) -> None:
         client = self.build_client()

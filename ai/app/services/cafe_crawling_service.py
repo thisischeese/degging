@@ -105,6 +105,12 @@ PRICE_RE = re.compile(r"^[\d,]+(원)?$")
 REVIEWER_STATS_RE = re.compile(r"^리뷰\s+[\d,]+")
 QUOTE_KW_RE = re.compile(r'^"(.+)"$')
 KW_PLUS_RE = re.compile(r"^(.+?)\+(\d+)$")
+PLACE_CATEGORY_SPLIT_RE = re.compile(r"\s*(?:,|/|\||\u00b7)\s*")
+PLACE_CATEGORY_ALLOWED_KEYWORDS = (
+    "\uce74\ud398",
+    "\ub514\uc800\ud2b8",
+    "\ubca0\uc774\ucee4\ub9ac",
+)
 KNOWN_KEYWORDS = {
     "빵이 맛있어요",
     "커피가 맛있어요",
@@ -340,6 +346,38 @@ def parse_menu_text(menu_text: str) -> list[dict[str, Any]]:
     if pending_name:
         menus.append({"menu_name": pending_name, "price": None, "menu_description": pending_desc})
     return menus
+
+
+def normalize_place_category(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = re.sub(r"\s+", " ", str(value)).strip()
+    return normalized or None
+
+
+def tokenize_place_category(value: Any) -> list[str]:
+    normalized = normalize_place_category(value)
+    if normalized is None:
+        return []
+
+    tokens = [
+        re.sub(r"\s+", "", token)
+        for token in PLACE_CATEGORY_SPLIT_RE.split(normalized)
+        if token.strip()
+    ]
+    if tokens:
+        return tokens
+
+    compact = re.sub(r"\s+", "", normalized)
+    return [compact] if compact else []
+
+
+def is_allowed_place_category(value: Any) -> bool:
+    return any(
+        keyword in token
+        for token in tokenize_place_category(value)
+        for keyword in PLACE_CATEGORY_ALLOWED_KEYWORDS
+    )
 
 
 def parse_total_review_count(visitor_reviews: list[dict[str, Any]] | int | None) -> int:

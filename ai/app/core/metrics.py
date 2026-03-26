@@ -92,12 +92,11 @@ def track_stage(stage: str):
         elapsed = perf_counter() - started_at
         if _PROMETHEUS_ENABLED:
             _STAGE_SECONDS.labels(stage=stage).observe(elapsed)
-            return
-
-        key = ("cafe_crawling_stage_seconds", _label_key(stage=stage))
-        with _LOCK:
-            _HISTOGRAM_SUMS[key] += elapsed
-            _HISTOGRAM_COUNTS[key] += 1
+        else:
+            key = ("cafe_crawling_stage_seconds", _label_key(stage=stage))
+            with _LOCK:
+                _HISTOGRAM_SUMS[key] += elapsed
+                _HISTOGRAM_COUNTS[key] += 1
 
 
 @asynccontextmanager

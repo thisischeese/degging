@@ -56,7 +56,9 @@ from app.services.cafe_crawling_service import (
     extract_review_card_payloads as base_extract_review_card_payloads,
     extract_json_object,
     is_allowed_image_url,
+    is_allowed_place_category,
     normalize_request_item,
+    normalize_place_category,
     parse_business_hours,
     parse_intro,
     parse_menu_text,
@@ -645,6 +647,51 @@ async def fetch_tab_text(
     return (await page.evaluate("() => document.body.innerText")).strip()
 
 
+async def extract_place_category(page: Page) -> str | None:
+    category = await page.evaluate(
+        """
+        () => {
+            const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+            const direct = normalize(document.querySelector('span.lnJFt')?.textContent || '');
+            if (direct) {
+                return direct;
+            }
+
+            const header = document.querySelector('.place_section.no_margin.OP4V8 .LylZZ, .place_section.no_margin .LylZZ, .LylZZ');
+            if (!header) {
+                return '';
+            }
+
+            const name = normalize(header.querySelector('span.GHAhO')?.textContent || '');
+            const spanCandidates = Array.from(header.querySelectorAll('span'))
+                .map((element) => normalize(element.textContent || ''))
+                .filter(Boolean);
+            for (const candidate of spanCandidates) {
+                if (!candidate || candidate === name || candidate === '\\uc54c\\ub9bc\\ubc1b\\uae30') {
+                    continue;
+                }
+                return candidate;
+            }
+
+            let tail = normalize(header.textContent || '');
+            if (name && tail.startsWith(name)) {
+                tail = tail.slice(name.length).trim();
+            }
+
+            for (const stopToken of ['\\uc54c\\ub9bc\\ubc1b\\uae30', '\\ubc29\\ubb38\\uc790 \\ub9ac\\ubdf0', '\\ube14\\ub85c\\uadf8 \\ub9ac\\ubdf0']) {
+                const stopIndex = tail.indexOf(stopToken);
+                if (stopIndex !== -1) {
+                    tail = tail.slice(0, stopIndex).trim();
+                }
+            }
+
+            return tail;
+        }
+        """
+    )
+    return normalize_place_category(category)
+
+
 def normalize_compact_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
@@ -944,10 +991,11 @@ async def fetch_place_tabs(
     menu_cards: list[MenuCardPayload] = []
     photo_urls: list[str] = []
     visitor_reviews: list[dict[str, Any]] = []
+    place_category: str | None = None
     tab_semaphore = asyncio.Semaphore(tab_concurrency)
 
     async def fetch_single_tab(tab_name: str, slug: str) -> None:
-        nonlocal menu_cards, photo_urls, visitor_reviews
+        nonlocal menu_cards, photo_urls, visitor_reviews, place_category
         async with tab_semaphore:
             async with track_inflight("tab"):
                 page = await open_tracked_page(context)
@@ -967,14 +1015,17 @@ async def fetch_place_tabs(
                             scroll_steps=TAB_SCROLL_STEPS.get(slug, 0),
                             ready_selectors=TAB_READY_SELECTORS.get(slug, ("body",)),
                         )
+                    if place_category is None:
+                        place_category = await extract_place_category(page)
                     logger.info(
-                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s menu_cards=%s photo_urls=%s visitor_reviews=%s",
+                        "Fetched tab: cafe_id=%s tab=%s text_chars=%s menu_cards=%s photo_urls=%s visitor_reviews=%s place_category=%s",
                         seed.cafe_id,
                         tab_name,
                         len(texts[tab_name]),
                         len(menu_cards),
                         len(photo_urls),
                         len(visitor_reviews),
+                        place_category,
                     )
                 finally:
                     await close_tracked_page(
@@ -993,6 +1044,7 @@ async def fetch_place_tabs(
         "menu_cards": menu_cards,
         "photo_urls": photo_urls,
         "visitor_reviews": visitor_reviews,
+        "place_category": place_category,
         "place_base_url": place_base_url,
     }
 
@@ -1303,6 +1355,20 @@ async def crawl_single_cafe(
 ) -> dict[str, Any]:
     with track_stage("total"):
         crawl_result = await crawl_place(seed, resources, worker_state)
+        place_category = normalize_place_category(crawl_result.get("place_category"))
+        if not is_allowed_place_category(place_category):
+            reason = "missing_place_category" if place_category is None else "filtered_place_category"
+            logger.info(
+                "Cafe crawling item skipped by place category: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s place_category=%s reason=%s",
+                seed.cafe_id,
+                seed.name,
+                worker_state.worker_id,
+                worker_state.browser_generation,
+                _current_browser_cafe_index(worker_state),
+                place_category,
+                reason,
+            )
+            raise CafeCrawlingItemError(f"Unsupported place category for cafe_id={seed.cafe_id}")
         texts = crawl_result["texts"]
 
         home_text = texts[tab_name_for_slug("home")]

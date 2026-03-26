@@ -272,6 +272,15 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             "https://ldb-phinf.pstatic.net/20230609_48/1686312191624n1UuV_JPEG/%BE%C6%B8%DE%B8%AE%C4%AB%B3%EB.jpg",
         )
 
+    async def test_extract_place_category_normalizes_page_result(self) -> None:
+        page = AsyncMock()
+        page.evaluate = AsyncMock(return_value="  \uce74\ud398,\ub514\uc800\ud2b8  ")
+
+        category = await cafe_crawling_runtime.extract_place_category(page)
+
+        self.assertEqual(category, "\uce74\ud398,\ub514\uc800\ud2b8")
+        page.evaluate.assert_awaited_once()
+
     def test_build_menus_with_image_candidates_matches_exact_names_fifo(self) -> None:
         menu_cards = [
             cafe_crawling_runtime.MenuCardPayload(
@@ -326,6 +335,61 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(menus), 1)
         self.assertEqual(menus[0]["menu_name"], "Signature Latte")
         self.assertEqual(menus[0][cafe_crawling_runtime.MENU_IMAGE_SOURCE_FIELD], "https://ldb-phinf.pstatic.net/20250325_1/signature.jpg")
+
+    async def test_fetch_place_tabs_includes_extracted_place_category(self) -> None:
+        seed = build_seed(CAFE_ID_1)
+        page = AsyncMock()
+        close_tracked_page = AsyncMock()
+        worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
+
+        with (
+            patch.object(cafe_crawling_runtime, "open_tracked_page", AsyncMock(return_value=page)),
+            patch.object(cafe_crawling_runtime, "close_tracked_page", close_tracked_page),
+            patch.object(cafe_crawling_runtime, "configure_page", AsyncMock()),
+            patch.object(cafe_crawling_runtime, "fetch_review_tab_data", AsyncMock(return_value=("review text", []))),
+            patch.object(cafe_crawling_runtime, "fetch_menu_tab_data", AsyncMock(return_value=("menu text", []))),
+            patch.object(cafe_crawling_runtime, "fetch_photo_tab_data", AsyncMock(return_value=("photo text", []))),
+            patch.object(cafe_crawling_runtime, "fetch_tab_text", AsyncMock(return_value="tab text")),
+            patch.object(cafe_crawling_runtime, "extract_place_category", AsyncMock(return_value="\uce74\ud398")),
+        ):
+            result = await cafe_crawling_runtime.fetch_place_tabs(
+                seed,
+                SimpleNamespace(),
+                "https://example.com/place",
+                tab_concurrency=2,
+                worker_state=worker_state,
+            )
+
+        self.assertEqual(result["place_category"], "\uce74\ud398")
+        self.assertEqual(result["texts"][cafe_crawling_runtime.tab_name_for_slug("menu")], "menu text")
+        self.assertEqual(close_tracked_page.await_count, len(cafe_crawling_runtime.TAB_CONFIG))
+
+    async def test_crawl_single_cafe_skips_disallowed_place_category_before_side_effects(self) -> None:
+        seed = build_seed(CAFE_ID_1)
+        resources = SimpleNamespace(
+            http_client=AsyncMock(),
+            gms_client=AsyncMock(),
+            s3_client=AsyncMock(),
+            tab_concurrency=2,
+            image_concurrency=3,
+        )
+        worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
+        upload_images = AsyncMock()
+        upload_menu_images = AsyncMock()
+        resolve_gms = AsyncMock()
+
+        with (
+            patch.object(cafe_crawling_runtime, "crawl_place", AsyncMock(return_value={"place_category": "\ud559\uc6d0"})),
+            patch.object(cafe_crawling_runtime, "upload_images_with_metrics", upload_images),
+            patch.object(cafe_crawling_runtime, "upload_menu_images_with_metrics", upload_menu_images),
+            patch.object(cafe_crawling_runtime, "resolve_gms_enrichment", resolve_gms),
+        ):
+            with self.assertRaises(CafeCrawlingItemError):
+                await cafe_crawling_runtime.crawl_single_cafe(seed, resources, worker_state)
+
+        upload_images.assert_not_awaited()
+        upload_menu_images.assert_not_awaited()
+        resolve_gms.assert_not_awaited()
 
     async def test_crawl_cafes_batch_preserves_order_when_tasks_finish_out_of_order(self) -> None:
         request_items = [

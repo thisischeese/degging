@@ -13,10 +13,13 @@ from app.services.cafe_crawling_service import (
     RuntimeSettings,
     SequenceState,
     build_cafe_reviews,
+    is_allowed_place_category,
+    normalize_place_category,
     parse_review_metrics,
     parse_structured_visitor_reviews,
     parse_total_review_count,
     resolve_runtime_settings,
+    tokenize_place_category,
     upload_cafe_images,
 )
 
@@ -244,3 +247,47 @@ class CafeCrawlingReviewMetricsTest(unittest.TestCase):
 
         self.assertEqual(len(cafe_reviews), 1)
         self.assertEqual(cafe_reviews[0]["rating"], 3)
+
+
+class CafeCrawlingPlaceCategoryTest(unittest.TestCase):
+    def test_normalize_place_category_compacts_whitespace(self) -> None:
+        self.assertEqual(
+            normalize_place_category("  \uce74\ud398   /   \ub514\uc800\ud2b8  "),
+            "\uce74\ud398 / \ub514\uc800\ud2b8",
+        )
+        self.assertIsNone(normalize_place_category("   "))
+
+    def test_tokenize_place_category_splits_common_delimiters(self) -> None:
+        self.assertEqual(
+            tokenize_place_category("\uce74\ud398 / \ub514\uc800\ud2b8 \u00b7 \ubca0\uc774\ucee4\ub9ac"),
+            ["\uce74\ud398", "\ub514\uc800\ud2b8", "\ubca0\uc774\ucee4\ub9ac"],
+        )
+
+    def test_is_allowed_place_category_accepts_configured_keywords_and_compounds(self) -> None:
+        allowed_categories = [
+            "\uce74\ud398",
+            "\uce74\ud398,\ub514\uc800\ud2b8",
+            "\ub514\uc800\ud2b8",
+            "\ubca0\uc774\ucee4\ub9ac",
+            "\ub514\uc800\ud2b8\uce74\ud398",
+            "\ubca0\uc774\ucee4\ub9ac\uce74\ud398",
+            "\uc2a4\ud130\ub514\uce74\ud398",
+        ]
+
+        for category in allowed_categories:
+            with self.subTest(category=category):
+                self.assertTrue(is_allowed_place_category(category))
+
+    def test_is_allowed_place_category_rejects_non_cafe_categories(self) -> None:
+        rejected_categories = [
+            None,
+            "",
+            "   ",
+            "\ud559\uc6d0",
+            "\uad50\uc2b5\uc18c",
+            "\uc0ac\uc9c4\uad00",
+        ]
+
+        for category in rejected_categories:
+            with self.subTest(category=category):
+                self.assertFalse(is_allowed_place_category(category))
