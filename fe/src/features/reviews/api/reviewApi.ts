@@ -193,10 +193,35 @@ export const postCafeReview = async (
 };
 
 // 리뷰 상세 데이터를 조회하는 함수입니다.
+/* 기존 코드 보존:
 export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailResponse> => {
   const response = (await axios_instance.get<BaseResponse<ReviewDetailResponse>>(
     `/api/reviews/${reviewId}`
   )) as unknown as BaseResponse<ReviewDetailResponse>;
 
   return response.data;
+};
+*/
+
+export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailResponse> => {
+  const response = (await axios_instance.get<BaseResponse<ReviewDetailResponse>>(
+    `/api/reviews/${reviewId}`
+  )) as unknown as BaseResponse<ReviewDetailResponse>;
+
+  const data = response.data;
+  
+  // [수정] 현재 API 응답에 BaseURL이 없으므로, 모든 imageUrls 요소 앞에 CloudFront 주소를 결합하여 매칭되도록 처리합니다.
+  if (data && Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
+    const baseUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '';
+    data.imageUrls = data.imageUrls.map((url) => {
+      // 혹시라도 이미 'http'나 '/'로 시작하는 로컬 경로, Blob 등이라면 원본 반환
+      if (url.startsWith('http') || url.startsWith('/')) {
+        return url;
+      }
+      // baseURL 뒤에 / 를 붙이고 이미지를 매칭시킴
+      return `${baseUrl}/${url}`;
+    });
+  }
+
+  return data;
 };
