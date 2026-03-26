@@ -291,7 +291,7 @@ export default function ScrapsPage() {
     }, []);
 
     // 모든 스크랩 썸네일 모아서 표시
-    const allThumbnails = categories.flatMap((cat) => cat.thumbnailUrl || []);
+    const allThumbnails = categories.flatMap((cat) => cat.thumbnailUrls || []);
 
     // 카테고리 생성
     const handleAddCategory = async (name: string, color: StarColor) => {
@@ -433,7 +433,7 @@ export default function ScrapsPage() {
                             className={`flex flex-col items-center gap-2 cursor-pointer transition-opacity ${mode === 'default' ? 'active:opacity-80' : ''}`}
                         >
                             <div className="relative w-full">
-                                <ThumbnailGrid thumbnails={category.thumbnailUrl} />
+                                <ThumbnailGrid thumbnails={category.thumbnailUrls} />
                                 {/* 별 아이콘 (우측 상단) */}
                                 <div className="absolute top-2 right-2">
                                     {category.color && (
