@@ -26,7 +26,6 @@ export const getAbGroup = (): 'A' | 'B' | null => {
 
 /**
  * 백엔드에서 받은 A/B 그룹 정보를 프론트엔드 저장소와 동기화합니다.
- * 값이 다를 경우에만 GTM으로 이벤트를 다시 전송하여 정확도를 높입니다.
  * @param group 'A' | 'B'
  */
 export const setAbGroup = (group: 'A' | 'B') => {
@@ -37,8 +36,25 @@ export const setAbGroup = (group: 'A' | 'B') => {
 
   if (currentGroup !== group) {
     localStorage.setItem(STORAGE_KEY, group);
-    // 그룹이 변경되었을 때만 새롭게 이벤트 전송
+    // 그룹이 처음 배정되거나 변경되었을 때 이벤트 전송
     pushGtmEvent('ab_group_assigned', { ab_group: group });
+  } else {
+    // 이미 같은 그룹이면 '배정' 이벤트는 안 보내지만, 
+    // GA4 세션에 다시 각인시키기 위해 단순 정보성 이벤트만 전송 (선택 사항)
+    pushGtmEvent('ab_group_session_init', { ab_group: group });
+  }
+};
+
+/**
+ * 페이지 로드 시 현재 로컬에 저장된 A/B 그룹 정보를 GA4에 다시 알립니다.
+ * 이를 통해 실시간 리포트에서 돌아온 사용자의 그룹을 항상 확인할 수 있습니다.
+ */
+export const initAbGroupTracking = () => {
+  if (typeof window === 'undefined') return;
+  
+  const group = getAbGroup();
+  if (group) {
+    pushGtmEvent('ab_group_session_init', { ab_group: group });
   }
 };
 
