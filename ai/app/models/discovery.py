@@ -1,16 +1,32 @@
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class DiscoveryRequest(BaseModel):
-    user_id: UUID = Field(..., description="사용자 UUID")
-
-
-class DiscoveryResponse(BaseModel):
-    user_id: UUID
-    cafe_ids: list[UUID] = Field(
-        ...,
-        description="취향 유사도 순으로 정렬된 카페 UUID 목록 (최대 100개)",
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "user_id": "123e4567-e89b-12d3-a456-426614174000",
+            }
+        },
     )
-    total: int = Field(..., description="반환된 카페 수")
+
+    user_id: UUID = Field(..., description="User UUID")
+
+
+class DiscoveryResponse(RootModel[dict[str, int]]):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "123e4567-e89b-12d3-a456-426614174001": 1,
+                "123e4567-e89b-12d3-a456-426614174002": 2,
+            }
+        }
+    )
+
+    root: dict[str, int] = Field(
+        default_factory=dict,
+        description="Recommended cafe UUID to rank mapping",
+    )
