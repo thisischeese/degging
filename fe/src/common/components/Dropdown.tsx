@@ -40,6 +40,7 @@ export const Dropdown = ({ options, value, onChange, className = '', triggerNode
                     {triggerNode}
                 </div>
             ) : (
+                /* 기존 코드 주석 (너비 가변 문제 해결 위해 수정)
                 <button
                     type="button"
                     onClick={() => setIsOpen(!isOpen)}
@@ -48,6 +49,19 @@ export const Dropdown = ({ options, value, onChange, className = '', triggerNode
                     {selectedOption.label}
                     <ChevronDown
                         className={`w-4 h-4 text-gray-900 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                        strokeWidth={2.5}
+                    />
+                </button>
+                */
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(!isOpen)}
+                    // [수정] 내부 텍스트 길이에 관계없이 레이아웃이 유지되도록 최소 너비와 justify-between 선언
+                    className="flex items-center justify-between w-full min-w-[110px] gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-medium text-gray-900 active:bg-gray-50 transition-colors shrink-0"
+                >
+                    <span className="text-left flex-1">{selectedOption.label}</span>
+                    <ChevronDown
+                        className={`w-4 h-4 text-gray-900 transition-transform ${isOpen ? 'rotate-180' : ''} shrink-0`}
                         strokeWidth={2.5}
                     />
                 </button>

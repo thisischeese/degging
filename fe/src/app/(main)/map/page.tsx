@@ -215,7 +215,14 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
   // 0. 초기 진입 시 자동 현 위치 추적
   useEffect(() => {
+    /* 기존 코드:
     setTracking(true);
+    */
+    // [수정] 지도 시점 유지가 필요한 경우 (세션에 좌표가 있는 경우), 우선 권한으로 현 위치 추적(오버라이드)을 방지
+    const savedLat = sessionStorage.getItem('mapCenterLat');
+    if (!savedLat) {
+      setTracking(true);
+    }
   }, [setTracking]);
 
   // 2. 지도 초기화 useEffect
@@ -257,7 +264,13 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
           mapDebounceTimer = setTimeout(() => {
             if (!mapInstance.current) return;
             const center = mapInstance.current.getCenter();
-            setMapCenter({ lat: center.getLat(), lng: center.getLng() });
+            const lat = center.getLat();
+            const lng = center.getLng();
+            setMapCenter({ lat, lng });
+
+            // [추가] 지도 시점(위치) 유지 (세션 스토리지 저장)
+            sessionStorage.setItem('mapCenterLat', String(lat));
+            sessionStorage.setItem('mapCenterLng', String(lng));
           }, 300); // 300ms 디바운스
         };
 
@@ -425,11 +438,17 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
           // 1. 지도 시점 이동
           if (mapInstance.current) {
-            mapInstance.current.setCenter(newCenter);
+            // 기존 코드: mapInstance.current.setCenter(newCenter);
+            // [수정] 회색 화면 발생 등 갑작스런 렌더링을 피하고 위치이동 UX 보강을 위해 panTo 사용 
+            mapInstance.current.panTo(newCenter);
           }
 
           // 2. 핵심: API 재호출(마커 & 바텀시트)을 위한 상태 갱신
           setMapCenter({ lat, lng });
+
+          // [추가] 내 위치 이동 시에도 세션 스토리지 위치 최신화
+          sessionStorage.setItem('mapCenterLat', String(lat));
+          sessionStorage.setItem('mapCenterLng', String(lng));
           
           // 3. 전역 사용자 위치 상태 업데이트
           setUserLocation({ lat, lng });
@@ -637,7 +656,22 @@ export default function MapPage() {
 
   // [최적화] 위치 정보를 기다리지 않고 즉시 기본 좌표로 지도 렌더링 (Non-blocking Location)
   // 이후 MapContent 컴포넌트 내부에서 위치 추적(watchPosition)을 통해 현재 위치로 자동 panTo 이동함.
+  /* 기존 코드 주석 (단일 기본값 고정)
   const [initialCenter] = useState({ lat: 37.5665, lng: 126.978 });
+  */
+  
+  // [수정] 카페 상세 페이지에서 돌아왔을 때의 지도 시점 유지 (State Persistence)
+  const [initialCenter] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedLat = sessionStorage.getItem('mapCenterLat');
+      const savedLng = sessionStorage.getItem('mapCenterLng');
+      if (savedLat && savedLng) {
+        return { lat: Number(savedLat), lng: Number(savedLng) };
+      }
+    }
+    // 기본 좌표 복구 (저장된 값 없을 때)
+    return { lat: 37.5665, lng: 126.978 };
+  });
 
   return (
     <Suspense fallback={<MapSkeleton />}>
