@@ -11,6 +11,7 @@ import { Input } from '@/common/components/Input';
 import { StarColor, ScrapList } from '@/features/scraps/types';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { getCafeDetail } from '@/features/cafes/api/cafeApi';
+import { getScraps, postCreateScrap, postScrapCafe } from '@/features/scraps/api/scrapApi';
 import { Chip } from '@/common/components/Chip';
 
 
@@ -295,27 +296,44 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  const handleScrapSave = (selectedIds: string[]) => {
+  // 카페 상세 진입 시 또는 모달 열 시 카테고리 로딩
+  useEffect(() => {
+    if (isScrapOpen && scrapCategories.length === 0) {
+      getScraps().then(data => {
+        setScrapCategories(data.filter(c => c.scrapId !== null));
+      }).catch(err => console.error('스크랩 카테고리 로드 실패', err));
+    }
+  }, [isScrapOpen, scrapCategories.length]);
+
+  const handleScrapSave = async (selectedIds: string[]) => {
     setSavedCategoryIds(selectedIds);
     if (selectedIds.length > 0) {
-      setIsScrapped(true);
-      setShowSavedToast(true);
-      setTimeout(() => setShowSavedToast(false), 3000);
+      try {
+        await Promise.all(selectedIds.map(id => postScrapCafe(id, cafeid)));
+        setIsScrapped(true);
+        
+        // Update color
+        const firstCat = scrapCategories.find(c => c.scrapId === selectedIds[0]);
+        if (firstCat && firstCat.color) setScrapColor(firstCat.color);
+        
+        setShowSavedToast(true);
+        setTimeout(() => setShowSavedToast(false), 3000);
+      } catch (err) {
+        console.error('스크랩 저장 실패', err);
+      }
     } else {
       setIsScrapped(false);
     }
-    console.log('Saved to categories:', selectedIds);
   };
 
-  const handleCreateCategory = (name: string, color: StarColor) => {
-    const newCat: ScrapList = {
-      scrapId: String(Date.now()),
-      name,
-      color,
-      thumbnailUrl: [],
-    };
-    setScrapCategories((prev) => [...prev, newCat]);
-    // Optionally automatically select the newly created category if needed later
+  const handleCreateCategory = async (name: string, color: StarColor) => {
+    try {
+      await postCreateScrap({ name, color });
+      const updated = await getScraps();
+      setScrapCategories(updated.filter(c => c.scrapId !== null));
+    } catch (err) {
+      console.error('카테고리 생성 실패', err);
+    }
   };
 
 
@@ -371,8 +389,22 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
               }
             }}
           >
+            {/* 
             <Image
               src={cafe.images?.[currentIndex] || "/images/cafe/cafe1.png"}
+              alt={`${cafe.name} 이미지 ${currentIndex + 1}`}
+              fill
+              className="object-cover pointer-events-none"
+              draggable={false}
+              priority={currentIndex === 0}
+            />
+            */}
+            <Image
+              src={
+                cafe.images && cafe.images.length > 0
+                  ? `${process.env.NEXT_PUBLIC_CLOUDFRONT_URL}/${cafe.images[currentIndex]}`
+                  : "/images/cafe/cafe1.png"
+              }
               alt={`${cafe.name} 이미지 ${currentIndex + 1}`}
               fill
               className="object-cover pointer-events-none"
@@ -416,7 +448,8 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
         {/* 하단 그라데이션 및 정보 오버레이 */}
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end px-5 pb-8 text-white z-10 pointer-events-none">
           <h1 className="text-[24px] font-semibold mb-2">{cafe.name}</h1>
-          <p className="text-[14px] text-gray-200 leading-snug w-[90%] mb-2 opacity-80">{cafe.description || "등록된 카페 소개가 없습니다."}</p>
+          {/* <p className="text-[14px] text-gray-200 leading-snug w-[90%] mb-2 opacity-80">{cafe.description || "등록된 카페 소개가 없습니다."}</p> */}
+          <p className="text-[14px] text-gray-200 leading-snug w-[90%] mb-2 opacity-80">{cafe.cafeIntro || "등록된 카페 소개가 없습니다."}</p>
           {/* 바이브 태그 렌더링 */}
           <div className="flex gap-2 flex-wrap">
             {cafe.vibeTags?.map((tag, i) => (
@@ -480,12 +513,27 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
               cafe.menus.map((menu, idx) => (
                 <div key={idx} className="flex gap-4 p-1 -m-1 rounded-xl">
                   {/* API에 메뉴 이미지가 없으므로 이미지 렌더링 부분 생략 혹은 플레이스홀더 */}
+                  {/* 
                   <div className="w-24 h-24 relative shrink-0 bg-gray-100 rounded-xl flex items-center justify-center">
                     <span className="text-xs text-gray-400">No Image</span>
                   </div>
+                  */}
+                  <div className="w-24 h-24 relative shrink-0 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+                    <img 
+                      src={menu.image || '/images/common/logo.png'} 
+                      alt={menu.menuName || menu.name || '메뉴 이미지'} 
+                      className={`w-full h-full ${menu.image ? 'object-cover' : 'object-contain p-4'}`}
+                    />
+                  </div>
                   <div className="flex flex-col justify-center">
-                    <h3 className="text-[16px] font-bold text-gray-900 mb-1.5">{menu.name}</h3>
-                    <p className="text-[15px] font-medium text-gray-900">{typeof menu.price === 'number' ? `${menu.price.toLocaleString()}원` : menu.price}</p>
+                    {/* <h3 className="text-[16px] font-bold text-gray-900 mb-1.5">{menu.name}</h3> */}
+                    <h3 className="text-[16px] font-bold text-gray-900 mb-1.5">{menu.menuName || menu.name}</h3>
+                    {/* <p className="text-[15px] font-medium text-gray-900">{typeof menu.price === 'number' ? \`\${menu.price.toLocaleString()}원\` : menu.price}</p> */}
+                    <p className="text-[15px] font-medium text-gray-900">
+                      {typeof menu.price === 'number' 
+                        ? `${menu.price.toLocaleString()}원` 
+                        : (menu.price || '가격 변동')}
+                    </p>
                   </div>
                 </div>
               ))

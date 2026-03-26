@@ -31,7 +31,7 @@ export default function SurveyModal({
 
   const handleEventClick = () => {
     pushGtmEvent("survey_event_click", { ab_group: abGroup });
-    window.open("https://forms.gle/PLACEHOLDER", "_blank");
+    window.open("https://forms.gle/bKqRVpekLST6riP66", "_blank");
   };
 
   const ratingOptions = [0, 25, 50, 75, 100];

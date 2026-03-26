@@ -5,14 +5,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/common/components/Input";
 import { RankingItem } from "@/features/ranks/types";
-import { pushGtmEvent, getAbGroup } from "@/lib/abTest";
+import { pushGtmEvent, getAbGroup, setAbGroup, initAbGroupTracking } from "@/lib/abTest";
 import searchIcon from "@/assets/icons/searchIcon.png";
 import SurveyModal from "@/features/ranks/components/SurveyModal";
 import { useQuery } from "@tanstack/react-query";
 import { getRealTimeRankings } from "@/features/ranks/api/rankingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
-import { getAbTestJoin } from "@/features/users/api/userApi";
-import { setAbGroup as syncAbGroupWithBackend } from "@/lib/abTest";
+import { getUserInfo } from "@/features/users/api/userApi";
 
 export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,6 +19,9 @@ export default function MainPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // 페이지 진입 시 현재 할당된 AB 그룹 정보를 GTM/GA4에 다시 알립니다.
+    initAbGroupTracking();
+
     const startTime = Date.now();
     const timer = setTimeout(() => {
       // abGroup 상태를 여기서 세팅하던 로직은 activeGroup 변수로 대체되었습니다.
@@ -33,21 +35,35 @@ export default function MainPage() {
     };
   }, []);
 
-  // 백엔드 A/B 테스트 배정 정보 동기화
-  const { data: abSyncData } = useQuery({
-    queryKey: ["ab-test", "sync"],
-    queryFn: getAbTestJoin,
-    staleTime: Infinity, // 앱 세션 동안 한 번만 동기화
+  const [activeGroup, setActiveGroup] = useState<'A' | 'B' | null>(null);
+
+  // 1. 초기 렌더링 시 로컬스토리지 값 사용 (깜빡임 최소화)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setActiveGroup(getAbGroup());
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 2. 백엔드 사용자 정보 조회 (DB에 저장된 abGroup 가져오기)
+  const { data: profileData } = useQuery({
+    queryKey: ["user", "me"],
+    queryFn: getUserInfo,
+    ...QUERY_OPTIONS.SENSITIVE,
   });
 
-  // 현재 활성 그룹 결정 (백엔드 응답 우선 -> 로컬 스토리지 -> 랜덤)
-  const activeGroup = abSyncData?.data?.group || getAbGroup();
-
+  // 3. 백엔드 응답이 오면 DB 값으로 로컬스토리지 덮어쓰기 및 화면 동기화
   useEffect(() => {
-    if (abSyncData?.data?.group) {
-      syncAbGroupWithBackend(abSyncData.data.group);
+    if (profileData?.data?.abGroup) {
+      const dbGroup = profileData.data.abGroup;
+      setAbGroup(dbGroup);
+      
+      const timer = setTimeout(() => {
+        setActiveGroup(dbGroup);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [abSyncData]);
+  }, [profileData]);
 
   // PC 환경 마우스 드래그 스크롤을 위한 상태
 

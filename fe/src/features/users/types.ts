@@ -42,6 +42,7 @@ export interface UserProfile {
   preferredTags: string[];
   birthDate?: string;
   gender?: string;
+  abGroup?: 'A' | 'B'; // 백엔드 DB에 저장된 A/B 테스트 그룹
 }
 
 /** 비밀번호 찾기 요청 데이터 */

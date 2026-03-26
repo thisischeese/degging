@@ -16,15 +16,15 @@ export const getMyReviews = async (page: number = 0, size: number = 5): Promise<
 };
 
 /** 3. 사용자 정보 수정 (닉네임, 프로필 이미지) */
-export const patchUsers = async (data: { nickname?: string; profileImageUrl?: string; profileImage?: File }): Promise<BaseResponse<UserProfile>> => {
+export const patchUsers = async (data: { nickname: string; profileImage?: File | null; defaultImage: boolean }): Promise<BaseResponse<UserProfile>> => {
     const formData = new FormData();
-    if (data.nickname) formData.append('nickname', data.nickname);
+    formData.append('nickname', data.nickname);
     
     if (data.profileImage) {
         formData.append('profileImage', data.profileImage);
-    } else if (data.profileImageUrl) {
-        formData.append('profileImageUrl', data.profileImageUrl);
     }
+    
+    formData.append('defaultImage', String(data.defaultImage));
 
     return axios_instance.patch<BaseResponse<UserProfile>>('/api/users', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -39,11 +39,6 @@ export const patchPasswordReset = async (data: ResetPasswordData): Promise<BaseR
 /** 5. 사용자 정보 삭제 (탈퇴) */
 export const deleteUsers = async (): Promise<BaseResponse<null>> => {
     return axios_instance.delete<BaseResponse<null>>('/api/users') as unknown as Promise<BaseResponse<null>>;
-};
-
-/** 6. A/B 테스트 배정 정보 조회 */
-export const getAbTestJoin = async (): Promise<BaseResponse<{ group: 'A' | 'B' }>> => {
-    return axios_instance.get<BaseResponse<{ group: 'A' | 'B' }>>('/api/ab-tests/join') as unknown as Promise<BaseResponse<{ group: 'A' | 'B' }>>;
 };
 
 /** 7. 비밀번호 찾기 (임시 비밀번호 이메일 발송) */

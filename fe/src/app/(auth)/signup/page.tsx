@@ -147,7 +147,7 @@ export default function SignupPage() {
             transition={{ duration: 0.3 }}
             className="flex-1 min-h-0 flex flex-col"
           >
-            {step === 1 && <StepEmail next={nextStep} updateData={updateFormData} formData={formData} />}
+            {step === 1 && <StepEmail next={nextStep} updateData={updateFormData} formData={formData} onAlert={showAlert} />}
             {step === 2 && <StepPassword next={nextStep} updateData={updateFormData} formData={formData} />}
             {step === 3 && <StepNickname next={nextStep} updateData={updateFormData} formData={formData} />}
             {step === 4 && <StepTrend next={nextStep} updateData={updateFormData} formData={formData} />}

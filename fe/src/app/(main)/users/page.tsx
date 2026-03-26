@@ -15,6 +15,7 @@ import { getUserInfo, getMyReviews, patchUsers, patchPasswordReset, deleteUsers 
 import { postLogout } from "@/features/auth/api/loginApi";
 import { AxiosError } from "axios";
 import { BaseResponse } from "@/features/auth/types";
+import { getImageUrl } from "@/common/utils/image";
 
 import gearWheelIcon from "@/assets/icons/gearWheelIcon.png";
 
@@ -45,15 +46,18 @@ function ProfileEditModal({
   const queryClient = useQueryClient();
   const [nickname, setNickname] = useState(profile.nickname);
   const [nicknameError, setNicknameError] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(profile.profileImageUrl || DEFAULT_PROFILE_IMAGE);
+  const initialPreviewUrl = profile.profileImageUrl ? getImageUrl(profile.profileImageUrl) : DEFAULT_PROFILE_IMAGE;
+  const [previewUrl, setPreviewUrl] = useState<string>(initialPreviewUrl);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateMutation = useMutation({
     mutationFn: patchUsers,
     onSuccess: (res) => {
-      if (res.code === 200) {
+      // 서버 응답이 문자열 "200" 또는 숫자 200으로 올 수 있으므로 모두 처리함
+      if (res.code === 200 || res.code === "200") {
         queryClient.invalidateQueries({ queryKey: ["user", "me"] });
+        onAlert("수정 완료", "회원 정보가 성공적으로 수정되었습니다.");
         onClose();
       } else {
         onAlert("수정 실패", res.message || "정보 수정에 실패했습니다.");
@@ -100,10 +104,13 @@ function ProfileEditModal({
 
   const handleSave = () => {
     if (!validateNickname(nickname)) return;
+    
+    const isDefaultImage = previewUrl === DEFAULT_PROFILE_IMAGE;
+
     updateMutation.mutate({
       nickname,
-      profileImage: selectedFile || undefined,
-      profileImageUrl: !selectedFile ? (previewUrl || undefined) : undefined
+      profileImage: selectedFile || null,
+      defaultImage: isDefaultImage
     });
   };
 
@@ -142,9 +149,14 @@ function ProfileEditModal({
           </div>
         </div>
 
-        <Button variant="primary" size="full" onClick={handleSave} disabled={updateMutation.isPending || nicknameError !== "" || nickname.length < 2} className="mt-1 h-[52px] rounded-xl!">
-          {updateMutation.isPending ? "저장 중..." : "저장"}
-        </Button>
+        <div className="flex gap-3 mt-1">
+          <Button variant="gray" size="full" onClick={onClose} className="h-[52px] rounded-xl! text-gray-700!">
+            돌아가기
+          </Button>
+          <Button variant="primary" size="full" onClick={handleSave} disabled={updateMutation.isPending || nicknameError !== "" || nickname.length < 2} className="h-[52px] rounded-xl!">
+            {updateMutation.isPending ? "수정 중..." : "확인"}
+          </Button>
+        </div>
       </div>
     </Modal>
   );
@@ -420,7 +432,7 @@ export default function UserPage() {
         <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-4 mb-5">
             <div className="relative w-[68px] h-[68px] rounded-full overflow-hidden bg-[#F5F0E8] shrink-0">
-              <Image src={profileData.profileImageUrl || DEFAULT_PROFILE_IMAGE} alt="프로필" fill className="object-cover" />
+              <Image src={profileData.profileImageUrl ? getImageUrl(profileData.profileImageUrl) : DEFAULT_PROFILE_IMAGE} alt="프로필" fill className="object-cover" />
             </div>
             <div className="flex flex-col gap-1 min-w-0">
               <p className="text-[17px] font-bold text-gray-900 truncate">{profileData.nickname}님</p>
