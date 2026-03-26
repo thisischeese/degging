@@ -19,7 +19,7 @@ export default function MainPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // 페이지 진입 시 현재 할당된 AB 그룹 정보를 GTM/GA4에 다시 알립니다.
+    // 페이지 진입 시 현재 할당된 AB 그룹 정보를 GTM/GA4에 다시 알림.
     initAbGroupTracking();
 
     const startTime = Date.now();
