@@ -34,7 +34,8 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
         /**
          * 이름을 기반으로 카페 목록 조회 (실제 카페만)
          */
-        List<CafeEntity> findAllByNameAndIsCafeTrue(String name);
+        @Query("SELECT c FROM CafeEntity c WHERE c.name = :name AND c.isCafe = true")
+        List<CafeEntity> findAllByName(@Param("name") String name);
 
         /**
          * 정제된 브랜드명(brandName)이 10개 이상인 목록 조회
@@ -49,7 +50,8 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
         /**
          * 특정 브랜드명을 가진 모든 카페 목록 조회 (실제 카페만)
          */
-        List<CafeEntity> findAllByBrandNameAndIsCafeTrue(String brandName);
+        @Query("SELECT c FROM CafeEntity c WHERE c.brandName = :brandName AND c.isCafe = true")
+        List<CafeEntity> findAllByBrandName(@Param("brandName") String brandName);
 
         // ----------------------------------------------------------------------------------------------
 
