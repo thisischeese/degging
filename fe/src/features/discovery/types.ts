@@ -1,6 +1,7 @@
 export interface DiscoveryFeedItem {
     cafeId: string;
     image: string; // UUID
+    thumbnailUrl?: string; // fallback
 }
 
 export interface DiscoverySliceResponse {

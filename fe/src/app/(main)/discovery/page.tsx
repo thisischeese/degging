@@ -87,23 +87,39 @@ export default function DiscoveryPage() {
       <div className="pt-6 px-4 pb-4"></div>
 
       <div className="px-4 columns-2 gap-4 space-y-4">
-        {allFeeds.map((feed, index) => (
-          <div 
-            key={`${feed.cafeId}-${index}`} 
-            className="break-inside-avoid relative w-full rounded-xl overflow-hidden cursor-pointer shadow-sm active:scale-[0.98] transition-transform bg-[#F5F0E8]"
-            onClick={() => handleImageClick(feed.cafeId)}
-          >
-            <Image 
-              src={getImageUrl(feed.image)} 
-              alt="추천 카페"
-              width={500}
-              height={index % 3 === 0 ? 700 : 400} // 랜덤한 느낌을 위해 인덱스로 비율 조절
-              className="w-full h-auto object-cover block" 
-              priority={index < 4}
-              unoptimized
-            />
-          </div>
-        ))}
+        {allFeeds.map((feed, index) => {
+          // 디자인 가이드: 세로 사진은 2:3, 가로 사진은 1:1로 크롭
+          // 현재 데이터의 원본 비율을 알 수 없으므로 index에 따라 패턴 적용
+          const isTall = index % 3 === 0;
+          
+          // feed.image가 비어있을 경우 feed.thumbnailUrl을 폴백으로 사용
+          const rawPath = feed.image || feed.thumbnailUrl;
+          
+          // 경로가 존재하고 외부 링크가 아니며 폴더 구분자(/)가 없는 경우 'cafe/' 접두사 추가
+          // (CloudFront 구조상 폴더명이 필요할 수 있음)
+          const formattedPath = rawPath && !rawPath.startsWith("http") && !rawPath.includes("/")
+            ? `cafe/${rawPath}`
+            : rawPath;
+
+          return (
+            <div 
+              key={`${feed.cafeId}-${index}`} 
+              className={`break-inside-avoid relative w-full rounded-xl overflow-hidden cursor-pointer shadow-sm active:scale-[0.98] transition-transform bg-[#F5F0E8] ${
+                isTall ? "aspect-[2/3]" : "aspect-square"
+              }`}
+              onClick={() => handleImageClick(feed.cafeId)}
+            >
+              <Image 
+                src={getImageUrl(formattedPath)} 
+                alt="추천 카페"
+                fill
+                className="object-cover block" 
+                priority={index < 4}
+                unoptimized
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* 무한 스크롤 트리거 요소 */}
