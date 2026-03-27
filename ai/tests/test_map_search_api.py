@@ -117,7 +117,7 @@ class MapSearchAPITest(unittest.TestCase):
                     "123e4567-e89b-12d3-a456-426614174001": 1,
                     "123e4567-e89b-12d3-a456-426614174002": 2,
                 },
-                extracted_menus={"2394": 1, "10209": 3},
+                extracted_menus=["Douxcon", "Butter Rice Cake", "Douxcon"],
             )
         )
         self.app.dependency_overrides[get_map_search_service] = lambda: fake_service
@@ -141,7 +141,7 @@ class MapSearchAPITest(unittest.TestCase):
                     "123e4567-e89b-12d3-a456-426614174001": 1,
                     "123e4567-e89b-12d3-a456-426614174002": 2,
                 },
-                "extracted_menus": {"2394": 1, "10209": 3},
+                "extracted_menus": ["Douxcon", "Butter Rice Cake", "Douxcon"],
             },
         )
         self.assertEqual(fake_service.last_keyword, "")

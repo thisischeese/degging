@@ -48,7 +48,7 @@ class MapSearchResponse(BaseModel):
         default_factory=dict,
         description="Cafe UUID to rank mapping",
     )
-    extracted_menus: dict[str, int] = Field(
-        default_factory=dict,
-        description="Extracted menu ID to occurrence count mapping",
+    extracted_menus: list[str] = Field(
+        default_factory=list,
+        description="Extracted menu phrases in query order",
     )

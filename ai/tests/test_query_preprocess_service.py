@@ -1,18 +1,19 @@
 from contextlib import nullcontext
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 from app.services.query_preprocess_service import (
     QueryPreprocessService,
     _load_menu_ner_components,
+    _resolve_food_label_ids,
 )
 
 
 class FakeLogits:
-    def __init__(self, predicted_ids: list[int], num_labels: int = 3) -> None:
+    def __init__(self, predicted_ids: list[int]) -> None:
         self._predicted_ids = predicted_ids
-        self._num_labels = num_labels
 
     def argmax(self, dim: int = -1) -> list[list[int]]:
         if dim != -1:
@@ -84,70 +85,40 @@ class LoadableModel:
 
 
 class QueryPreprocessServiceTest(unittest.IsolatedAsyncioTestCase):
-    async def test_extract_menu_phrases_merges_adjacent_food_tokens(self) -> None:
+    async def test_encode_query_returns_empty_when_menu_encoder_is_unavailable(self) -> None:
         service = QueryPreprocessService()
-        tokenizer = FakeTokenizer(
-            offset_mapping=[[(0, 0), (0, 3), (4, 9), (10, 14), (0, 0)]],
-            special_tokens_mask=[[1, 0, 0, 0, 1]],
-        )
-        model = FakeModel(
-            predicted_ids=[299, 28, 178, 0, 299],
-        )
 
         with patch(
-            "app.services.query_preprocess_service._load_menu_ner_components",
-            return_value=(tokenizer, model, FakeTorch()),
+            "app.services.query_preprocess_service.encode_menu_query",
+            side_effect=RuntimeError("missing artifact"),
         ):
-            phrases = await service.extract_menu_phrases("ice cream shop")
+            vector = await service.encode_query("americano")
 
-        self.assertEqual(phrases, ["ice cream"])
-        self.assertEqual(tokenizer.calls[0][0], "ice cream shop")
-        self.assertEqual(
-            tokenizer.calls[0][1],
-            {
-                "return_tensors": "pt",
-                "return_offsets_mapping": True,
-                "return_special_tokens_mask": True,
-                "truncation": True,
-                "max_length": 512,
-            },
-        )
+        self.assertEqual(vector, [])
 
-    async def test_extract_menu_phrases_excludes_non_food_and_special_tokens(self) -> None:
+    async def test_extract_menu_phrases_uses_ner_and_mecab_together(self) -> None:
         service = QueryPreprocessService()
         tokenizer = FakeTokenizer(
-            offset_mapping=[[(0, 0), (0, 4), (5, 9), (0, 0)]],
-            special_tokens_mask=[[1, 0, 0, 1]],
+            offset_mapping=[[(0, 0), (0, 4), (0, 0)]],
+            special_tokens_mask=[[1, 0, 1]],
         )
-        model = FakeModel(
-            predicted_ids=[28, 28, 0, 28],
-        )
+        model = FakeModel(predicted_ids=[299, 27, 299])
+        mecab_rows = [
+            {"alias": "word", "token": "latte", "lexemes": ["latte"]},
+            {"alias": "word", "token": "coffee", "lexemes": ["coffee"]},
+            {"alias": "word", "token": "want", "lexemes": ["want"]},
+        ]
 
-        with patch(
-            "app.services.query_preprocess_service._load_menu_ner_components",
-            return_value=(tokenizer, model, FakeTorch()),
+        with (
+            patch.object(service, "log_mecab_analysis", AsyncMock(return_value=mecab_rows)),
+            patch(
+                "app.services.query_preprocess_service._load_menu_ner_components",
+                return_value=(tokenizer, model, FakeTorch()),
+            ),
         ):
-            phrases = await service.extract_menu_phrases("cake cafe")
+            phrases = await service.extract_menu_phrases("latte coffee")
 
-        self.assertEqual(phrases, ["cake"])
-
-    async def test_extract_menu_phrases_preserves_multiple_food_spans_in_order(self) -> None:
-        service = QueryPreprocessService()
-        tokenizer = FakeTokenizer(
-            offset_mapping=[[(0, 0), (0, 4), (5, 8), (9, 12), (0, 0)]],
-            special_tokens_mask=[[1, 0, 0, 0, 1]],
-        )
-        model = FakeModel(
-            predicted_ids=[299, 28, 0, 178, 299],
-        )
-
-        with patch(
-            "app.services.query_preprocess_service._load_menu_ner_components",
-            return_value=(tokenizer, model, FakeTorch()),
-        ):
-            phrases = await service.extract_menu_phrases("cake and pie")
-
-        self.assertEqual(phrases, ["cake", "pie"])
+        self.assertEqual(phrases, ["latte", "coffee"])
 
     async def test_extract_menu_phrases_returns_empty_for_blank_query_without_loading_model(
         self,
@@ -162,10 +133,59 @@ class QueryPreprocessServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(phrases, [])
         load_components.assert_not_called()
 
+    async def test_preprocess_does_not_use_query_fallback_and_logs_completion(self) -> None:
+        service = QueryPreprocessService()
+
+        with (
+            patch.object(service, "extract_menu_phrases", AsyncMock(return_value=[])),
+            patch.object(service, "encode_query", AsyncMock(return_value=[0.1, 0.2])) as encode_query,
+            self.assertLogs("uvicorn.error", level="INFO") as logs,
+        ):
+            processed = await service.preprocess("americano")
+
+        self.assertEqual(processed.menu_phrases, [])
+        self.assertEqual(processed.phrase_vectors, {})
+        self.assertEqual(processed.vector, [])
+        self.assertFalse(processed.used_query_fallback)
+        encode_query.assert_not_called()
+        self.assertTrue(
+            any(
+                "menu_phrase_extraction_completed" in message
+                and "used_query_fallback=False" in message
+                for message in logs.output
+            )
+        )
+
+    async def test_preprocess_query_encodes_first_menu_phrase_for_public_payload(self) -> None:
+        service = QueryPreprocessService()
+
+        with (
+            patch.object(service, "extract_menu_phrases", AsyncMock(return_value=["latte"])),
+            patch.object(service, "encode_query", AsyncMock(return_value=[0.1, 0.2])),
+        ):
+            payload = await service.preprocess_query(
+                "latte",
+                user_id=UUID("123e4567-e89b-12d3-a456-426614174000"),
+            )
+
+        self.assertEqual(payload.original_query, "latte")
+        self.assertEqual(payload.vector, [0.1, 0.2])
+        self.assertEqual(payload.dimensions, 2)
+        self.assertEqual(payload.extracted_menus, {})
+
 
 class QueryPreprocessServiceLoaderTest(unittest.TestCase):
     def tearDown(self) -> None:
         _load_menu_ner_components.cache_clear()
+
+    def test_resolve_food_label_ids_falls_back_for_generic_labels(self) -> None:
+        model = FakeModel(
+            predicted_ids=[0],
+            id2label={0: "O", 27: "LABEL_27", 28: "LABEL_28", 178: "LABEL_178"},
+        )
+        label_ids, label_source = _resolve_food_label_ids(model)
+        self.assertEqual(label_ids, frozenset({27, 28, 178}))
+        self.assertEqual(label_source, "fallback")
 
     def test_load_menu_ner_components_downloads_into_food_model_dir_when_missing(self) -> None:
         model_path = Path("C:/tmp/food_ner_model")
@@ -199,6 +219,7 @@ class QueryPreprocessServiceLoaderTest(unittest.TestCase):
                 "app.services.query_preprocess_service.os.getenv",
                 return_value="hf-test-token",
             ),
+            self.assertLogs("uvicorn.error", level="INFO") as logs,
         ):
             loaded_tokenizer, loaded_model, torch = _load_menu_ner_components()
 
@@ -206,21 +227,12 @@ class QueryPreprocessServiceLoaderTest(unittest.TestCase):
         self.assertIs(loaded_model, model)
         self.assertIs(torch, fake_torch)
         self.assertEqual(load_local.call_count, 2)
-        self.assertEqual(
-            load_local.call_args_list[0].args,
-            (model_path, fake_auto_tokenizer, fake_bert_model),
-        )
-        self.assertEqual(
-            load_local.call_args_list[1].args,
-            (model_path, fake_auto_tokenizer, fake_bert_model),
-        )
         download_components.assert_called_once_with(
             model_path,
             "hf-test-token",
             fake_auto_tokenizer,
             fake_bert_model,
         )
-        self.assertEqual(tokenizer.source, str(model_path))
-        self.assertEqual(model.source, str(model_path))
         self.assertEqual(model.to_calls, ["cpu"])
         self.assertTrue(model.eval_called)
+        self.assertTrue(any("menu_ner_components_loaded" in message for message in logs.output))
