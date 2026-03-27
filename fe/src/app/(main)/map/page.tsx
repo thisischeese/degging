@@ -15,10 +15,11 @@ import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
 import { getCafeMarkers, getCafeBottomSheetList } from '@/features/map/api/mapApi';
 import { searchCafes } from '@/features/cafes/api/cafeApi';
+import { getUserPreferences } from '@/features/users/api/userApi';
 import { CafeMarker, CafeBottomSheetItem } from '@/features/map/types';
 import { SearchCafeItem } from '@/features/cafes/types';
 
-const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
+// const FILTER_OPTIONS = ['# 조용한', '# 우드톤', '# 힙한'];
 
 const SORT_OPTIONS = [
   { value: 'RECOMMEND', label: '추천순' },
@@ -57,6 +58,12 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   const controls = useAnimation();
   // [수정] 지도 중심 좌표 상태 추가 (API 호출용) - props로 받은 초기 위치를 사용
   const [mapCenter, setMapCenter] = useState(initialCenter);
+
+  // [추가] 사용자 취향 태그 세팅
+  const { data: userTags = [] } = useQuery<string[]>({
+    queryKey: ['userPreferences'],
+    queryFn: getUserPreferences,
+  });
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -546,6 +553,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
           {/* 스크롤 가능한 칩 리스트 */}
           <div className="flex-1 overflow-x-auto no-scrollbar">
             <div className="flex items-center gap-2 w-max">
+              {/* 기존 코드 주석 보존
               {FILTER_OPTIONS.map((filter) => (
                 <Chip
                   key={filter}
@@ -555,6 +563,19 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
                   onClick={() => toggleFilter(filter)}
                 />
               ))}
+              */}
+              {userTags.map((tag) => {
+                const filterLabel = `# ${tag}`; // 기존 로직과 동일하게 # 접두사 사용
+                return (
+                  <Chip
+                    key={tag}
+                    label={filterLabel}
+                    variant="map"
+                    isActive={selectedFilters.includes(filterLabel)}
+                    onClick={() => toggleFilter(filterLabel)}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
