@@ -9,6 +9,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import com.degging.be.global.converter.VectorConverter;
 
 @Entity
 @Table(name = "user_preference")
@@ -27,6 +28,7 @@ public class UserPreferenceEntity {
     @JoinColumn(name = "user_id")
     private UserEntity user;
 
+    @Convert(converter = VectorConverter.class)
     @Column(name = "preference_vector", columnDefinition = "vector(64)")
     private float[] preferenceVector;
 
