@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
@@ -10,7 +10,7 @@ import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 import { getImageUrl } from "@/common/utils/image";
 import { OnboardingCafe } from "@/features/onboarding/types";
 
-export default function StepMood({ next, updateData, formData }: SignupStepProps) {
+export default function StepMood({ next, formData }: SignupStepProps) {
   const { data: cafeData } = useQuery({
     queryKey: ["cafes", "onboarding"],
     queryFn: getOnboardingCafes,
@@ -20,6 +20,21 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
   const cafes = cafeData || [];
   const [selectedMoods, setSelectedMoods] = useState<string[]>(formData.moods || []);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // StepLoading에서 사용할 이미지들을 미리 로드해둡니다.
+  useEffect(() => {
+    const imagesToPreload = [ 
+      "/images/auth/taste1.webp",
+      "/images/auth/taste2.webp",
+      "/images/auth/taste3.webp",
+    ];
+    imagesToPreload.forEach((src) => {
+      if (typeof window !== "undefined") {
+        const img = new window.Image();
+        img.src = src;
+      }
+    });
+  }, []);
 
   const toggleMood = (cafeId: string) => {
     setErrorMessage("");
@@ -39,8 +54,7 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
       setErrorMessage("정확한 취향 파악을 위해 3개를 선택해주세요!");
       return;
     }
-    updateData({ moods: selectedMoods });
-    next();
+    next({ moods: selectedMoods });
   };
 
   return (

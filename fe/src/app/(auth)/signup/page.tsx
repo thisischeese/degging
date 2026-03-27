@@ -95,11 +95,12 @@ export default function SignupPage() {
   };
 
   // 2단계: 온보딩 결과 제출 (Step 6 직전 호출)
-  const handleOnboardingRequest = async () => {
+  const handleOnboardingRequest = async (currentData?: SignupFormData) => {
     try {
+      const dataToUse = currentData || formData;
       const onboardingData = {
-        selectedCafeIds: formData.moods, // StepMood에서 모은 cafeId 배열
-        preferredTags: formData.trends, // StepTrend에서 모은 키워드 배열
+        selectedCafeIds: dataToUse.moods, // StepMood에서 모은 cafeId 배열
+        preferredTags: dataToUse.trends, // StepTrend에서 모은 키워드 배열
       };
 
       await postOnboardingResults(onboardingData);
@@ -123,6 +124,7 @@ export default function SignupPage() {
       const isEvent = "nativeEvent" in stepData;
       if (!isEvent) {
         currentData = { ...formData, ...(stepData as Partial<SignupFormData>) };
+        setFormData(currentData); // 상태 갱신 추가!
       }
     }
 
@@ -155,7 +157,7 @@ export default function SignupPage() {
             {step === 6 && (
               <StepLoading 
                 next={nextStep} 
-                onSignup={async () => { await handleOnboardingRequest(); }}
+                onSignup={async () => { await handleOnboardingRequest(formData); }}
               />
             )}
             {step === 7 && <StepWelcome formData={formData} />}
