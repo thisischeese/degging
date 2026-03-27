@@ -265,4 +265,13 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      */
     @Query("SELECT c FROM CafeEntity c WHERE c.thumbnailUrl IS NULL AND (c.address LIKE %:region% OR c.roadAddress LIKE %:region%) AND c.isCafe = true")
     Page<CafeEntity> findAllByThumbnailUrlIsNullAndRegion(@Param("region") String region, Pageable pageable);
+
+    /**
+     * 특정 지역 내에서 지정된 이름 리스트에 해당하는 카페 목록 조회 (실제 카페만)
+     */
+    @Query("SELECT c FROM CafeEntity c " +
+            "WHERE c.name IN :names " +
+            "AND (c.address LIKE %:region% OR c.roadAddress LIKE %:region%) " +
+            "AND c.isCafe = true")
+    List<CafeEntity> findAllByNameInAndRegion(@Param("names") List<String> names, @Param("region") String region);
 }

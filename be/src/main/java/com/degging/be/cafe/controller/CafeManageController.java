@@ -1,5 +1,6 @@
 package com.degging.be.cafe.controller;
 
+import com.degging.be.cafe.dto.request.CafeSpecificCrawlRequest;
 import com.degging.be.cafe.service.CafeCollectService;
 import com.degging.be.cafe.service.CafeFilterService;
 import com.degging.be.cafe.service.CafeFranchiseService;
@@ -60,6 +61,20 @@ public class CafeManageController {
     public BaseResponse<Void> crawling() {
         log.info("AI 크롤링 실행 요청 수신");
         cafeCrawlingService.crawling();
+        return BaseResponse.success();
+    }
+
+    /**
+     * 특정 카페 리스트 대상 크롤링 실행
+     * 입력받은 지역과 카페 이름 리스트에 해당하는 카페들을 대상으로 크롤링
+     *
+     * @param request 지역 및 카페 이름 리스트를 포함한 요청 DTO
+     * @return 실행 성공 응답
+     */
+    @PostMapping("/crawling/specific")
+    public BaseResponse<Void> crawlingSpecific(@RequestBody CafeSpecificCrawlRequest request) {
+        log.info("특정 카페 크롤링 실행 요청 수신 (region: {}, names: {})", request.getRegion(), request.getCafeNames());
+        cafeCrawlingService.crawlSpecificCafes(request.getRegion(), request.getCafeNames());
         return BaseResponse.success();
     }
 
