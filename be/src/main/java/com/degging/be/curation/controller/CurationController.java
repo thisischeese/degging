@@ -1,7 +1,9 @@
 package com.degging.be.curation.controller;
 
+import com.degging.be.curation.dto.request.CurationListRequest;
 import com.degging.be.curation.dto.request.CurationMinimapRequest;
 import com.degging.be.curation.dto.response.CurationMapResponse;
+import com.degging.be.curation.dto.response.CurationResponse;
 import com.degging.be.curation.service.CurationService;
 import com.degging.be.global.dto.BaseResponse;
 import com.degging.be.global.exception.BaseException;
@@ -52,6 +54,27 @@ public class CurationController {
                 category, cafeName, userId);
 
         CurationMapResponse response = curationService.getCurationMinimap(userId, category, cafeName);
+        return BaseResponse.success(response);
+    }
+
+    /**
+     * 특정 카테고리의 전체 큐레이션 카페 리스트 조회
+     *
+     * @param user     유효한 사용자
+     * @param request  큐레이션 카페 리스트 요청 DTO
+     * @return 해당 카테고리의 전체 추천 카페 리스트
+     */
+    @GetMapping("/cafeList")
+    public BaseResponse<CurationResponse> getCurationList(
+            @AuthenticationPrincipal UserDetails user,
+            @ModelAttribute CurationListRequest request) {
+
+        UUID userId = getUserId(user);
+        String category = request.getCategory();
+
+        log.info("Request for curation cafeList - category: {}, userId: {}", category, userId);
+            
+        CurationResponse response = curationService.getCurationList(userId, category);
         return BaseResponse.success(response);
     }
 }

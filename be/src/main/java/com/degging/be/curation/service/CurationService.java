@@ -2,7 +2,9 @@ package com.degging.be.curation.service;
 
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
+import com.degging.be.curation.dto.response.CurationCafeResponse;
 import com.degging.be.curation.dto.response.CurationMapResponse;
+import com.degging.be.curation.dto.response.CurationResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CurationErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 큐레이션 서비스
@@ -63,6 +66,41 @@ public class CurationService {
                     log.error("큐레이션 미니맵 카페를 찾을 수 없습니다: {}", cafeName);
                     return new BaseException(CurationErrorCode.CURATION_NOT_FOUND);
                 });
+    }
+
+    /**
+     * 큐레이션 리스트 조회
+     * 
+     * @param userId   사용자 ID
+     * @param category 큐레이션 카테고리
+     * @return 큐레이션 리스트 응답 DTO
+     */
+    public CurationResponse getCurationList(UUID userId, String category) {
+        // 유저 검증
+        validateUser(userId);
+
+        // 카페 이름 리스트 획득 (null 체크)
+        List<String> cafeNames = CURATION_MAP.get(category);
+        if (cafeNames == null) {
+            throw new BaseException(CurationErrorCode.CURATION_CATEGORY_NOT_FOUND);
+        }
+        
+        // 카페 정보 조회 (하나라도 없으면 에러)
+        List<CafeEntity> cafes = cafeNames.stream()
+                .map(name -> cafeRepository.findAllByName(name).stream()
+                        .findFirst()
+                        .orElseThrow(() -> {
+                            log.error("큐레이션 리스트 내 카페를 찾을 수 없습니다: {}", name);
+                            return new BaseException(CurationErrorCode.CURATION_NOT_FOUND);
+                        }))
+                .toList();
+
+        // DTO 변환 및 반환
+        List<CurationCafeResponse> cafeList = cafes.stream()
+                .map(CurationCafeResponse::from)
+                .collect(Collectors.toList());
+
+        return CurationResponse.of(cafeList);
     }
 
     /**
