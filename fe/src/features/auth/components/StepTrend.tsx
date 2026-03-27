@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Chip } from "@/common/components/Chip";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 import { useQuery } from "@tanstack/react-query";
@@ -28,30 +27,32 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
   });
   
   // 랭킹 키워드만 추출하여 메뉴 리스트 생성 (언래핑된 데이터를 바로 사용)
-  const menus = rankingData?.map(item => item.keyword) || [];
-
-  const [selectedMenus, setSelectedMenus] = useState<string[]>(formData.trends || []);
+  const menus = rankingData || [];
+  const [selectedMenus, setSelectedMenus] = useState<number[]>(
+    formData.trends.map((id) => Number(id))
+  );
   const [errorMessage, setErrorMessage] = useState("");
 
-  const toggleMenu = (keyword: string) => {
+  const toggleMenu = (menuId: number) => {
     setErrorMessage("");
-    if (selectedMenus.includes(keyword)) {
-      setSelectedMenus((prev) => prev.filter((item) => item !== keyword));
+    if (selectedMenus.includes(menuId)) {
+      setSelectedMenus(selectedMenus.filter((id) => id !== menuId));
     } else {
       if (selectedMenus.length >= 3) {
-        setErrorMessage("최대 3개까지만 선택 가능합니다!");
+        setErrorMessage("최대 3개까지만 선택 가능합니다.");
         return;
       }
-      setSelectedMenus((prev) => [...prev, keyword]);
+      setSelectedMenus([...selectedMenus, menuId]);
     }
   };
 
   const handleNext = () => {
     if (selectedMenus.length !== 3) {
-      setErrorMessage("정확한 취향 파악을 위해 3개를 선택해주세요!");
+      setErrorMessage("정확히 3개의 메뉴를 선택해주세요!");
       return;
     }
-    next({ trends: selectedMenus });
+    // SignupPage의 trends 상태는 일관성을 위해 string[]로 관리되고 있으므로 변환하여 넘김
+    next({ trends: selectedMenus.map(String) });
   };
 
   return (
@@ -66,34 +67,26 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
         </p>
       </div>
 
-      {/* 2. 중앙 칩 영역: 레이아웃 고정 */}
-      <div className="flex-1 flex items-center justify-center min-h-0 py-6">
-        <div className="max-h-full overflow-y-auto no-scrollbar">
-          <div className="flex flex-wrap gap-x-2 gap-y-4 justify-center max-w-[360px] mx-auto pb-4">
-            {menus.map((menu, index) => {
-              const isActive = selectedMenus.includes(menu);
-              return (
-                <div key={`${menu}-${index}`} className="relative">
-                  <Chip
-                    label={menu}
-                    variant="onboarding"
-                    isActive={isActive}
-                    onClick={() => toggleMenu(menu)}
-                    /* [&_svg]:hidden: 칩 내부의 체크 아이콘(SVG)을 강제로 숨김
-                      scale 제거: 레이아웃이 변하지 않도록 설정
-                    */
-                    className={`
-                      w-auto px-5 py-2.5 text-[14px] transition-colors duration-200
-                      [&_svg]:hidden [&_img]:hidden
-                      ${isActive 
-                        ? "font-bold border-[#C3304F] bg-[#F9EBEF] text-[#C3304F]" 
-                        : "border-gray-200 bg-white text-gray-600"}
-                    `}
-                  />
-                </div>
-              );
-            })}
-          </div>
+      {/* 2. 중앙 메뉴 선택 영역 */}
+      <div className="flex-1 overflow-y-auto no-scrollbar py-6">
+        <div className="grid grid-cols-2 gap-4 max-w-[360px] mx-auto pb-4">
+          {menus.map((menu) => (
+            <div
+              key={menu.menuId}
+              onClick={() => toggleMenu(menu.menuId)}
+              className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all cursor-pointer h-[100px] ${
+                selectedMenus.includes(menu.menuId)
+                  ? "border-[#C3304F] bg-[#F9EBEF] text-[#C3304F]"
+                  : "border-gray-100 bg-white text-gray-500 hover:border-gray-200"
+              }`}
+            >
+              <span className={`text-[16px] font-bold text-center leading-tight break-keep ${
+                selectedMenus.includes(menu.menuId) ? "text-[#C3304F]" : "text-gray-800"
+              }`}>
+                {menu.keyword}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 

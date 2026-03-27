@@ -18,6 +18,7 @@ import Button from "@/common/components/Button";
 import { postSignup } from "@/features/auth/api/signupApi";
 import { postLogin } from "@/features/auth/api/loginApi";
 import { postOnboardingResults } from "@/features/onboarding/api/onboardingApi";
+import { OnboardingResult } from "@/features/onboarding/types";
 
 export default function SignupPage() {
   const [step, setStep] = useState(1);
@@ -98,23 +99,23 @@ export default function SignupPage() {
   const handleOnboardingRequest = async (currentData?: SignupFormData) => {
     try {
       const dataToUse = currentData || formData;
-      const onboardingData = {
-        selectedCafeIds: dataToUse.moods, // StepMood에서 모은 cafeId 배열
-        preferredTags: dataToUse.trends, // StepTrend에서 모은 키워드 배열
+      const token = sessionStorage.getItem("ONBOARDING_TOKEN") || "";
+
+      const onboardingData: OnboardingResult = {
+        onboardingToken: token,
+        cafeIds: dataToUse.moods, // string[]
+        menuIds: dataToUse.trends.map(id => Number(id)), // number[] 변환
       };
-      
-      console.log("전송될 온보딩 데이터:", onboardingData);
 
       await postOnboardingResults(onboardingData);
       console.log("온보딩 데이터 제출 성공");
       
-      // 온보딩 완료 시 임시 토큰 즉시 파기 (보안 및 백엔드 지침 준수)
+      // 온보딩 완료 시 임시 토큰 즉시 파기
       sessionStorage.removeItem("ONBOARDING_TOKEN");
       
       return true;
     } catch (error) {
       console.error("온보딩 실패:", error);
-      // 온보딩 실패해도 가입은 되었으므로 넘어가게 할지는 정책에 따라 결정
       return false;
     }
   };
@@ -161,7 +162,10 @@ export default function SignupPage() {
             {step === 6 && (
               <StepLoading 
                 next={nextStep} 
-                onSignup={async () => { await handleOnboardingRequest(formData); }}
+                onSignup={async () => {
+                   // 상태 업데이트 지연 방지를 위해 명시적으로 formData를 넘김
+                   await handleOnboardingRequest(formData); 
+                }}
               />
             )}
             {step === 7 && <StepWelcome formData={formData} />}
