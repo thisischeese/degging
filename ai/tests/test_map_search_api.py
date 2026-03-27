@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from app.models.map_search import MapSearchResponse
 from app.routers import ai_router
 from app.routers.map import get_map_search_service
-from app.services.discovery_service import UserPreferenceNotFoundError
+from app.services.preference_vector import UserPreferenceNotFoundError
 
 
 @dataclass

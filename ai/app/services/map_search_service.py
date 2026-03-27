@@ -8,7 +8,13 @@ from uuid import UUID
 from app.core.config import settings
 from app.db.postgresql import get_pg_pool
 from app.models.map_search import MapSearchRequest, MapSearchResponse
-from app.services.discovery_service import UserPreferenceNotFoundError
+from app.services.preference_vector import USER_PREFERENCE_QUERY as _SHARED_USER_PREFERENCE_QUERY
+from app.services.preference_vector import (
+    UserPreferenceNotFoundError,
+    fetch_user_preference_vector,
+    parse_vector_literal as parse_shared_vector_literal,
+    to_vector_literal as to_shared_vector_literal,
+)
 from app.services.query_preprocess_service import QueryPreprocessService
 
 _RADIUS_METERS = 2000
@@ -21,11 +27,7 @@ _MOOD_KEYWORDS: dict[int, tuple[str, ...]] = {
     4: ("탁트인", "탁 트인", "뷰 좋은", "뷰", "전망", "창가"),
 }
 
-_USER_PREFERENCE_QUERY = """
-    SELECT preference_vector::text AS preference_vector
-    FROM user_preference
-    WHERE user_id = $1
-"""
+_USER_PREFERENCE_QUERY = _SHARED_USER_PREFERENCE_QUERY
 
 _RADIUS_CAFE_QUERY = """
     SELECT
@@ -126,16 +128,7 @@ class MapSearchService:
         pool = get_pg_pool()
 
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(_USER_PREFERENCE_QUERY, user_id)
-
-        if row is None or row["preference_vector"] is None:
-            raise UserPreferenceNotFoundError(f"user_id={user_id} preference vector not found.")
-
-        preference_vector = self.parse_vector_literal(row["preference_vector"])
-        if not preference_vector:
-            raise UserPreferenceNotFoundError(f"user_id={user_id} preference vector not found.")
-
-        return preference_vector
+            return await fetch_user_preference_vector(conn, user_id)
 
     async def get_candidates_within_radius(
         self,
@@ -389,17 +382,7 @@ class MapSearchService:
         return max(-1.0, min(numeric_value, 1.0))
 
     def to_vector_literal(self, vector: list[float]) -> str:
-        return "[" + ",".join(str(value) for value in vector) + "]"
+        return to_shared_vector_literal(vector)
 
     def parse_vector_literal(self, vector_literal: str) -> list[float]:
-        normalized_literal = vector_literal.strip()
-        if not normalized_literal or normalized_literal == "[]":
-            return []
-        if not (normalized_literal.startswith("[") and normalized_literal.endswith("]")):
-            raise ValueError(f"Invalid vector literal: {vector_literal}")
-
-        values = normalized_literal[1:-1].strip()
-        if not values:
-            return []
-
-        return [float(value.strip()) for value in values.split(",") if value.strip()]
+        return parse_shared_vector_literal(vector_literal)
