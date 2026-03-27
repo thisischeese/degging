@@ -213,4 +213,59 @@ public class CafeCrawlingService {
         }
         log.info("[복구] 모든 백업 파일 처리 완료");
     }
+
+    /**
+     * 특정 지역 내 지정된 카페들에 대해 크롤링을 수행
+     * 
+     * @param region 조회 대상 지역
+     * @param cafeNames 크롤링할 카페 이름 리스트
+     */
+    public void crawlSpecificCafes(String region, List<String> cafeNames) {
+        log.info("[특정 크롤링] 지역: {}, 검색 대상: {}개 시작", region, cafeNames.size());
+
+        // 해당 이름과 지역에 해당하는 카페들 조회
+        List<CafeEntity> targetCafes = cafeRepository.findAllByNameInAndRegion(cafeNames, region);
+        
+        if (targetCafes.isEmpty()) {
+            log.warn("[특정 크롤링] 해당 조건에 맞는 카페를 찾을 수 없습니다: {}, {}", region, cafeNames);
+            return;
+        }
+
+        log.info("[특정 크롤링] DB에서 {}개의 매칭된 카페 발견", targetCafes.size());
+
+        // 크롤링 서버 요청용 DTO 변환
+        List<AiCrawlerRequestDto> requestBatch = targetCafes.stream()
+                .map(AiCrawlerRequestDto::from)
+                .collect(Collectors.toList());
+
+        // 크롤링 서버 요청 및 저장
+        try {
+            log.info("[특정 크롤링] AI 서버 요청 전송... ({}건)", requestBatch.size());
+            AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
+
+            if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                log.info("[특정 크롤링] {}건 수신 성공, DB 저장을 시작합니다.", response.getItems().size());
+                
+                // 트랜잭션 보장을 위해 프록시 객체(self) 호출
+                CafeCrawlingService self = cafeCrawlingServiceProvider.getIfAvailable();
+                if (self != null) {
+                    self.saveCrawlingData(response.getItems());
+                }
+
+                if (response.getMissingCafeIds() != null && !response.getMissingCafeIds().isEmpty()) {
+                    List<CafeEntity> missingCafes = cafeRepository.findAllById(response.getMissingCafeIds());
+                    List<String> missingCafeInfo = missingCafes.stream()
+                            .map(c -> c.getName() + " (" + c.getCafeId() + ")")
+                            .collect(Collectors.toList());
+                    log.warn("[특정 크롤링] AI 크롤링 누락 대상 ({}건): {}", missingCafeInfo.size(), missingCafeInfo);
+                }
+            } else {
+                log.warn("[특정 크롤링] AI 서버 응답이 없거나 비어있습니다.");
+            }
+        } catch (Exception e) {
+            log.error("[특정 크롤링] 크롤링 작업 중 오류 발생: {}", e.getMessage());
+        }
+
+        log.info("[특정 크롤링] 모든 작업이 종료되었습니다.");
+    }
 }
