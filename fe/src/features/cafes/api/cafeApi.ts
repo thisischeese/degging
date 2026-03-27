@@ -5,7 +5,33 @@ import { CafeDetailResponse, SearchCafesRequest, SearchCafesResponse, SearchCafe
 export const getCafeDetail = async (cafeId: string): Promise<CafeDetailResponse['data']> => {
   const response = (await axios_instance.get<CafeDetailResponse>(`/api/cafes/${cafeId}`)) as unknown as CafeDetailResponse;
   
-  return response.data;
+  const data = response.data;
+  const baseUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '';
+
+  // 카페 이미지 배열에 baseURL 추가
+  if (data && Array.isArray(data.images) && data.images.length > 0) {
+    data.images = data.images.map((img) => {
+      if (img && !img.startsWith('http') && !img.startsWith('/')) {
+        return `${baseUrl}/${img}`;
+      }
+      return img;
+    });
+  }
+
+  // 메뉴 이미지에 baseURL 추가 (응답의 menuImageUrl 처리)
+  if (data && Array.isArray(data.menus) && data.menus.length > 0) {
+    data.menus = data.menus.map((menu: any) => {
+      const targetImage = menu.menuImageUrl || menu.image;
+      if (targetImage && !targetImage.startsWith('http') && !targetImage.startsWith('/')) {
+        const fullUrl = `${baseUrl}/${targetImage}`;
+        menu.menuImageUrl = fullUrl;
+        menu.image = fullUrl; // UI 호환성을 위해 image 필드에도 할당
+      }
+      return menu;
+    });
+  }
+
+  return data;
 };
 
 // [실제 API 연동] 키워드, 내 위치, 그리고 조건(Mood)에 따라 카페를 검색합니다.
