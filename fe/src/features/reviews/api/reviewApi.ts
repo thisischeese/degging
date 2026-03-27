@@ -135,24 +135,20 @@ export const getMyReviews = async (
     */
 
     // [수정] 내 리뷰 목록 썸네일 경로에 BaseURL 결합 처리
-    const data = response.data;
+    const responseData = response.data;
     const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
     
-    const formatImageUrl = (path: string | null | undefined) => {
-      if (!path) return '/images/common/logo.png'; // 썸네일 없을 때 폴백
-      if (path.startsWith('http') || path.startsWith('blob:')) return path;
-      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-      return `${baseUrl}/${cleanPath}`;
-    };
+    const transformedContent = responseData.content.map((review: Review) => {
+      const rawPath = review.thumbnailImage;
+      // 주소가 이미 http로 시작하면 그대로 두고, 아니면 baseUrl을 강제로 결합
+      const fullUrl = (rawPath && !rawPath.startsWith('http') && !rawPath.startsWith('blob:')) 
+        ? `${baseUrl}/${rawPath.startsWith('/') ? rawPath.slice(1) : rawPath}`
+        : rawPath || '/images/common/logo.png';
+      
+      return { ...review, thumbnailImage: fullUrl };
+    });
 
-    if (data && Array.isArray(data.content)) {
-      data.content = data.content.map((review: Review) => ({
-        ...review,
-        thumbnailImage: formatImageUrl(review.thumbnailImage) // 상대 경로 -> 전체 URL 변환
-      }));
-    }
-
-    return data;
+    return { ...responseData, content: transformedContent };
   } catch (error) {
     console.warn("Falling back to mock my-reviews data:", error);
     return mockResponse;
