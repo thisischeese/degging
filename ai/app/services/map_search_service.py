@@ -67,8 +67,8 @@ _RADIUS_CAFE_QUERY = """
         address,
         road_address,
         cafe_intro,
-        "brandName" AS brand_name,
-        "branchName" AS branch_name,
+        brand_name,
+        branch_name,
         1 - (cafe_vector <=> $1::vector) AS preference_similarity
     FROM cafes
     WHERE cafe_vector IS NOT NULL

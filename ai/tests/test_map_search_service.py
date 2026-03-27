@@ -153,6 +153,12 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         _, args = pool.last_connection.calls[0]
         self.assertEqual(args[3], 2000)
 
+    def test_radius_query_uses_snake_case_brand_columns(self) -> None:
+        self.assertIn("brand_name", _RADIUS_CAFE_QUERY)
+        self.assertIn("branch_name", _RADIUS_CAFE_QUERY)
+        self.assertNotIn('"brandName"', _RADIUS_CAFE_QUERY)
+        self.assertNotIn('"branchName"', _RADIUS_CAFE_QUERY)
+
     def test_rank_cafes_applies_mood_lexical_filter(self) -> None:
         quiet_cafe = UUID("123e4567-e89b-12d3-a456-426614174001")
         loud_cafe = UUID("123e4567-e89b-12d3-a456-426614174002")
