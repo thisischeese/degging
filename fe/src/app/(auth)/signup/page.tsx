@@ -95,26 +95,49 @@ export default function SignupPage() {
     }
   };
 
-  // 2단계: 온보딩 결과 제출 (Step 6 직전 호출)
+  // 2. 온보딩 결과 제출 (Step 6 직전 호출)
   const handleOnboardingRequest = async (currentData?: SignupFormData) => {
     try {
       const dataToUse = currentData || formData;
       const token = sessionStorage.getItem("ONBOARDING_TOKEN") || "";
 
+      if (!token || token === "undefined" || token === "null") {
+        console.error("❌ 온보딩 토큰이 없습니다.");
+        return false;
+      }
+
+      // [핵심 수정] 데이터 정제: null, NaN, 0 등을 완전히 제거하여 [null] 전송 방지
+      const rawMenuIds = (dataToUse.trends || []).map(id => Number(id));
+      const menuIds = rawMenuIds.filter((id): id is number => !isNaN(id) && id !== 0 && id !== null);
+      
+      const cafeIds = (dataToUse.moods || []).filter((id): id is string => 
+        !!id && String(id) !== "null" && String(id) !== "undefined" && String(id).trim() !== ""
+      );
+
       const onboardingData: OnboardingResult = {
         onboardingToken: token,
-        cafeIds: dataToUse.moods, // string[]
-        menuIds: dataToUse.trends.map(id => Number(id)), // number[] 변환
+        cafeIds: cafeIds,
+        menuIds: menuIds,
       };
 
+      console.log("🚀 온보딩 최종 페이로드:", onboardingData);
+
+      // 1. 온보딩 결과 전송
       await postOnboardingResults(onboardingData);
       
-      // 온보딩 완료 시 임시 토큰 즉시 파기
+      // 2. 온보딩 성공 후 자동 로그인 (onboardingToken -> access_token 전환)
+      console.log("🔑 온보딩 성공! 자동 로그인 시도 중...");
+      await postLogin({
+        email: formData.email,
+        password: formData.password
+      });
+
+      // 3. 임시 토큰 파기
       sessionStorage.removeItem("ONBOARDING_TOKEN");
       
       return true;
     } catch (error) {
-      console.error("온보딩 실패:", error);
+      console.error("온보딩 또는 자동 로그인 실패:", error);
       return false;
     }
   };
@@ -162,8 +185,12 @@ export default function SignupPage() {
               <StepLoading 
                 next={nextStep} 
                 onSignup={async () => {
-                   // 상태 업데이트 지연 방지를 위해 명시적으로 formData를 넘김
-                   await handleOnboardingRequest(formData); 
+                   // 온보딩과 로그인이 모두 성공해야만 다음 단계(Step 7)로 이동
+                   const success = await handleOnboardingRequest(formData); 
+                   if (!success) {
+                     // 실패 시 사용자에게 알림 (필요 시 showAlert 추가)
+                     throw new Error("Onboarding or Login failed");
+                   }
                 }}
               />
             )}
