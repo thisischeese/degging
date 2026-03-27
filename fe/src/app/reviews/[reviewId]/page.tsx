@@ -26,6 +26,7 @@ const createInitialReviewDetail = (reviewId: string): ReviewDetailResponse => ({
   cafeIntro: '',
   address: '',
   roadAddress: '',
+  cafeThumbnailImage: null,
 });
 
 // 리뷰 작성일을 화면용 문자열로 변환합니다.
@@ -129,12 +130,38 @@ export default function ReviewDetailPage({
   }, [currentIndex, reviewData.imageUrls]);
 
   // 카페 카드에 필요한 데이터를 매핑합니다.
+  /* 기존 코드 주석 블록
   const cafeData = {
     id: '',
     name: reviewData.name || '카페 정보 없음',
     description: reviewData.cafeIntro || '카페 소개가 없습니다.',
     address: reviewData.roadAddress || reviewData.address || '주소 정보 없음',
     imageUrl: ensureReviewDetailImages(reviewData.imageUrls)[0],
+  };
+  */
+
+  const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
+  
+  const formatUrl = (path: string | undefined | null) => {
+    if (!path) return null;
+    if (path.startsWith('http') || path.startsWith('/')) return path;
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return `${baseUrl}/${cleanPath}`;
+  };
+
+  let finalImageUrl = '/images/common/logo.png';
+  if (reviewData.cafeThumbnailImage) {
+    finalImageUrl = formatUrl(reviewData.cafeThumbnailImage) || finalImageUrl;
+  } else if (reviewData.imageUrls && reviewData.imageUrls.length > 0) {
+    finalImageUrl = formatUrl(reviewData.imageUrls[0]) || finalImageUrl;
+  }
+
+  const cafeData = {
+    id: '',
+    name: reviewData.name || '카페 정보 없음',
+    description: reviewData.cafeIntro || '카페 소개가 없습니다.',
+    address: reviewData.roadAddress || reviewData.address || '주소 정보 없음',
+    imageUrl: finalImageUrl,
   };
 
   // 캐러셀 스와이프 종료 시 다음 이미지를 계산합니다.

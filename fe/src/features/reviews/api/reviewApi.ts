@@ -152,7 +152,31 @@ export const getCafeReviews = async (
     }
   )) as unknown as BaseResponse<CafeReviewsSliceResponse>;
 
-  return response.data; // 서버 응답에서 실제 데이터(content, hasNext, page)만 추출하여 반환
+  const data = response.data;
+
+  // [수정] 카페 리뷰 리스트의 이미지 요소에 BaseURL 결합 처리
+  const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
+
+  const formatImageUrl = (url: string | null | undefined) => {
+    if (!url) return url;
+    if (url.startsWith('http') || url.startsWith('blob:')) return url;
+    const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
+    return `${baseUrl}/${cleanUrl}`;
+  };
+
+  if (data && Array.isArray(data.content)) {
+    data.content = data.content.map((review) => {
+      if (Array.isArray(review.images) && review.images.length > 0) {
+        review.images = review.images.map((img) => ({
+          ...img,
+          imageUrl: formatImageUrl(img.imageUrl) as string,
+        }));
+      }
+      return review;
+    });
+  }
+
+  return data; // 서버 응답에서 실제 데이터(content, hasNext, page)만 추출하여 반환
 };
 
 export interface PostCafeReviewPayload {
