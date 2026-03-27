@@ -3,26 +3,26 @@ import { http, HttpResponse } from 'msw';
 const API_BASE_URL = 'http://localhost:8080';
 
 const MOCK_RANKINGS = [
-  { rank: 1, keyword: "두쫀쿠" },
-  { rank: 2, keyword: "소금빵" },
-  { rank: 3, keyword: "붕어빵" },
-  { rank: 4, keyword: "마카롱" },
-  { rank: 5, keyword: "휘낭시에" },
-  { rank: 6, keyword: "케이크" },
-  { rank: 7, keyword: "쫀득빵" },
-  { rank: 8, keyword: "푸딩" },
-  { rank: 9, keyword: "타코야끼" },
-  { rank: 10, keyword: "에그타르트" },
-  { rank: 11, keyword: "마들렌" },
-  { rank: 12, keyword: "파지약과" },
-  { rank: 13, keyword: "스콘" },
-  { rank: 14, keyword: "도넛" },
-  { rank: 15, keyword: "티라미수" },
-  { rank: 16, keyword: "요거트 아이스크림" },
-  { rank: 17, keyword: "와플" },
-  { rank: 18, keyword: "베이글" },
-  { rank: 19, keyword: "단팥빵" },
-  { rank: 20, keyword: "크로플" }
+  { id: 1, rank: 1, keyword: "두쫀쿠" },
+  { id: 2, rank: 2, keyword: "소금빵" },
+  { id: 3, rank: 3, keyword: "붕어빵" },
+  { id: 4, rank: 4, keyword: "마카롱" },
+  { id: 5, rank: 5, keyword: "휘낭시에" },
+  { id: 6, rank: 6, keyword: "케이크" },
+  { id: 7, rank: 7, keyword: "쫀득빵" },
+  { id: 8, rank: 8, keyword: "푸딩" },
+  { id: 9, rank: 9, keyword: "타코야끼" },
+  { id: 10, rank: 10, keyword: "에그타르트" },
+  { id: 11, rank: 11, keyword: "마들렌" },
+  { id: 12, rank: 12, keyword: "파지약과" },
+  { id: 13, rank: 13, keyword: "스콘" },
+  { id: 14, rank: 14, keyword: "도넛" },
+  { id: 15, rank: 15, keyword: "티라미수" },
+  { id: 16, rank: 16, keyword: "요거트 아이스크림" },
+  { id: 17, rank: 17, keyword: "와플" },
+  { id: 18, rank: 18, keyword: "베이글" },
+  { id: 19, rank: 19, keyword: "단팥빵" },
+  { id: 20, rank: 20, keyword: "크로플" }
 ];
 
 export const rankingHandlers = [
