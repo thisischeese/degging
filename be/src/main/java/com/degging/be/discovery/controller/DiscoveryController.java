@@ -11,7 +11,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Slice;
 
+import com.degging.be.global.exception.BaseException;
+import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 탐색(Discovery) 탭 전용 컨트롤러
@@ -24,6 +29,13 @@ public class DiscoveryController {
 
     private final DiscoveryService discoveryService;
 
+    private UUID getUserId(UserDetails user) {
+        if (user == null) {
+            throw new BaseException(CommonErrorCode.UNAUTHORIZED);
+        }
+        return UUID.fromString(user.getUsername());
+    }
+
     /**
      * 탐색 탭 메인 화면 진입 및 무한 스크롤용 - 일일 랜덤 카페 리스트 조회
      *
@@ -33,10 +45,13 @@ public class DiscoveryController {
      */
     @GetMapping
     public BaseResponse<Slice<DiscoveryResponse>> getDiscoveryCafes(
+            @AuthenticationPrincipal UserDetails user,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "15") int size) {
+
+        UUID userId = getUserId(user);
         
-        Slice<DiscoveryResponse> responses = discoveryService.getDailyDiscoveryCafes(page, size);
+        Slice<DiscoveryResponse> responses = discoveryService.getDailyDiscoveryCafes(page, size, userId);
         return BaseResponse.success(responses);
     }
 }
