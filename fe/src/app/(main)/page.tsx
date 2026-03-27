@@ -185,11 +185,11 @@ export default function MainPage() {
           className="flex overflow-x-auto snap-x flex-nowrap snap-mandatory no-scrollbar gap-3 px-6"
         >
           {[
-            { id: 1, title: "두툼하고 쫀득한\n마성의 두쫀쿠", image: "/images/curation/duzzonku.jpg" },
-            { id: 2, title: "겉바속촉 고소함의 끝\n인생 소금빵", image: "/images/curation/soguem.jpg" },
-            { id: 3, title: "쌉싸름한 녹색의 유혹\n입맛 돋우는 말차", image: "/images/curation/mangoBingsu.png" },
-            { id: 4, title: "싱그러운 제철 과일\n상큼한 디저트", image: "/images/curation/mangoBingsu.png" },
-            { id: 5, title: "은은한 풍미의 향연\n나만 알고 싶은 카페", image: "/images/curation/mangoBingsu.png" },
+            { id: 1, title: "무더위를 날려버릴\n망고 빙수 맛집 모음", image: "/images/curation/mangoBingsu.webp" },
+            { id: 2, title: "겉바속촉 고소함의 끝\n인생 소금빵", image: "/images/curation/soguem.webp" },
+            { id: 3, title: "두툼하고 쫀득한\n마성의 두쫀쿠", image: "/images/curation/duzzonku.webp" },
+            { id: 4, title: "싱그러운 제철 과일\n상큼한 디저트", image: "/images/curation/ddalgi.png" },
+            { id: 5, title: "은은한 풍미의 향연\n나만 알고 싶은 카페", image: "/images/curation/mangoBingsu.webp" },
           ].map((item) => (
             <div 
               key={item.id} 
