@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.models.map_search import MapSearchRequest, MapSearchResponse
-from app.services.discovery_service import UserPreferenceNotFoundError
 from app.services.map_search_service import MapSearchService
+from app.services.preference_vector import UserPreferenceNotFoundError
 
 router = APIRouter(prefix="/map", tags=["map"])
 

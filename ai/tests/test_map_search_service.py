@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import patch
 
 from app.models.map_search import MapSearchRequest
-from app.services.discovery_service import UserPreferenceNotFoundError
 from app.services.map_search_service import (
     CafeCandidate,
     CafeMenu,
@@ -12,6 +11,7 @@ from app.services.map_search_service import (
     _RADIUS_CAFE_QUERY,
     _USER_PREFERENCE_QUERY,
 )
+from app.services.preference_vector import UserPreferenceNotFoundError
 from app.services.query_preprocess_service import PreprocessedQuery
 
 
@@ -94,7 +94,13 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
             }
         )
 
-        with patch("app.services.map_search_service.get_pg_pool", return_value=pool):
+        with (
+            patch("app.services.map_search_service.get_pg_pool", return_value=pool),
+            patch(
+                "app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS",
+                3,
+            ),
+        ):
             response = await service.search(
                 MapSearchRequest(
                     mood=[],

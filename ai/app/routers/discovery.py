@@ -1,26 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.db.mongodb import get_mongo_db
 from app.models.discovery import DiscoveryRequest, DiscoveryResponse
 from app.services.discovery_service import DiscoveryService, UserPreferenceNotFoundError
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 
-def get_discovery_service(
-    mongo_db: AsyncIOMotorDatabase = Depends(get_mongo_db),
-) -> DiscoveryService:
-    return DiscoveryService(mongo_db)
+def get_discovery_service() -> DiscoveryService:
+    return DiscoveryService()
 
 
 @router.post(
     "",
     response_model=DiscoveryResponse,
-    summary="사용자 취향 기반 카페 추천",
+    summary="Recommend cafes from a user's preference vector",
     description=(
-        "메인 서비스에서 전달받은 `user_id`를 기준으로 MongoDB에서 취향 벡터를 조회하고, "
-        "PostgreSQL pgvector ANN 인덱스를 사용해 유사한 카페를 최대 100개까지 반환합니다."
+        "Load the user's `preference_vector` from PostgreSQL `user_preference`, "
+        "then return up to 100 cafes from PostgreSQL `cafes.cafe_vector` ordered by "
+        "cosine-distance ANN ranking."
     ),
 )
 async def discover(
