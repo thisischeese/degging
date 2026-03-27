@@ -83,6 +83,9 @@ public class CafeEntity extends BaseEntity {
     @Column(columnDefinition = "geography(Point,4326)", nullable = false)
     private Point location; // 카페 위치 PostGIS
 
+    @Column(columnDefinition = "vector(64)")
+    private float[] cafeVector; // 카페 대표 벡터
+
     @Column(length = 500)
     private String cafeIntro; // 카페 한줄 소개
 
