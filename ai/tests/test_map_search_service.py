@@ -277,6 +277,8 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertTrue(any("map_search_started" in message for message in logs.output))
+        self.assertTrue(any("map_search_menu_lookup_completed" in message for message in logs.output))
+        self.assertTrue(any("map_search_menu_selected" in message for message in logs.output))
         self.assertTrue(any("map_search_menu_rrf_completed" in message for message in logs.output))
         self.assertTrue(any("map_search_ranking_completed" in message for message in logs.output))
 

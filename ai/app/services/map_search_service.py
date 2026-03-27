@@ -26,6 +26,7 @@ _MENU_SEARCH_LIMIT = 20
 _MENU_LOG_LIMIT = 5
 _MENU_SEARCH_BM25_INDEX = "cafe_menus_menu_search_bm25_idx"
 _RRF_K = 60
+_MENU_NAME_LOG_LIMIT = 80
 _MOOD_KEYWORDS: dict[str, tuple[str, ...]] = {
     "7ab663df-31be-43f8-b06a-2e8979806d89": (
         "우드톤",
@@ -300,7 +301,17 @@ class MapSearchService:
                 continue
 
             menu_hits_by_phrase[phrase] = hits
-            extracted_menus[str(hits[0].menu_id)] += occurrence_count
+            selected_hit = hits[0]
+            extracted_menus[str(selected_hit.menu_id)] += occurrence_count
+            logger.info(
+                "map_search_menu_selected: phrase=%s selected_menu_id=%s selected_cafe_id=%s occurrence_count=%s menu_name=%s rrf_score=%.6f",
+                phrase[:100],
+                selected_hit.menu_id,
+                selected_hit.cafe_id,
+                occurrence_count,
+                selected_hit.menu_name[:_MENU_NAME_LOG_LIMIT],
+                selected_hit.rrf_score,
+            )
             for hit in hits:
                 current_score = menu_scores_by_cafe.get(hit.cafe_id, 0.0)
                 if hit.rrf_score > current_score:
@@ -417,6 +428,14 @@ class MapSearchService:
             return []
 
         pool = get_pg_pool()
+        search_mode = "fused" if phrase_vector else "keyword_only"
+        logger.info(
+            "map_search_menu_lookup_started: phrase=%s candidate_cafe_count=%s search_mode=%s phrase_vector_dim=%s",
+            normalized_phrase[:100],
+            len(candidate_cafe_ids),
+            search_mode,
+            len(phrase_vector),
+        )
         if phrase_vector:
             query = _CAFE_MENU_SEARCH_FUSED_QUERY
             args: tuple[object, ...] = (
@@ -454,6 +473,13 @@ class MapSearchService:
         keyword_hits = [hit for hit in hits if hit.keyword_rank is not None]
         vector_hits = [hit for hit in hits if hit.vector_rank is not None]
         logger.info(
+            "map_search_menu_lookup_completed: phrase=%s search_mode=%s hit_count=%s top_hits=%s",
+            normalized_phrase[:100],
+            search_mode,
+            len(hits),
+            self.summarize_menu_hits(hits),
+        )
+        logger.info(
             "map_search_menu_keyword_hits: phrase=%s hit_count=%s top_menu_ids=%s",
             normalized_phrase[:100],
             len(keyword_hits),
@@ -475,7 +501,31 @@ class MapSearchService:
                 top_hit.vector_rank,
                 top_hit.rrf_score,
             )
+        else:
+            logger.info(
+                "map_search_menu_rrf_completed: phrase=%s resolved_menu_id=%s bm25_rank=%s vector_rank=%s rrf_score=%.6f",
+                normalized_phrase[:100],
+                None,
+                None,
+                None,
+                0.0,
+            )
         return hits
+
+    def summarize_menu_hits(self, hits: list[MenuSearchHit]) -> list[dict[str, object]]:
+        summaries: list[dict[str, object]] = []
+        for hit in hits[:_MENU_LOG_LIMIT]:
+            summaries.append(
+                {
+                    "menu_id": hit.menu_id,
+                    "cafe_id": str(hit.cafe_id),
+                    "menu_name": hit.menu_name[:_MENU_NAME_LOG_LIMIT],
+                    "keyword_rank": hit.keyword_rank,
+                    "vector_rank": hit.vector_rank,
+                    "rrf_score": round(hit.rrf_score, 6),
+                }
+            )
+        return summaries
 
     def rank_cafes(
         self,
