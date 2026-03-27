@@ -28,6 +28,13 @@ const SORT_OPTIONS = [
   { value: 'DISTANCE', label: '거리순' },
 ];
 
+const formatDistance = (meters: number) => {
+  if (meters >= 1000) {
+    return `${(meters / 1000).toFixed(1)}km`;
+  }
+  return `${meters}m`;
+};
+
 function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: number } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,6 +65,26 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   const controls = useAnimation();
   // [수정] 지도 중심 좌표 상태 추가 (API 호출용) - props로 받은 초기 위치를 사용
   const [mapCenter, setMapCenter] = useState(initialCenter);
+
+  // [추가] 검색어 입력을 위한 로컬 상태
+  const [inputValue, setInputValue] = useState(keyword);
+  useEffect(() => {
+    setInputValue(keyword);
+  }, [keyword]);
+
+  const executeSearch = () => {
+    if (inputValue.trim()) {
+      router.push(`/map?keyword=${encodeURIComponent(inputValue.trim())}`);
+    } else {
+      router.push(`/map`);
+    }
+  };
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      executeSearch();
+    }
+  };
 
   // [추가] 사용자 취향 태그 세팅
   const { data: userTags = [] } = useQuery<string[]>({
@@ -528,6 +555,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
           {/* 검색바 (URL에서 키워드를 읽어와 표시) */}
           <div className="flex-1 h-10 flex items-center gap-2 px-3 bg-white/90 backdrop-blur-md border border-gray-200 rounded-[5px] shadow-sm">
             <Search className="w-5 h-5 text-gray-400" />
+            {/* 기존 코드 보존:
             <input
               type="text"
               readOnly
@@ -536,10 +564,23 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
               onClick={() => router.push('/')}
               className="flex-1 bg-transparent border-none outline-none text-[15px] text-gray-900 placeholder:text-gray-400 font-medium font-pretendard cursor-pointer"
             />
+            */}
+            {/* [수정] 입력 가능한 검색창으로 변경 및 핸들러 추가 */}
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleSearchKeyPress}
+              placeholder="디저트 검색"
+              className="flex-1 bg-transparent border-none outline-none text-[15px] text-gray-900 placeholder:text-gray-400 font-medium font-pretendard"
+            />
           </div>
 
           {/* 검색바 우측 우드톤 검색 버튼 */}
-          <button className="flex-shrink-0 flex items-center justify-center w-10 h-10 bg-[#865B28] rounded-[5px] shadow-sm">
+          <button 
+            onClick={executeSearch}
+            className="flex-shrink-0 flex items-center justify-center w-10 h-10 bg-[#865B28] rounded-[5px] shadow-sm"
+          >
             <Image src="/images/map/mapSearchIcon.png" alt="검색" width={24} height={24} className="w-6 h-6 object-contain" />
           </button>
         </div>
@@ -629,6 +670,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
               
               return (
                 <div key={typedCafe.cafeId} ref={(el) => { cardRefs.current[typedCafe.cafeId] = el; }}>
+                  {/* 기존 코드 보존:
                   <CafeCard
                     id={typedCafe.cafeId}
                     name={typedCafe.name || ''}
@@ -636,6 +678,23 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
                     address={typedCafe.roadAddress || typedCafe.address || ''}
                     distance=""
                     imageUrl={typedCafe.thumbnailUrl ? `${process.env.NEXT_PUBLIC_CLOUDFRONT_URL}/${typedCafe.thumbnailUrl}` : ''}
+                    ...
+                  />
+                  */}
+                  {/* [수정] distance 포매팅 적용 및 imageUrl 중복 방지 (가능하면 직접 사용, 필요시만 Cloudfront 결합) */}
+                  <CafeCard
+                    id={typedCafe.cafeId}
+                    name={typedCafe.name || ''}
+                    description={typedCafe.cafeIntro || ''}
+                    address={typedCafe.roadAddress || typedCafe.address || ''}
+                    distance={typedCafe.distance !== undefined ? formatDistance(typedCafe.distance) : ''}
+                    imageUrl={
+                      typedCafe.thumbnailUrl 
+                        ? (typedCafe.thumbnailUrl.startsWith('http') 
+                          ? typedCafe.thumbnailUrl 
+                          : `${process.env.NEXT_PUBLIC_CLOUDFRONT_URL || ''}/${typedCafe.thumbnailUrl.startsWith('/') ? typedCafe.thumbnailUrl.slice(1) : typedCafe.thumbnailUrl}`) 
+                        : ''
+                    }
                     isScrapped={'isScrapped' in typedCafe ? typedCafe.isScrapped : false} // [추가] 스크랩 여부
                     isActive={activeCafeId === typedCafe.cafeId}
                     onClick={() => handleCafeClick(typedCafe)}
