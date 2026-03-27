@@ -241,9 +241,15 @@ export default function MyReviewsPage() {
                   reviewId: review.reviewId, // 아이디 원본 유지
                   cafeId: 0, 
                   cafeName: review.cafeName || "카페 정보 없음",
+                  /* 기존 코드 유지용 주석
                   cafeImageUrl: review.images[0]?.imageUrl || "/images/curation/mangoBingsu.png",
+                  */
+                  cafeImageUrl: 
+                    review.thumbnailImage || 
+                    (Array.isArray(review.images) && review.images.length > 0 ? review.images[0]?.imageUrl : null) || 
+                    "/images/curation/mangoBingsu.png",
                   content: review.content,
-                  createdAt: review.createdAt.split('T')[0].replaceAll('-', '.')
+                  createdAt: review.createdAt ? review.createdAt.split('T')[0].replaceAll('-', '.') : "날짜 정보 없음"
                 } as OldReviewItemType)} 
               />
             ))
