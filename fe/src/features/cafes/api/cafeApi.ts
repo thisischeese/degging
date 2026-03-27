@@ -53,12 +53,12 @@ export const searchCafes = async (payload: SearchCafesRequest): Promise<SearchCa
   }
   */
 
-  // [수정] 통합된 POST API 명세 활용
+  // [수정] 통합된 POST API 명세 활용 (500 에러 방어 로직 추가)
   const requestBody = {
-    mood: payload.mood || [],
+    mood: Array.isArray(payload.mood) ? payload.mood : [],
     keyword: payload.keyword || '',
-    latitude: payload.latitude,
-    longitude: payload.longitude,
+    latitude: Number(payload.latitude),
+    longitude: Number(payload.longitude),
   };
 
   const response = await axios_instance.post<SearchCafesResponse>(`/api/cafes/search`, requestBody) as unknown as SearchCafesResponse;
