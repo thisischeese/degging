@@ -9,6 +9,7 @@ import re
 from typing import Any
 from uuid import UUID
 
+from app.db.postgresql import get_pg_pool
 from app.models.query_preprocess import QueryPreprocessData
 from app.services.menu_query_encoder import encode_menu_query
 
@@ -17,6 +18,16 @@ _MENU_NER_MODEL_DIR = "food_ner_model"
 _MENU_NER_FALLBACK_FOOD_LABEL_IDS = frozenset({28, 178})
 _GENERIC_LABEL_PATTERN = re.compile(r"^LABEL_\d+$")
 _MENU_PHRASE_LOG_LIMIT = 5
+_MENU_MECAB_LOG_LIMIT = 20
+_MENU_NER_LOG_LIMIT = 20
+_MENU_NER_QUERY_LOG_LIMIT = 100
+_MENU_MECAB_DEBUG_QUERY = """
+    SELECT alias, description, token, lexemes
+    FROM ts_debug('public.korean', $1)
+"""
+_MENU_MECAB_TSVECTOR_QUERY = """
+    SELECT to_tsvector('public.korean', $1)::text AS tsvector
+"""
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -49,7 +60,7 @@ def _to_list(value: Any) -> Any:
     return value
 
 
-def _resolve_food_label_ids(model: Any) -> tuple[frozenset[int], str]:
+def _resolve_id2label_map(model: Any) -> dict[int, str]:
     config = getattr(model, "config", None)
     id2label = getattr(config, "id2label", {}) or {}
     normalized_labels: dict[int, str] = {}
@@ -59,7 +70,11 @@ def _resolve_food_label_ids(model: Any) -> tuple[frozenset[int], str]:
         except (TypeError, ValueError):
             continue
         normalized_labels[normalized_key] = str(value or "").strip()
+    return normalized_labels
 
+
+def _resolve_food_label_ids(model: Any) -> tuple[frozenset[int], str]:
+    normalized_labels = _resolve_id2label_map(model)
     semantic_label_ids = frozenset(
         label_id
         for label_id, label in normalized_labels.items()
@@ -133,6 +148,47 @@ def _collect_food_phrases(
 
     flush_span()
     return phrases
+
+
+def _convert_input_ids_to_tokens(tokenizer: Any, input_ids: list[Any]) -> list[str]:
+    if hasattr(tokenizer, "convert_ids_to_tokens"):
+        try:
+            converted = tokenizer.convert_ids_to_tokens(input_ids)
+            return [str(token) for token in converted]
+        except Exception:
+            pass
+    return [str(token_id) for token_id in input_ids]
+
+
+def _build_ner_debug_rows(
+    *,
+    tokenizer: Any,
+    input_ids: list[Any],
+    predicted_ids: list[int],
+    offset_mapping: list[list[int] | tuple[int, int]],
+    special_tokens_mask: list[int],
+    id2label: dict[int, str],
+) -> list[dict[str, object]]:
+    token_strings = _convert_input_ids_to_tokens(tokenizer, input_ids)
+    rows: list[dict[str, object]] = []
+    for token, label_id, offsets, is_special in zip(
+        token_strings,
+        predicted_ids,
+        offset_mapping,
+        special_tokens_mask,
+    ):
+        start = int(offsets[0])
+        end = int(offsets[1])
+        rows.append(
+            {
+                "token": token,
+                "offset": [start, end],
+                "label_id": int(label_id),
+                "label": id2label.get(int(label_id), f"LABEL_{int(label_id)}"),
+                "special": bool(is_special),
+            }
+        )
+    return rows
 
 
 def _load_local_menu_ner_components(
@@ -231,6 +287,53 @@ class PreprocessedQuery:
 
 
 class QueryPreprocessService:
+    async def log_mecab_analysis(self, query: str) -> None:
+        normalized_query = query.strip()
+        if not normalized_query:
+            return
+
+        try:
+            pool = get_pg_pool()
+        except RuntimeError:
+            logger.info(
+                "menu_mecab_analysis_skipped: query=%s reason=pg_pool_unavailable",
+                normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
+            )
+            return
+
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(_MENU_MECAB_DEBUG_QUERY, normalized_query)
+                tsvector_row = await conn.fetchrow(_MENU_MECAB_TSVECTOR_QUERY, normalized_query)
+        except Exception:
+            logger.exception(
+                "menu_mecab_analysis_failed: query=%s",
+                normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
+            )
+            return
+
+        debug_rows: list[dict[str, object]] = []
+        for row in rows:
+            token = str(row["token"] or "")
+            if not token.strip():
+                continue
+            lexemes = row["lexemes"] or []
+            debug_rows.append(
+                {
+                    "alias": row["alias"],
+                    "token": token,
+                    "lexemes": list(lexemes),
+                }
+            )
+
+        logger.info(
+            "menu_mecab_analysis_completed: query=%s token_count=%s tokens=%s tsvector=%s",
+            normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
+            len(debug_rows),
+            debug_rows[:_MENU_MECAB_LOG_LIMIT],
+            (tsvector_row["tsvector"] if tsvector_row else "")[:200],
+        )
+
     async def encode_query(self, query: str) -> list[float]:
         try:
             return encode_menu_query(query)
@@ -243,8 +346,10 @@ class QueryPreprocessService:
             return []
 
         try:
+            await self.log_mecab_analysis(normalized_query)
             tokenizer, model, torch = _load_menu_ner_components()
             food_label_ids, _ = _resolve_food_label_ids(model)
+            id2label = _resolve_id2label_map(model)
             encoded_inputs = tokenizer(
                 normalized_query,
                 return_tensors="pt",
@@ -253,6 +358,7 @@ class QueryPreprocessService:
                 truncation=True,
                 max_length=512,
             )
+            input_ids = _to_list(encoded_inputs["input_ids"][0])
             offset_mapping = _to_list(encoded_inputs.pop("offset_mapping")[0])
             special_tokens_mask = _to_list(encoded_inputs.pop("special_tokens_mask")[0])
 
@@ -261,17 +367,34 @@ class QueryPreprocessService:
 
             logits = outputs.logits if hasattr(outputs, "logits") else outputs[0]
             predicted_ids = _to_list(logits.argmax(dim=-1)[0])
-            return _collect_food_phrases(
+            normalized_predicted_ids = [int(label_id) for label_id in predicted_ids]
+            extracted_phrases = _collect_food_phrases(
                 normalized_query,
-                [int(label_id) for label_id in predicted_ids],
+                normalized_predicted_ids,
                 offset_mapping,
                 special_tokens_mask,
                 food_label_ids,
             )
+            ner_debug_rows = _build_ner_debug_rows(
+                tokenizer=tokenizer,
+                input_ids=input_ids,
+                predicted_ids=normalized_predicted_ids,
+                offset_mapping=offset_mapping,
+                special_tokens_mask=special_tokens_mask,
+                id2label=id2label,
+            )
+            logger.info(
+                "menu_ner_inference_completed: query=%s token_count=%s tokens=%s extracted_phrases=%s",
+                normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
+                len(ner_debug_rows),
+                ner_debug_rows[:_MENU_NER_LOG_LIMIT],
+                extracted_phrases[:_MENU_PHRASE_LOG_LIMIT],
+            )
+            return extracted_phrases
         except Exception:
             logger.exception(
                 "menu_phrase_extraction_failed: query=%s",
-                normalized_query[:100],
+                normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
             )
             return []
 
@@ -296,7 +419,7 @@ class QueryPreprocessService:
 
         logger.info(
             "menu_phrase_extraction_completed: query=%s phrase_count=%s phrases=%s used_query_fallback=%s",
-            normalized_query[:100],
+            normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
             len(menu_phrases),
             menu_phrases[:_MENU_PHRASE_LOG_LIMIT],
             used_query_fallback,
