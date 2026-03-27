@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Chip } from "@/common/components/Chip";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 import { useQuery } from "@tanstack/react-query";
-import { getOnboardingMenus } from "@/features/onboarding/api/onboardingApi";
+import { getOnboardingMenus, getOnboardingCafes } from "@/features/onboarding/api/onboardingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
+import { getImageUrl } from "@/common/utils/image";
 
 // 기존 DUMMY_MENUS를 제거하고 API 데이터를 사용합니다.
 
@@ -15,6 +17,13 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
   const { data: rankingData } = useQuery({
     queryKey: ["rankings", "onboarding"],
     queryFn: getOnboardingMenus,
+    ...QUERY_OPTIONS.STATIC,
+  });
+
+  // [프리페칭] 다음 단계인 StepMood에서 사용할 카페 데이터를 미리 불러와 캐시에 저장합니다.
+  const { data: cafeData } = useQuery({
+    queryKey: ["cafes", "onboarding"],
+    queryFn: getOnboardingCafes,
     ...QUERY_OPTIONS.STATIC,
   });
   
@@ -38,7 +47,7 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
   };
 
   return (
-    <div className="flex flex-col h-full px-4 overflow-hidden">
+    <div className="flex flex-col h-full px-4 overflow-hidden relative">
       {/* 1. 타이틀 영역 */}
       <div className="mt-14 shrink-0 text-center">
         <h2 className="text-[26px] font-bold text-gray-900 tracking-tight font-pretendard">
@@ -102,6 +111,27 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
         >
           다음 단계로
         </Button>
+      </div>
+
+      {/* [브라우저 프리로딩] 다음 단계(StepMood) 이미지들을 미리 로드 (Next.js 캐시 적중용) */}
+      <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden" aria-hidden="true">
+        {cafeData?.slice(0, 6).map((cafe) => {
+           const rawPath = cafe.thumbnailUrl;
+           const formattedPath = rawPath && !rawPath.startsWith("http") && !rawPath.includes("/")
+             ? `cafe/${rawPath}`
+             : rawPath;
+           return (
+             <div key={`preload-${cafe.cafeId}`} className="relative h-[1px] w-[1px]">
+               <Image 
+                 src={getImageUrl(formattedPath)} 
+                 alt="preload"
+                 fill
+                 sizes="(max-width: 768px) 50vw, 33vw" // StepMood와 반드시 일치야 함
+                 priority={true} 
+               />
+             </div>
+           );
+        })}
       </div>
     </div>
   );
