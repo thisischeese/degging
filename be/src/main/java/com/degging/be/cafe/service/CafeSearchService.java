@@ -18,6 +18,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -75,6 +76,8 @@ public class CafeSearchService {
         // AI 서버 호출
         AiSearchResponse res = aiWebClient.post()
                 .uri(aiServerUrl  + "/ai/map/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
                 .bodyValue(aiSearchRequest)
                 .retrieve()
                 .bodyToMono(AiSearchResponse.class)// 응답 형식
