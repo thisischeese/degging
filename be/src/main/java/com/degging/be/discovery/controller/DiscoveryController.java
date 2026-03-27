@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Slice;
 
+import com.degging.be.global.exception.BaseException;
+import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.util.List;
@@ -47,14 +49,7 @@ public class DiscoveryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "15") int size) {
 
-        UUID userId = null;
-        if (userDetails != null) {
-            try {
-                userId = UUID.fromString(userDetails.getUsername());
-            } catch (IllegalArgumentException e) {
-                log.warn("유효하지 않은 사용자 UUID 형식: {}", userDetails.getUsername());
-            }
-        }
+        UUID userId = getUserId(user);
         
         Slice<DiscoveryResponse> responses = discoveryService.getDailyDiscoveryCafes(page, size, userId);
         return BaseResponse.success(responses);
