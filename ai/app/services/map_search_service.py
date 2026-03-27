@@ -19,12 +19,43 @@ from app.services.query_preprocess_service import QueryPreprocessService
 
 _RADIUS_METERS = 2000
 _MAX_RESULTS = settings.discovery_top_k
-_MOOD_KEYWORDS: dict[int, tuple[str, ...]] = {
-    0: ("우드톤", "따뜻함", "따뜻한", "아늑한", "포근한"),
-    1: ("식물원", "플랜테리어", "식물", "초록", "녹음"),
-    2: ("힙한", "힙", "트렌디", "감성", "감각적인"),
-    3: ("조용한", "조용", "차분한", "차분", "고요한"),
-    4: ("탁트인", "탁 트인", "뷰 좋은", "뷰", "전망", "창가"),
+_MOOD_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "7ab663df-31be-43f8-b06a-2e8979806d89": (
+        "\uc6b0\ub4dc\ud1a4",
+        "\ub530\ub73b\ud568",
+        "\ub530\ub73b\ud55c",
+        "\uc544\ub291\ud55c",
+        "\ud3ec\uadfc\ud55c",
+    ),
+    "4ada6e46-3d5b-4ac8-abf9-9479abb35cfc": (
+        "\uc2dd\ubb3c\uc6d0",
+        "\ud50c\ub79c\ud14c\ub9ac\uc5b4",
+        "\uc2dd\ubb3c",
+        "\ucd08\ub85d",
+        "\ub179\uc74c",
+    ),
+    "c35facb1-f2ae-42aa-8234-522f6ae3352b": (
+        "\ud799\ud55c",
+        "\ud799",
+        "\ud2b8\ub80c\ub514",
+        "\uac10\uc131",
+        "\uac10\uac01\uc801\uc778",
+    ),
+    "e747e844-db71-42ea-81cf-c25d510672b2": (
+        "\uc870\uc6a9\ud55c",
+        "\uc870\uc6a9",
+        "\ucc28\ubd84\ud55c",
+        "\ucc28\ubd84",
+        "\uace0\uc694\ud55c",
+    ),
+    "9b71769c-2293-4e06-bf37-f1fbf33c2853": (
+        "\ud0c1\ud2b8\uc778",
+        "\ud0c1 \ud2b8\uc778",
+        "\ubdf0 \uc88b\uc740",
+        "\ubdf0",
+        "\uc804\ub9dd",
+        "\ucc3d\uac00",
+    ),
 }
 
 _USER_PREFERENCE_QUERY = _SHARED_USER_PREFERENCE_QUERY
@@ -312,12 +343,12 @@ class MapSearchService:
 
         return None
 
-    def resolve_mood_keywords(self, mood: list[int]) -> list[str]:
+    def resolve_mood_keywords(self, mood: list[UUID]) -> list[str]:
         resolved_keywords: list[str] = []
         seen_keywords: set[str] = set()
 
         for mood_id in mood:
-            for keyword in _MOOD_KEYWORDS.get(mood_id, ()):
+            for keyword in _MOOD_KEYWORDS.get(str(mood_id), ()):
                 normalized_keyword = keyword.strip()
                 if not normalized_keyword or normalized_keyword in seen_keywords:
                     continue

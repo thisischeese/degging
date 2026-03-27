@@ -1,5 +1,5 @@
-from uuid import UUID
 import unittest
+from uuid import UUID
 from unittest.mock import patch
 
 from app.models.map_search import MapSearchRequest
@@ -13,6 +13,8 @@ from app.services.map_search_service import (
 )
 from app.services.preference_vector import UserPreferenceNotFoundError
 from app.services.query_preprocess_service import PreprocessedQuery
+
+QUIET_MOOD_ID = UUID("e747e844-db71-42ea-81cf-c25d510672b2")
 
 
 class FakeConnection:
@@ -75,9 +77,9 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(cafe_id),
                         "name": "Cafe A",
-                        "address": "서울시 중구",
+                        "address": "\uc11c\uc6b8\uc2dc \uc911\uad6c",
                         "road_address": None,
-                        "cafe_intro": "조용한 디저트 카페",
+                        "cafe_intro": "\uc870\uc6a9\ud55c \ub514\uc800\ud2b8 \uce74\ud398",
                         "brand_name": None,
                         "branch_name": None,
                         "preference_similarity": 0.8,
@@ -96,10 +98,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch("app.services.map_search_service.get_pg_pool", return_value=pool),
-            patch(
-                "app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS",
-                3,
-            ),
+            patch("app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS", 3),
         ):
             response = await service.search(
                 MapSearchRequest(
@@ -171,7 +170,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Loud Cafe",
                     address=None,
                     road_address=None,
-                    cafe_intro="활기찬 분위기의 카페",
+                    cafe_intro="\ud65c\uae30\ucc2c \ubd84\uc704\uae30\uc758 \uce74\ud398",
                     brand_name=None,
                     branch_name=None,
                 ),
@@ -181,14 +180,14 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Quiet Cafe",
                     address=None,
                     road_address=None,
-                    cafe_intro="조용한 분위기에서 공부하기 좋은 카페",
+                    cafe_intro="\uc870\uc6a9\ud55c \ubd84\uc704\uae30\uc5d0\uc11c \uacf5\ubd80\ud558\uae30 \uc88b\uc740 \uce74\ud398",
                     brand_name=None,
                     branch_name=None,
                 ),
             ],
             menus_by_cafe={},
-            normalized_keyword="카페",
-            mood_keywords=service.resolve_mood_keywords([3]),
+            normalized_keyword="\uce74\ud398",
+            mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
         )
 
         self.assertEqual(ranked_cafes, [quiet_cafe])
@@ -210,7 +209,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Cafe B",
                     address=None,
                     road_address=None,
-                    cafe_intro="조용한 조용한 감성 카페",
+                    cafe_intro="\uc870\uc6a9\ud55c \uc870\uc6a9\ud55c \uac10\uc131 \uce74\ud398",
                     brand_name=None,
                     branch_name=None,
                 ),
@@ -220,14 +219,14 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Cafe A",
                     address=None,
                     road_address=None,
-                    cafe_intro="조용한 감성 카페",
+                    cafe_intro="\uc870\uc6a9\ud55c \uac10\uc131 \uce74\ud398",
                     brand_name=None,
                     branch_name=None,
                 ),
             ],
             menus_by_cafe={},
-            normalized_keyword="감성",
-            mood_keywords=service.resolve_mood_keywords([3]),
+            normalized_keyword="\uac10\uc131",
+            mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
         )
 
         self.assertEqual(ranked_cafes, [higher_similarity, lower_similarity])
@@ -280,7 +279,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                 name=f"Cafe {index}",
                 address=None,
                 road_address=None,
-                cafe_intro="조용한 감성 카페",
+                cafe_intro="\uc870\uc6a9\ud55c \uac10\uc131 \uce74\ud398",
                 brand_name=None,
                 branch_name=None,
             )
@@ -290,8 +289,8 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         ranked_cafes = service.rank_cafes(
             candidates=candidates,
             menus_by_cafe={},
-            normalized_keyword="감성",
-            mood_keywords=service.resolve_mood_keywords([3]),
+            normalized_keyword="\uac10\uc131",
+            mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
         )
         cafes = {
             str(cafe_id): rank
