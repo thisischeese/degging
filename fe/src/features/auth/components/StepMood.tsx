@@ -95,7 +95,7 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
   );
 }
 
-// --- 개별 무드 아이템 컴포넌트 (스켈레톤 처리 포함) ---
+// 개별 무드 아이템 컴포넌트 (스켈레톤 처리 포함)
 function MoodItem({ 
   cafe, 
   isActive, 
