@@ -36,7 +36,7 @@ export const getCafeDetail = async (cafeId: string): Promise<CafeDetailResponse[
 
 // [실제 API 연동] 키워드, 내 위치, 그리고 조건(Mood)에 따라 카페를 검색합니다.
 export const searchCafes = async (payload: SearchCafesRequest): Promise<SearchCafeItem[]> => {
-  // 복합 조건(mood)이 있을 경우 POST, 단순 키워드 검색일 경우 GET 사용
+  /* 기존 코드 보존: 복합 조건(mood)이 있을 경우 POST, 단순 키워드 검색일 경우 GET 사용
   if (payload.mood && payload.mood.length > 0) {
     const response = await axios_instance.post<SearchCafesResponse>(`/api/cafes/search`, payload) as unknown as SearchCafesResponse;
     // 응답이 data 배열 형태일 수도 있고, data.cafes 일 수도 있으므로 방어적 접근
@@ -51,4 +51,20 @@ export const searchCafes = async (payload: SearchCafesRequest): Promise<SearchCa
     }) as unknown as SearchCafesResponse;
     return Array.isArray(response.data) ? response.data : (response.data?.cafes || []);
   }
+  */
+
+  // [수정] 통합된 POST API 명세 활용 (500 에러 방어 로직 추가)
+  const requestBody = {
+    mood: Array.isArray(payload.mood) ? payload.mood : [],
+    keyword: payload.keyword || '',
+    latitude: Number(payload.latitude),
+    longitude: Number(payload.longitude),
+  };
+
+  const response = await axios_instance.post<SearchCafesResponse>(`/api/cafes/search`, requestBody) as unknown as SearchCafesResponse;
+  
+  // 성공적으로 data 안에 cafes 가 내려온다고 가정 (명세 참고: data.cafes 배열)
+  const resultData = response.data as unknown as { cafes?: SearchCafeItem[] };
+  
+  return Array.isArray(resultData) ? resultData : (resultData?.cafes || []);
 };

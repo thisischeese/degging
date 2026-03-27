@@ -10,9 +10,32 @@ export const getUserInfo = async (): Promise<BaseResponse<UserProfile>> => {
 
 /** 2. 내 리뷰 전체 조회 */
 export const getMyReviews = async (page: number = 0, size: number = 5): Promise<BaseResponse<MyReviewResponse>> => {
+    /* 기존 코드 보존
     return axios_instance.get<BaseResponse<MyReviewResponse>>('/api/reviews/mine', {
         params: { page, size }
     }) as unknown as Promise<BaseResponse<MyReviewResponse>>;
+    */
+
+    // [수정] 내 리뷰 목록 썸네일 상대 경로에 전체 Cloudfront URL 결합
+    const response = await axios_instance.get<BaseResponse<MyReviewResponse>>('/api/reviews/mine', {
+        params: { page, size }
+    }) as unknown as BaseResponse<MyReviewResponse>;
+
+    const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
+    
+    if (response.data && Array.isArray(response.data.content)) {
+        response.data.content = response.data.content.map(review => {
+            const rawPath = review.thumbnailImage;
+            // 주소가 이미 http로 시작하면 그대로 두고, 아니면 baseUrl을 강제로 결합
+            const fullUrl = (rawPath && !rawPath.startsWith('http') && !rawPath.startsWith('blob:')) 
+              ? `${baseUrl}/${rawPath.startsWith('/') ? rawPath.slice(1) : rawPath}`
+              : rawPath || '/images/common/logo.png';
+            
+            return { ...review, thumbnailImage: fullUrl };
+        });
+    }
+
+    return response as unknown as BaseResponse<MyReviewResponse>;
 };
 
 /** 3. 사용자 정보 수정 (닉네임, 프로필 이미지) */

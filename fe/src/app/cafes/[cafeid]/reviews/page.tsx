@@ -203,6 +203,7 @@ export default function CafeReviewsPage({ params }: { params: Promise<{ cafeid: 
                   onClick={() => router.push(`/reviews/${review.reviewId}`)}
                   className="bg-white rounded-xl shadow-md border border-gray-100 flex flex-col overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
                 >
+                  {/* 기존 정적 이미지 렌더링 폴백 보존
                   <div className="relative w-full h-40 bg-gray-100">
                     <Image
                       src={imageUrl}
@@ -212,6 +213,18 @@ export default function CafeReviewsPage({ params }: { params: Promise<{ cafeid: 
                       priority={index === 0}
                     />
                   </div>
+                  */}
+                  {review.images && review.images.length > 0 ? (
+                    <div className="relative w-full h-40 bg-gray-100">
+                      <Image
+                        src={imageUrl}
+                        alt={`리뷰 이미지 ${review.reviewId}`}
+                        fill
+                        className="object-cover"
+                        priority={index === 0}
+                      />
+                    </div>
+                  ) : null}
 
                   <div className="p-4 flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-3">

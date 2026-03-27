@@ -1,6 +1,7 @@
 // features/onboarding/types.ts
 
 export interface OnboardingMenu {
+  id: number;
   rank: number;
   keyword: string;
 }
@@ -13,7 +14,7 @@ export interface OnboardingCafe {
 export interface OnboardingResult {
   onboardingToken: string;
   cafeIds: string[];
-  menuIds: number[];
+  menuNames: string[];
 }
 
 export interface OnboardingInitialData {

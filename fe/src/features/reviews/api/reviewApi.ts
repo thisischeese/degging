@@ -130,7 +130,25 @@ export const getMyReviews = async (
       params,
     })) as unknown as ApiResponse<MyReviewsResponse>;
 
+    /* 기존 코드 보존
     return response.data;
+    */
+
+    // [수정] 내 리뷰 목록 썸네일 경로에 BaseURL 결합 처리
+    const responseData = response.data;
+    const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
+    
+    const transformedContent = responseData.content.map((review: Review) => {
+      const rawPath = review.thumbnailImage;
+      // 주소가 이미 http로 시작하면 그대로 두고, 아니면 baseUrl을 강제로 결합
+      const fullUrl = (rawPath && !rawPath.startsWith('http') && !rawPath.startsWith('blob:')) 
+        ? `${baseUrl}/${rawPath.startsWith('/') ? rawPath.slice(1) : rawPath}`
+        : rawPath || '/images/common/logo.png';
+      
+      return { ...review, thumbnailImage: fullUrl };
+    });
+
+    return { ...responseData, content: transformedContent };
   } catch (error) {
     console.warn("Falling back to mock my-reviews data:", error);
     return mockResponse;
@@ -152,7 +170,31 @@ export const getCafeReviews = async (
     }
   )) as unknown as BaseResponse<CafeReviewsSliceResponse>;
 
-  return response.data; // 서버 응답에서 실제 데이터(content, hasNext, page)만 추출하여 반환
+  const data = response.data;
+
+  // [수정] 카페 리뷰 리스트의 이미지 요소에 BaseURL 결합 처리
+  const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
+
+  const formatImageUrl = (url: string | null | undefined) => {
+    if (!url) return url;
+    if (url.startsWith('http') || url.startsWith('blob:')) return url;
+    const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
+    return `${baseUrl}/${cleanUrl}`;
+  };
+
+  if (data && Array.isArray(data.content)) {
+    data.content = data.content.map((review) => {
+      if (Array.isArray(review.images) && review.images.length > 0) {
+        review.images = review.images.map((img) => ({
+          ...img,
+          imageUrl: formatImageUrl(img.imageUrl) as string,
+        }));
+      }
+      return review;
+    });
+  }
+
+  return data; // 서버 응답에서 실제 데이터(content, hasNext, page)만 추출하여 반환
 };
 
 export interface PostCafeReviewPayload {

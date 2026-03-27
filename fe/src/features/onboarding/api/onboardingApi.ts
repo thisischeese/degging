@@ -1,12 +1,12 @@
 import { axios_instance } from "@/api/axios_instance";
 import { BaseResponse } from "@/features/auth/types";
-import { OnboardingMenu, OnboardingCafe, OnboardingResult, OnboardingInitialData } from "../types";
+import { OnboardingCafe, OnboardingResult, OnboardingInitialData } from "../types";
 
 /** 온보딩 페이지 애착메뉴 조회 */
-export const getOnboardingMenus = async (): Promise<OnboardingMenu[]> => {
-  const response = await axios_instance.get<BaseResponse<{ rankings: OnboardingMenu[] }>>('/api/ranks/desserts/onboarding');
-  const baseResponse = response as unknown as BaseResponse<{ rankings: OnboardingMenu[] }>;
-  return baseResponse.data.rankings;
+export const getOnboardingMenus = async (): Promise<string[]> => {
+  const response = await axios_instance.get<BaseResponse<{ menuName: string[] }>>('/api/ranks/desserts/onboarding');
+  const baseResponse = response as unknown as BaseResponse<{ menuName: string[] }>;
+  return baseResponse.data.menuName;
 };
 
 /** 온보딩 페이지 카페 이미지 조회 */

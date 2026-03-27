@@ -106,10 +106,6 @@ export default function SignupPage() {
         return false;
       }
 
-      // [핵심 수정] 데이터 정제: null, NaN, 0 등을 완전히 제거하여 [null] 전송 방지
-      const rawMenuIds = (dataToUse.trends || []).map(id => Number(id));
-      const menuIds = rawMenuIds.filter((id): id is number => !isNaN(id) && id !== 0 && id !== null);
-      
       const cafeIds = (dataToUse.moods || []).filter((id): id is string => 
         !!id && String(id) !== "null" && String(id) !== "undefined" && String(id).trim() !== ""
       );
@@ -117,13 +113,14 @@ export default function SignupPage() {
       const onboardingData: OnboardingResult = {
         onboardingToken: token,
         cafeIds: cafeIds,
-        menuIds: menuIds,
+        menuNames: dataToUse.trends,
       };
 
       console.log("🚀 온보딩 최종 페이로드:", onboardingData);
 
       // 1. 온보딩 결과 전송
       await postOnboardingResults(onboardingData);
+      console.log("온보딩 데이터 제출 성공");
       
       // 2. 온보딩 성공 후 자동 로그인 (onboardingToken -> access_token 전환)
       console.log("🔑 온보딩 성공! 자동 로그인 시도 중...");
@@ -132,7 +129,7 @@ export default function SignupPage() {
         password: formData.password
       });
 
-      // 3. 임시 토큰 파기
+      // 3. 임시 토큰 파기 (보안 및 백엔드 지침 준수)
       sessionStorage.removeItem("ONBOARDING_TOKEN");
       
       return true;

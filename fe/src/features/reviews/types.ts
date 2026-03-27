@@ -23,6 +23,7 @@ export interface Review {
   images: ReviewImage[];
   nickname: string;
   cafeName?: string;
+  thumbnailImage?: string | null;
 }
 
 // 리뷰 상세 응답에 사용하는 리뷰 타입입니다.
