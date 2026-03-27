@@ -1,7 +1,6 @@
 // features/onboarding/types.ts
 
 export interface OnboardingMenu {
-  menuId: number;
   rank: number;
   keyword: string;
 }
