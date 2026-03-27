@@ -27,11 +27,20 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
       setSelectedMoods((prev) => prev.filter((id) => id !== cafeId));
     } else {
       if (selectedMoods.length >= 3) {
-        setErrorMessage("최대 3개까지만 선택할 수 있습니다.");
+        setErrorMessage("최대 3개까지만 선택 가능합니다!");
         return;
       }
       setSelectedMoods((prev) => [...prev, cafeId]);
     }
+  };
+
+  const handleNext = () => {
+    if (selectedMoods.length !== 3) {
+      setErrorMessage("정확한 취향 파악을 위해 3개를 선택해주세요!");
+      return;
+    }
+    updateData({ moods: selectedMoods });
+    next();
   };
 
   return (
@@ -66,22 +75,18 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
       {/* 3. 하단 버튼 영역: 상단에 얇은 선(경계) 추가하여 스크롤 영역과 분리 */}
       <div className="shrink-0 pb-4 mt-2 px-6 border-t border-gray-100 pt-4">
         <div className="min-h-[24px] mb-2 text-center">
-          {(errorMessage || selectedMoods.length === 0) && (
-            <p className="text-[12px] text-[#C3304F] font-medium leading-tight">
-              {errorMessage || "취향을 정확히 파악하기 위해 하나 이상 선택해주세요!"}
+          {errorMessage && (
+            <p className="text-[14px] text-[#C3304F] font-bold leading-tight animate-bounce">
+              {errorMessage}
             </p>
           )}
         </div>
 
         <Button
-          variant="gray"
+          variant={selectedMoods.length === 3 ? "primary" : "gray"}
           size="full"
-          disabled={selectedMoods.length === 0}
-          onClick={() => {
-            updateData({ moods: selectedMoods });
-            next();
-          }}
-          className={selectedMoods.length > 0 ? "bg-[#C3304F]! text-white!" : ""}
+          onClick={handleNext}
+          className="shadow-lg active:scale-[0.98] transition-all"
         >
           다음 단계로
         </Button>
@@ -90,7 +95,7 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
   );
 }
 
-// --- 개별 무드 아이템 컴포넌트 (스켈레톤 처리 포함) ---
+// 개별 무드 아이템 컴포넌트 (스켈레톤 처리 포함)
 function MoodItem({ 
   cafe, 
   isActive, 
