@@ -188,8 +188,7 @@ export default function MainPage() {
             { id: 1, title: "무더위를 날려버릴\n망고 빙수 맛집 모음", image: "/images/curation/mangoBingsu.webp" },
             { id: 2, title: "겉바속촉 고소함의 끝\n인생 소금빵", image: "/images/curation/soguem.webp" },
             { id: 3, title: "두툼하고 쫀득한\n마성의 두쫀쿠", image: "/images/curation/duzzonku.webp" },
-            { id: 4, title: "싱그러운 제철 과일\n상큼한 디저트", image: "/images/curation/ddalgi.png" },
-            { id: 5, title: "은은한 풍미의 향연\n나만 알고 싶은 카페", image: "/images/curation/mangoBingsu.webp" },
+            { id: 4, title: "싱그러운 제철 과일\n상큼한 디저트", image: "/images/curation/ddalgi.webp" },
           ].map((item) => (
             <div 
               key={item.id} 
