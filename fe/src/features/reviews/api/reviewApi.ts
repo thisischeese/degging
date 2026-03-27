@@ -56,21 +56,21 @@ const getLocalReviews = (): Review[] => {
 };
 
 // 기본 내 리뷰 목업 데이터를 정의합니다.
-  const baseMockContent: Review[] = [
-    {
-      reviewId: "eed475e0-424d-4ae4-ac49-cc2e1119d167",
-      rating: 5,
-      content: "카페가 정말 예쁘네요!~~~~~~~~",
-      createdAt: "2026-03-12T17:12:49.718464",
-      updatedAt: "2026-03-12T17:12:49.718464",
-      nickname: "킴싸피",
-      images: [
-        { imageId: "1", imageUrl: "/images/cafe/cafe1.png" },
-        { imageId: "2", imageUrl: "/images/cafe/cafe2.png" },
-      ],
-      cafeName: "카페",
-    },
-  ];
+const baseMockContent: Review[] = [
+  {
+    reviewId: "eed475e0-424d-4ae4-ac49-cc2e1119d167",
+    rating: 5,
+    content: "카페가 정말 예쁘네요!~~~~~~~~",
+    createdAt: "2026-03-12T17:12:49.718464",
+    updatedAt: "2026-03-12T17:12:49.718464",
+    nickname: "킴싸피",
+    images: [
+      { imageId: "1", imageUrl: "/images/cafe/cafe1.png" },
+      { imageId: "2", imageUrl: "/images/cafe/cafe2.png" },
+    ],
+    cafeName: "카페",
+  },
+];
 
 // 내 리뷰 목록을 조회하는 함수입니다.
 export const getMyReviews = async (
@@ -185,8 +185,8 @@ export const postCafeReview = async (
     `/api/cafes/${cafeId}/reviews`,
     formData,
     {
-      headers: {  'Content-Type': 'multipart/form-data' }, // 파일 업로드를 위한 헤더 설정
-    } 
+      headers: { 'Content-Type': 'multipart/form-data' }, // 파일 업로드를 위한 헤더 설정
+    }
   )) as unknown as BaseResponse<PostReviewResponse>;
 
   return response.data; // 등록된 리뷰 상세 데이터(reviewId 포함)를 반환
@@ -209,18 +209,25 @@ export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailRes
   )) as unknown as BaseResponse<ReviewDetailResponse>;
 
   const data = response.data;
-  
-  // [수정] 현재 API 응답에 BaseURL이 없으므로, 모든 imageUrls 요소 앞에 CloudFront 주소를 결합하여 매칭되도록 처리합니다.
-  if (data && Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
-    const baseUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '';
-    data.imageUrls = data.imageUrls.map((url) => {
-      // 혹시라도 이미 'http'나 '/'로 시작하는 로컬 경로, Blob 등이라면 원본 반환
-      if (url.startsWith('http') || url.startsWith('/')) {
-        return url;
-      }
-      // baseURL 뒤에 / 를 붙이고 이미지를 매칭시킴
-      return `${baseUrl}/${url}`;
-    });
+
+  // [수정] 로버스트한 이미지 경로 포매팅 적용 (이중 슬래시 방지 및 단일 결합 보장)
+  const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
+
+  const formatImageUrl = (url: string | null | undefined) => {
+    if (!url) return url;
+    if (url.startsWith('http') || url.startsWith('blob:')) return url;
+    const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
+    return `${baseUrl}/${cleanUrl}`;
+  };
+
+  if (data) {
+    if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
+      data.imageUrls = data.imageUrls.map((url) => formatImageUrl(url) as string);
+    }
+
+    if (data.cafeThumbnailImage) {
+      data.cafeThumbnailImage = formatImageUrl(data.cafeThumbnailImage);
+    }
   }
 
   return data;

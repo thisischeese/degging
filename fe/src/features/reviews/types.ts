@@ -38,6 +38,7 @@ export interface ReviewDetailResponse {
   cafeIntro: string;
   address: string;
   roadAddress: string;
+  cafeThumbnailImage?: string | null;
 }
 
 // 페이지네이션 정보를 표현하는 타입입니다.
