@@ -38,6 +38,9 @@ public class UserEntity extends BaseEntity {
     private Character abGroup;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private UserPreferenceEntity preference;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private UserProfileEntity profile;
 
     @Builder.Default

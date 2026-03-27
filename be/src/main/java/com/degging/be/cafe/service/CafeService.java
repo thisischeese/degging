@@ -144,7 +144,7 @@ public class CafeService {
     public List<CafeOnboardingResponse> getRandomOnboardingItems(int count) {
 
         // 썸네일이 있고 영업 중인 카페 100개 조회
-        List<CafeEntity> cafes = cafeRepository.findTop100ByThumbnailUrlIsNotNullAndStatus(CafeStatus.OPEN);
+        List<CafeEntity> cafes = cafeRepository.findTop100ByThumbnailUrlIsNotNullAndStatusAndIsCafeTrue(CafeStatus.OPEN);
 
         // 리스트 랜덤 섞기
         Collections.shuffle(cafes);

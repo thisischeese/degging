@@ -5,10 +5,7 @@ import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
 import com.degging.be.review.dto.request.ReviewRequest;
 import com.degging.be.review.dto.request.ReviewUpdateRequest;
-import com.degging.be.review.dto.response.CommonSliceResponse;
-import com.degging.be.review.dto.response.MyReviewResponse;
-import com.degging.be.review.dto.response.ReviewDetailResponse;
-import com.degging.be.review.dto.response.ReviewResponse;
+import com.degging.be.review.dto.response.*;
 import com.degging.be.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -48,18 +45,19 @@ public class ReviewController {
      * @param cafeId 카페 ID
      * @param request 리뷰 내용을 담은 Request 객체
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
-     * @return 200
+     * @return 200, 생성한 reviewId
      */
     @PostMapping(value = "/cafes/{cafeId}/reviews", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public BaseResponse<ReviewResponse> createReview(
+    public BaseResponse<ReviewCommonResponse> createReview(
                     @PathVariable("cafeId") UUID cafeId,
                     @ModelAttribute @Valid ReviewRequest request,
                     @AuthenticationPrincipal UserDetails user) throws IOException {
         UUID userId = getUserId(user);
         // 관심사 분리를 위해 알맞게 나눠담아 호출
         List<MultipartFile> images = request.getImages(); 
-        reviewService.createReview(request, userId, images, cafeId);
-        return BaseResponse.success();
+        UUID reviewId = reviewService.createReview(request, userId, images, cafeId);
+        ReviewCommonResponse result = new ReviewCommonResponse(reviewId);
+        return BaseResponse.success(result);
     }
 
     /**
@@ -117,31 +115,31 @@ public class ReviewController {
      * @param reviewId 수정할 카페 리뷰 ID
      * @param request 평점, 내용, 삭제할 사진 ID 리스트, 새로 추가한 사진 리스트
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
-     * @return 200
+     * @return 200, 수정한 reviewId
      */
     @PatchMapping(value = "/reviews/{reviewId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public BaseResponse<ReviewResponse> updateReview(
+    public BaseResponse<ReviewCommonResponse> updateReview(
                     @PathVariable("reviewId") UUID reviewId,
                     @Valid @ModelAttribute("data") ReviewUpdateRequest request,
                     @AuthenticationPrincipal UserDetails user) throws IOException {
         UUID userId = getUserId(user);
         List<MultipartFile> newImages = request.getImages();
         reviewService.updateReview(request, userId, newImages, reviewId);
-        return BaseResponse.success();
+        return BaseResponse.success(new ReviewCommonResponse(reviewId));
     }
 
     /**
      * 특정 ID 리뷰를 삭제하는 메서드
      * @param reviewId 삭제할 리뷰 ID
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
-     * @return 200
+     * @return 200, 삭제한 reviewId
      */
     @DeleteMapping(value = "/reviews/{reviewId}")
-    public BaseResponse<ReviewResponse> deleteReview(
+    public BaseResponse<ReviewCommonResponse> deleteReview(
                                 @PathVariable("reviewId") UUID reviewId,
                                 @AuthenticationPrincipal UserDetails user){
         UUID userId = getUserId(user);
         reviewService.deleteReview(reviewId, userId);
-        return BaseResponse.success();
+        return BaseResponse.success(new ReviewCommonResponse(reviewId));
     }
 }

@@ -1,6 +1,9 @@
 package com.degging.be.cafe.controller;
 
+import com.degging.be.cafe.dto.request.CafeSpecificCrawlRequest;
 import com.degging.be.cafe.service.CafeCollectService;
+import com.degging.be.cafe.service.CafeFilterService;
+import com.degging.be.cafe.service.CafeFranchiseService;
 import com.degging.be.cafe.service.CafeStatusService;
 import com.degging.be.global.dto.BaseResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,8 @@ public class CafeManageController {
     private final CafeCollectService cafeCollectService;
     private final CafeStatusService cafeStatusService;
     private final CafeCrawlingService cafeCrawlingService;
+    private final CafeFranchiseService cafeFranchiseService;
+    private final CafeFilterService cafeFilterService;
 
     /**
      * 카페 데이터 통합 수집 (공공데이터 + 카카오 매칭)
@@ -56,6 +61,58 @@ public class CafeManageController {
     public BaseResponse<Void> crawling() {
         log.info("AI 크롤링 실행 요청 수신");
         cafeCrawlingService.crawling();
+        return BaseResponse.success();
+    }
+
+    /**
+     * 특정 카페 리스트 대상 크롤링 실행
+     * 입력받은 지역과 카페 이름 리스트에 해당하는 카페들을 대상으로 크롤링
+     *
+     * @param request 지역 및 카페 이름 리스트를 포함한 요청 DTO
+     * @return 실행 성공 응답
+     */
+    @PostMapping("/crawling/specific")
+    public BaseResponse<Void> crawlingSpecific(@RequestBody CafeSpecificCrawlRequest request) {
+        log.info("특정 카페 크롤링 실행 요청 수신 (region: {}, names: {})", request.getRegion(), request.getCafeNames());
+        cafeCrawlingService.crawlSpecificCafes(request.getRegion(), request.getCafeNames());
+        return BaseResponse.success();
+    }
+
+    /**
+     * 프랜차이즈 식별 정보 일괄 업데이트
+     * 사전 정의된 목록 및 브랜드 출현 빈도를 기반으로 모든 카페의 프랜차이즈 정보를 갱신합니다.
+     *
+     * @return 성공 응답
+     */
+    @PostMapping("/franchise")
+    public BaseResponse<Void> updateFranchise() {
+        log.info("프랜차이즈 식별 및 정보 업데이트 시작");
+        cafeFranchiseService.updateFranchiseStatus();
+        return BaseResponse.success();
+    }
+
+    /**
+     * 비카페성 시설(치유센터, 복지관 등) 일괄 삭제
+     *
+     * @return 성공 응답
+     */
+    @PostMapping("/cleanup")
+    public BaseResponse<Void> cleanup() {
+        log.info("비카페성 시설 일괄 식별 요청 수신");
+        cafeFilterService.identifyNonCafes();
+        return BaseResponse.success();
+    }
+
+    /**
+     * 카카오 API 기반 비카페 시설 재검증 및 표시 (isCafe = false)
+     *
+     * @param limit 최대 처리 건수 (기본 1000건)
+     * @return 성공 응답
+     */
+    @PostMapping("/revalidate")
+    public BaseResponse<Void> revalidate(@RequestParam(defaultValue = "1000") int limit) {
+        log.info("카카오 API 기반 비카페 시설 재검증 요청 수신 (limit: {})", limit);
+        cafeFilterService.revalidateWithKakao(limit);
         return BaseResponse.success();
     }
 }
