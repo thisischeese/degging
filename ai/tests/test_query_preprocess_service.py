@@ -168,9 +168,12 @@ class QueryPreprocessServiceLoaderTest(unittest.TestCase):
         _load_menu_ner_components.cache_clear()
 
     def test_resolve_food_label_ids_falls_back_for_generic_labels(self) -> None:
-        model = FakeModel(predicted_ids=[0], id2label={0: "O", 28: "LABEL_28", 178: "LABEL_178"})
+        model = FakeModel(
+            predicted_ids=[0],
+            id2label={0: "O", 27: "LABEL_27", 28: "LABEL_28", 178: "LABEL_178"},
+        )
         label_ids, label_source = _resolve_food_label_ids(model)
-        self.assertEqual(label_ids, frozenset({28, 178}))
+        self.assertEqual(label_ids, frozenset({27, 28, 178}))
         self.assertEqual(label_source, "fallback")
 
     def test_load_menu_ner_components_downloads_into_food_model_dir_when_missing(self) -> None:

@@ -15,7 +15,7 @@ from app.services.menu_query_encoder import encode_menu_query
 
 _MENU_NER_TOKENIZER_NAME = "KPF/KPF-bert-ner"
 _MENU_NER_MODEL_DIR = "food_ner_model"
-_MENU_NER_FALLBACK_FOOD_LABEL_IDS = frozenset({28, 178})
+_MENU_NER_FALLBACK_FOOD_LABEL_IDS = frozenset({27, 28, 178})
 _GENERIC_LABEL_PATTERN = re.compile(r"^LABEL_\d+$")
 _MENU_PHRASE_LOG_LIMIT = 5
 _MENU_MECAB_LOG_LIMIT = 20
