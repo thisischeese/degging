@@ -114,8 +114,8 @@ public class RankService {
      */
     public void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
         try {
-            // String -> Integer 검증
-            Integer.parseInt(menuIdStr);
+            // String -> Long 검증
+            Long.parseLong(menuIdStr);
 
             double finalScore = baseScore * aiCount;
 

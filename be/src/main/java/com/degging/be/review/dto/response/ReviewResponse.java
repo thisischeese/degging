@@ -3,15 +3,18 @@ package com.degging.be.review.dto.response;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 /**
  * 특정 카페의 리뷰 리스트 응답 DTO
  */
+@Slf4j
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
@@ -47,9 +50,34 @@ public class ReviewResponse {
 
     // Entity -> DTO
     public static ReviewResponse toDto(ReviewEntity entity){
-        // 이미지가 null 일 경우 빈 리스트를 할당
-        List<ReviewImageEntity> images = entity.getReviewImages() != null ?
-                entity.getReviewImages() : List.of();
+        List<ReviewImageEntity> reviewImages = entity.getReviewImages();
+        List<ReviewImageInfo> imageInfos;
+
+        // 1. 리뷰 이미지가 존재하는 경우 처리
+        if (reviewImages != null && !reviewImages.isEmpty()) {
+            imageInfos = reviewImages.stream()
+                    .map(img -> ReviewImageInfo.builder()
+                            .imageId(img.getImageId())
+                            .imageUrl(img.getImageUrl())
+                            .build())
+                    .toList();
+        }
+        // 2. 리뷰 이미지가 없는 경우 -> 카페 썸네일로 대체
+        else {
+            String cafeThumbnail = (entity.getCafe() != null) ? entity.getCafe().getThumbnailUrl() : null;
+
+            imageInfos = (cafeThumbnail != null)
+                    ? List.of(ReviewImageInfo.builder()
+                    .imageId(null) // 대체 이미지이므로 ID는 null 혹은 0L
+                    .imageUrl(cafeThumbnail)
+                    .build())
+                    : Collections.emptyList();
+            if (cafeThumbnail != null){
+                log.info("카페 썸네일이 없음 이슈");
+            }
+
+            log.info("[이미지 대체] reviewId = {}, 카페 썸네일 사용", entity.getReviewId());
+        }
 
         return ReviewResponse.builder()
                 .reviewId(entity.getReviewId())
@@ -57,13 +85,9 @@ public class ReviewResponse {
                 .content(entity.getContent())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .images(images.stream()
-                        .map(img -> ReviewImageInfo.builder()
-                                .imageId(img.getImageId()) // ID 추출
-                                .imageUrl(img.getImageUrl())    // URL 추출
-                                .build())
-                        .toList())
-                .nickname(entity.getUser().getProfile().getNickname())
+                .images(imageInfos) // 변환된 리스트 주입
+                .nickname(entity.getUser() != null && entity.getUser().getProfile() != null
+                        ? entity.getUser().getProfile().getNickname() : "알 수 없음")
                 .build();
     }
 
