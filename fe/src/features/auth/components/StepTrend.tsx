@@ -9,8 +9,6 @@ import { getOnboardingMenus, getOnboardingCafes } from "@/features/onboarding/ap
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 import { getImageUrl } from "@/common/utils/image";
 
-// 기존 DUMMY_MENUS를 제거하고 API 데이터를 사용합니다.
-
 export default function StepTrend({ next, formData }: SignupStepProps) {
   // 온보딩 랭킹 데이터 조회 (정적 데이터 성격이 강하므로 STATIC 옵션 적용)
   const { data: rankingData } = useQuery({
