@@ -130,7 +130,29 @@ export const getMyReviews = async (
       params,
     })) as unknown as ApiResponse<MyReviewsResponse>;
 
+    /* 기존 코드 보존
     return response.data;
+    */
+
+    // [수정] 내 리뷰 목록 썸네일 경로에 BaseURL 결합 처리
+    const data = response.data;
+    const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
+    
+    const formatImageUrl = (path: string | null | undefined) => {
+      if (!path) return '/images/common/logo.png'; // 썸네일 없을 때 폴백
+      if (path.startsWith('http') || path.startsWith('blob:')) return path;
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+      return `${baseUrl}/${cleanPath}`;
+    };
+
+    if (data && Array.isArray(data.content)) {
+      data.content = data.content.map((review: Review) => ({
+        ...review,
+        thumbnailImage: formatImageUrl(review.thumbnailImage) // 상대 경로 -> 전체 URL 변환
+      }));
+    }
+
+    return data;
   } catch (error) {
     console.warn("Falling back to mock my-reviews data:", error);
     return mockResponse;
