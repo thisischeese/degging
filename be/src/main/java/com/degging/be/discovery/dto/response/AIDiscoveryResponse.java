@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 탐색 탭 AI 서버 응답 DTO
@@ -14,5 +15,5 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AIDiscoveryResponse {
-    private Map<String, Integer> cafes;
+    private Map<UUID, Integer> cafes;
 }

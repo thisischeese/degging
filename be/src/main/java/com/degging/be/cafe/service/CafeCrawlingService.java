@@ -1,6 +1,6 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.client.AiCrawlerApiClient;
+import com.degging.be.infra.ai.AiClient;
 import com.degging.be.cafe.dto.request.AiCrawlerRequestDto;
 import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
 import com.degging.be.cafe.dto.response.external.AiCrawlerResponse;
@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public class CafeCrawlingService {
 
     private final CafeRepository cafeRepository;
-    private final AiCrawlerApiClient aiCrawlerApiClient;
+    private final AiClient aiClient;
     private final CafeCrawlingUpdateService cafeCrawlingUpdateService;
     private final CrawlingBackupService crawlingBackupService;
 
@@ -121,7 +121,7 @@ public class CafeCrawlingService {
                 try {
                     log.info("[{}] 배치 {}/{} AI 서버 요청 전송... ({}건)", region, currentBatchNum, totalBatches,
                             requestBatch.size());
-                    AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
+                    AiCrawlerResponse response = aiClient.crawl(requestBatch);
 
                     if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
                         log.info("[{}] 배치 {}/{} {}건 수신 성공, DB 저장을 시작합니다.", region, currentBatchNum, totalBatches,
@@ -241,7 +241,7 @@ public class CafeCrawlingService {
         // 크롤링 서버 요청 및 저장
         try {
             log.info("[특정 크롤링] AI 서버 요청 전송... ({}건)", requestBatch.size());
-            AiCrawlerResponse response = aiCrawlerApiClient.crawl(requestBatch);
+            AiCrawlerResponse response = aiClient.crawl(requestBatch);
 
             if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
                 log.info("[특정 크롤링] {}건 수신 성공, DB 저장을 시작합니다.", response.getItems().size());

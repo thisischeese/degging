@@ -20,7 +20,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import com.degging.be.infra.ai.AiClient;
 import reactor.core.publisher.Mono;
 
 import org.springframework.data.mongodb.core.query.Query;
@@ -34,8 +34,8 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class CafeSearchService {
-
-    private final WebClient aiWebClient; // AI 서버와 통신용
+    
+    private final AiClient aiClient; // AI 서버와 통신용
     private final RedisTemplate<String, Object> redisTemplate;
     private final CafeRepository cafeRepository;
     private final VibeRepository vibeRepository;
@@ -45,8 +45,6 @@ public class CafeSearchService {
     private final String TOPIC_NAME = "degging.cafe.search.events"; // kafka topic 명
     private final MongoTemplate mongoTemplate;
 
-    @Value("${ai.server.url}")
-    private String aiServerUrl;
 
     /**
      * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
@@ -67,18 +65,7 @@ public class CafeSearchService {
         }
 
         // AI 서버 호출
-        AiSearchResponse res = aiWebClient.post()
-                .uri(aiServerUrl  + "/ai/map/search")
-                .bodyValue(aiSearchRequest)
-                .retrieve()
-                .bodyToMono(AiSearchResponse.class)// 응답 형식
-                // 에러 발생 시 빈 결과 반환
-                .onErrorResume(e -> {
-                    log.error("AI 서버 호출 실패: {}", e.getMessage());
-                    return Mono.just(AiSearchResponse.empty());
-                })
-                .block();
-//                .block(Duration.ofSeconds(5)); // 결과 나올 때까지 동기 방식으로 대기, 5초까지만 대기
+        AiSearchResponse res = aiClient.search(aiSearchRequest);
 
         // AI가 대답을 했다면, 결과가 0개여도 사용자의 의도는 기록으로 남김
         if (res != null){
