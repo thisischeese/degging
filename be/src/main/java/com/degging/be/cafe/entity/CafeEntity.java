@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import com.degging.be.global.converter.VectorConverter;
 
 /**
  * 카페 정보를 저장하는 엔티티 클래스
@@ -83,6 +84,7 @@ public class CafeEntity extends BaseEntity {
     @Column(columnDefinition = "geography(Point,4326)", nullable = false)
     private Point location; // 카페 위치 PostGIS
 
+    @Convert(converter = VectorConverter.class)
     @Column(columnDefinition = "vector(64)")
     private float[] cafeVector; // 카페 대표 벡터
 
