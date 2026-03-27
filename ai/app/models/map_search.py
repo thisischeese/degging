@@ -6,15 +6,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class MapSearchRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    mood: list[int] = Field(default_factory=list, description="분위기 ID 목록")
-    user_id: UUID = Field(alias="userId", description="사용자 UUID")
-    keyword: str = Field(..., description="검색어")
-    latitude: float = Field(..., description="사용자 위도")
-    longitude: float = Field(..., description="사용자 경도")
+    mood: list[UUID] = Field(default_factory=list, description="Mood UUID list")
+    user_id: UUID = Field(alias="userId", description="User UUID")
+    keyword: str = Field(..., description="Search keyword")
+    latitude: float = Field(..., description="User latitude")
+    longitude: float = Field(..., description="User longitude")
 
     @field_validator("mood", mode="before")
     @classmethod
-    def validate_mood(cls, value: object) -> list[int]:
+    def validate_mood(cls, value: object) -> list[object]:
         if value is None:
             return []
         if not isinstance(value, list):
@@ -46,9 +46,9 @@ class MapSearchRequest(BaseModel):
 class MapSearchResponse(BaseModel):
     cafes: dict[str, int] = Field(
         default_factory=dict,
-        description="카페 ID와 1부터 시작하는 순위를 매핑한 결과",
+        description="Cafe UUID to rank mapping",
     )
     extracted_menus: dict[str, int] = Field(
         default_factory=dict,
-        description="추출된 메뉴 ID와 등장 횟수를 매핑한 결과",
+        description="Extracted menu ID to occurrence count mapping",
     )

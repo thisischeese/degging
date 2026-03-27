@@ -11,6 +11,10 @@ from app.routers import ai_router
 from app.routers.map import get_map_search_service
 from app.services.preference_vector import UserPreferenceNotFoundError
 
+QUIET_MOOD_ID = "e747e844-db71-42ea-81cf-c25d510672b2"
+HIP_MOOD_ID = "c35facb1-f2ae-42aa-8234-522f6ae3352b"
+VIEW_MOOD_ID = "9b71769c-2293-4e06-bf37-f1fbf33c2853"
+
 
 @dataclass
 class ASGIResponse:
@@ -121,7 +125,7 @@ class MapSearchAPITest(unittest.TestCase):
         response = self.client.post(
             "/ai/map/search",
             {
-                "mood": [0, 1, 2],
+                "mood": [QUIET_MOOD_ID, HIP_MOOD_ID, VIEW_MOOD_ID],
                 "userId": "123e4567-e89b-12d3-a456-426614174000",
                 "keyword": "  ",
                 "latitude": 37.5665,
@@ -180,3 +184,22 @@ class MapSearchAPITest(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         detail = response.json()["detail"]
         self.assertEqual(detail[0]["loc"], ["body", "latitude"])
+
+    def test_map_search_rejects_invalid_mood_uuid(self) -> None:
+        fake_service = FakeMapSearchService()
+        self.app.dependency_overrides[get_map_search_service] = lambda: fake_service
+
+        response = self.client.post(
+            "/ai/map/search",
+            {
+                "mood": ["not-a-uuid"],
+                "userId": str(UUID("123e4567-e89b-12d3-a456-426614174000")),
+                "keyword": "",
+                "latitude": 37.5665,
+                "longitude": 126.978,
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+        detail = response.json()["detail"]
+        self.assertEqual(detail[0]["loc"], ["body", "mood", 0])
