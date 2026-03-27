@@ -1,5 +1,5 @@
 import { axios_instance } from "@/api/axios_instance";
-import { CafeDetailResponse, SearchCafesRequest, SearchCafesResponse, SearchCafeItem } from "../types";
+import { CafeDetailResponse, SearchCafesRequest, SearchCafesResponse, SearchCafeItem, Menu } from "../types";
 
 // [실제 API 연동] cafeId를 받아 카페의 상세 정보를 조회합니다.
 export const getCafeDetail = async (cafeId: string): Promise<CafeDetailResponse['data']> => {
@@ -20,7 +20,7 @@ export const getCafeDetail = async (cafeId: string): Promise<CafeDetailResponse[
 
   // 메뉴 이미지에 baseURL 추가 (응답의 menuImageUrl 처리)
   if (data && Array.isArray(data.menus) && data.menus.length > 0) {
-    data.menus = data.menus.map((menu: any) => {
+    data.menus = data.menus.map((menu: Menu) => {
       const targetImage = menu.menuImageUrl || menu.image;
       if (targetImage && !targetImage.startsWith('http') && !targetImage.startsWith('/')) {
         const fullUrl = `${baseUrl}/${targetImage}`;
