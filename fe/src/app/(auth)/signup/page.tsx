@@ -103,13 +103,14 @@ export default function SignupPage() {
 
       const onboardingData: OnboardingResult = {
         onboardingToken: token,
-        cafeIds: dataToUse.moods, // string[]
-        menuIds: dataToUse.trends.map(id => Number(id)), // number[] 변환
+        cafeIds: dataToUse.moods,
+        menuIds: dataToUse.trends.map(id => Number(id)), // string인 경우 숫자로 변환 (기존 호환성 및 명세 준수)
       };
 
       await postOnboardingResults(onboardingData);
+      console.log("온보딩 데이터 제출 성공");
       
-      // 온보딩 완료 시 임시 토큰 즉시 파기
+      // 온보딩 완료 시 임시 토큰 즉시 파기 (보안 및 백엔드 지침 준수)
       sessionStorage.removeItem("ONBOARDING_TOKEN");
       
       return true;

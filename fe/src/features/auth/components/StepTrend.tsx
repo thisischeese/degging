@@ -11,7 +11,7 @@ import { getOnboardingMenus, getOnboardingCafes } from "@/features/onboarding/ap
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 import { getImageUrl } from "@/common/utils/image";
 
-export default function StepTrend({ next, formData }: SignupStepProps) {
+export default function StepTrend({ next, updateData, formData }: SignupStepProps) {
   // 온보딩 랭킹 데이터 조회 (정적 데이터 성격이 강하므로 STATIC 옵션 적용)
   const { data: rankingData } = useQuery({
     queryKey: ["rankings", "onboarding"],
@@ -26,34 +26,23 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
     ...QUERY_OPTIONS.STATIC,
   });
   
-  // 키워드 문자열 배열만 추출 (원본 패턴)
-  const menus = rankingData?.map(item => item.keyword) || [];
-  const [selectedMenus, setSelectedMenus] = useState<string[]>([]);
+  // 랭킹 데이터 언래핑
+  const menus = rankingData || [];
+
+  const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>(formData.trends || []);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const toggleMenu = (keyword: string) => {
+  const toggleMenu = (menuId: number) => {
     setErrorMessage("");
-    if (selectedMenus.includes(keyword)) {
-      setSelectedMenus((prev) => prev.filter((item) => item !== keyword));
+    if (selectedMenuIds.includes(menuId)) {
+      setSelectedMenuIds((prev) => prev.filter((id) => id !== menuId));
     } else {
-      if (selectedMenus.length >= 3) {
-        setErrorMessage("최대 3개까지만 선택 가능합니다.");
+      if (selectedMenuIds.length >= 5) {
+        setErrorMessage("최대 5개까지 선택 가능합니다!");
         return;
       }
-      setSelectedMenus((prev) => [...prev, keyword]);
+      setSelectedMenuIds((prev) => [...prev, menuId]);
     }
-  };
-
-  const handleNext = () => {
-    if (selectedMenus.length !== 3) {
-      setErrorMessage("정확히 3개의 메뉴를 선택해주세요!");
-      return;
-    }
-    // API 응답에 menuId 없음 → rank를 numeric ID로 사용
-    const selectedRanks = (rankingData || [])
-      .filter(item => selectedMenus.includes(item.keyword))
-      .map(item => String(item.rank));
-    next({ trends: selectedRanks });
   };
 
   return (
@@ -68,19 +57,19 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
         </p>
       </div>
 
-      {/* 2. 중앙 칩 영역: 기존 디자인 복원 */}
+      {/* 2. 중앙 칩 영역: 레이아웃 고정 */}
       <div className="flex-1 flex items-center justify-center min-h-0 py-6">
         <div className="max-h-full overflow-y-auto no-scrollbar">
           <div className="flex flex-wrap gap-x-2 gap-y-4 justify-center max-w-[360px] mx-auto pb-4">
             {menus.map((menu, index) => {
-              const isActive = selectedMenus.includes(menu);
+              const isActive = selectedMenuIds.includes(menu.id);
               return (
-                <div key={`${menu}-${index}`} className="relative">
+                <div key={`${menu.id}-${index}`} className="relative">
                   <Chip
-                    label={menu}
+                    label={menu.keyword}
                     variant="onboarding"
                     isActive={isActive}
-                    onClick={() => toggleMenu(menu)}
+                    onClick={() => toggleMenu(menu.id)}
                     className="w-auto px-5 py-2.5 text-[14px] transition-colors duration-200 [&_svg]:hidden [&_img]:hidden"
                   />
                 </div>
@@ -93,18 +82,22 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
       {/* 3. 에러 메시지 및 하단 버튼 영역 */}
       <div className="pb-4 mt-2">
         <div className="min-h-[24px] mb-2 text-center">
-          {errorMessage && (
-            <p className="text-[14px] text-[#C3304F] font-bold leading-tight animate-bounce">
-              {errorMessage}
+          {(errorMessage || selectedMenuIds.length === 0) && (
+            <p className="text-[13px] text-[#C3304F] font-medium leading-tight">
+              {errorMessage || "취향을 정확히 파악하기 위해 하나 이상 선택해주세요!"}
             </p>
           )}
         </div>
 
         <Button
-          variant={selectedMenus.length === 3 ? "primary" : "gray"}
+          variant="gray"
           size="full"
-          onClick={handleNext}
-          className="shadow-lg active:scale-[0.98] transition-all"
+          disabled={selectedMenuIds.length === 0}
+          onClick={() => {
+            updateData({ trends: selectedMenuIds });
+            next();
+          }}
+          className={selectedMenuIds.length > 0 ? "bg-[#C3304F]! text-white!" : ""}
         >
           다음 단계로
         </Button>
