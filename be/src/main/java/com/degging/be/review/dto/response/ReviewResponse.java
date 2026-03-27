@@ -1,5 +1,6 @@
 package com.degging.be.review.dto.response;
 
+import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.review.entity.ReviewEntity;
 import com.degging.be.review.entity.ReviewImageEntity;
 import lombok.*;
@@ -94,15 +95,27 @@ public class ReviewResponse {
     /**
      * 이미지 리스트를 DTO 형태로 변환하여 주입하는 메서드
      */
-    public void updateImages(List<com.degging.be.review.entity.ReviewImageEntity> imageEntities) {
-        if (imageEntities == null) return;
-
-        this.images = imageEntities.stream()
-                .map(img -> ReviewImageInfo.builder()
-                        .imageId(img.getImageId())
-                        .imageUrl(img.getImageUrl())
-                        .build())
-                .toList();
+    public void updateImages(List<com.degging.be.review.entity.ReviewImageEntity> imageEntities, CafeEntity cafe) {
+        // 1. 이미지가 존재하는 경우 변환하여 할당
+        if (imageEntities != null && !imageEntities.isEmpty()) {
+            this.images = imageEntities.stream()
+                    .map(img -> ReviewImageInfo.builder()
+                            .imageId(img.getImageId())
+                            .imageUrl(img.getImageUrl())
+                            .build())
+                    .toList();
+        }
+        // 2. 이미지가 없는 경우 카페 썸네일을 기본 이미지로 할당
+        else if (cafe != null && cafe.getThumbnailUrl() != null) {
+            this.images = List.of(ReviewImageInfo.builder()
+                    .imageId(null) // DB 엔티티가 아니므로 ID는 null 혹은 특정 상수
+                    .imageUrl(cafe.getThumbnailUrl())
+                    .build());
+        }
+        // 3. 둘 다 없는 경우 빈 리스트 (NPE 방지)
+        else {
+            this.images = Collections.emptyList();
+        }
     }
 
 }

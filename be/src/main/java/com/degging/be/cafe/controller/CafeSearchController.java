@@ -41,8 +41,8 @@ public class CafeSearchController {
     public BaseResponse<CafeSearchResponse> processSearch(
                                                  @RequestBody CafeSearchRequest request,
                                                  @AuthenticationPrincipal UserDetails user) {
-        log.info("검색 요청 수신됨! 키워드: {}, 좌표: ({}, {})",
-                request.getKeyword(), request.getLatitude(), request.getLongitude());
+        log.info("검색 요청 수신됨! 키워드: {}, 좌표: ({}, {}), 분위기 : ({})",
+                request.getKeyword(), request.getLatitude(), request.getLongitude(), request.getMood().getFirst());
 
         UUID userId = getUserId(user);
         CafeSearchResponse result = cafeSearchService.processSearch(userId, request);

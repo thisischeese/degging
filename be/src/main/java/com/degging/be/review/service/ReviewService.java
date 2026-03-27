@@ -96,15 +96,16 @@ public class ReviewService {
     public Slice<ReviewResponse> getReviewsByCafeId(UUID cafeId, UUID userId, Pageable pageable) {
         // 유효성 검증
         validateUser(userId);
-        checkCafeValidation(cafeId);
+        CafeEntity cafe = checkCafeValidation(cafeId);
 
         // 카페 ID로 리뷰와 리뷰, 작성자 조회하여 반환
         Slice<ReviewResponse> reviewSlice = reviewRepository.findReviewResponseByCafeId(cafeId, pageable);
         log.info("[리뷰] reviewSlice = {}", reviewSlice );
+
         // 이미지 조회 후 채우기
         reviewSlice.forEach(response -> {
             List<ReviewImageEntity> images = reviewImageRepository.findByReviewReviewId(response.getReviewId());
-            response.updateImages(images);
+            response.updateImages(images, cafe);
         });
         return reviewSlice;
     }
