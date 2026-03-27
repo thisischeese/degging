@@ -38,12 +38,21 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
     if (selectedMenus.includes(keyword)) {
       setSelectedMenus((prev) => prev.filter((item) => item !== keyword));
     } else {
-      if (selectedMenus.length >= 5) {
-        setErrorMessage("최대 5개까지 선택 가능합니다!");
+      if (selectedMenus.length >= 3) {
+        setErrorMessage("최대 3개까지만 선택 가능합니다!");
         return;
       }
       setSelectedMenus((prev) => [...prev, keyword]);
     }
+  };
+
+  const handleNext = () => {
+    if (selectedMenus.length !== 3) {
+      setErrorMessage("정확한 취향 파악을 위해 3개를 선택해주세요!");
+      return;
+    }
+    updateData({ trends: selectedMenus });
+    next();
   };
 
   return (
@@ -90,24 +99,21 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
       </div>
 
       {/* 3. 에러 메시지 및 하단 버튼 영역 */}
+      {/* 3. 에러 메시지 및 하단 버튼 영역 */}
       <div className="pb-4 mt-2">
         <div className="min-h-[24px] mb-2 text-center">
-          {(errorMessage || selectedMenus.length === 0) && (
-            <p className="text-[13px] text-[#C3304F] font-medium leading-tight">
-              {errorMessage || "취향을 정확히 파악하기 위해 하나 이상 선택해주세요!"}
+          {errorMessage && (
+            <p className="text-[14px] text-[#C3304F] font-bold leading-tight animate-bounce">
+              {errorMessage}
             </p>
           )}
         </div>
 
         <Button
-          variant="gray"
+          variant={selectedMenus.length === 3 ? "primary" : "gray"}
           size="full"
-          disabled={selectedMenus.length === 0}
-          onClick={() => {
-            updateData({ trends: selectedMenus });
-            next();
-          }}
-          className={selectedMenus.length > 0 ? "bg-[#C3304F]! text-white!" : ""}
+          onClick={handleNext}
+          className="shadow-lg active:scale-[0.98] transition-all"
         >
           다음 단계로
         </Button>
@@ -121,7 +127,7 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
              ? `cafe/${rawPath}`
              : rawPath;
            return (
-             <div key={`preload-${cafe.cafeId}`} className="relative h-[1px] w-[1px]">
+             <div key={`preload-${cafe.cafeId}`} className="relative h-px w-px">
                <Image 
                  src={getImageUrl(formattedPath)} 
                  alt="preload"
