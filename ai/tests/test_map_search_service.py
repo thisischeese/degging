@@ -1,12 +1,13 @@
 import unittest
 from uuid import UUID
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from app.models.map_search import MapSearchRequest
 from app.services.map_search_service import (
     CafeCandidate,
     CafeMenu,
     MapSearchService,
+    MenuSearchHit,
     _CAFE_MENU_QUERY,
     _CAFE_MENU_SEARCH_FUSED_QUERY,
     _CAFE_MENU_SEARCH_KEYWORD_ONLY_QUERY,
@@ -15,8 +16,6 @@ from app.services.map_search_service import (
 )
 from app.services.preference_vector import UserPreferenceNotFoundError
 from app.services.query_preprocess_service import PreprocessedQuery
-
-QUIET_MOOD_ID = UUID("e747e844-db71-42ea-81cf-c25d510672b2")
 
 
 class FakeConnection:
@@ -79,9 +78,9 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(cafe_id),
                         "name": "Cafe A",
-                        "address": "서울시 중구",
+                        "address": "Seoul",
                         "road_address": None,
-                        "cafe_intro": "조용한 디저트 카페",
+                        "cafe_intro": "Quiet dessert cafe",
                         "brand_name": None,
                         "branch_name": None,
                         "preference_similarity": 0.8,
@@ -115,18 +114,18 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(preprocess_service.calls, [""])
         self.assertEqual(response.cafes, {str(cafe_id): 1})
-        self.assertEqual(response.extracted_menus, {})
+        self.assertEqual(response.extracted_menus, [])
 
-    async def test_search_resolves_menu_ids_with_rrf_hits(self) -> None:
+    async def test_search_resolves_menu_names_with_rrf_hits(self) -> None:
         user_id = UUID("123e4567-e89b-12d3-a456-426614174000")
         top_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
         lower_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174002")
         preprocess_service = StubPreprocessService(
             PreprocessedQuery(
-                normalized_query="아메리카노",
+                normalized_query="americano",
                 vector=[0.1] * 64,
-                menu_phrases=["아메리카노"],
-                phrase_vectors={"아메리카노": [0.1] * 64},
+                menu_phrases=["americano"],
+                phrase_vectors={"americano": [0.1] * 64},
             )
         )
         service = MapSearchService(query_preprocess_service=preprocess_service)
@@ -137,9 +136,9 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(top_cafe_id),
                         "name": "Cafe A",
-                        "address": "서울시 중구",
+                        "address": "Seoul",
                         "road_address": None,
-                        "cafe_intro": "조용한 아메리카노 카페",
+                        "cafe_intro": "Quiet americano cafe",
                         "brand_name": None,
                         "branch_name": None,
                         "preference_similarity": 0.8,
@@ -147,9 +146,9 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(lower_cafe_id),
                         "name": "Cafe B",
-                        "address": "서울시 중구",
+                        "address": "Seoul",
                         "road_address": None,
-                        "cafe_intro": "아메리카노 전문 카페",
+                        "cafe_intro": "Americano specialty cafe",
                         "brand_name": None,
                         "branch_name": None,
                         "preference_similarity": 0.7,
@@ -159,24 +158,24 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(top_cafe_id),
                         "menu_id": 2394,
-                        "menu_name": "아이스 아메리카노",
-                        "menu_description": "시원한 아메리카노",
-                        "menu_search_text": "아이스 아메리카노 시원한 아메리카노",
+                        "menu_name": "Iced Americano",
+                        "menu_description": "Cold americano",
+                        "menu_search_text": "Iced Americano Cold americano",
                     },
                     {
                         "cafe_id": str(lower_cafe_id),
                         "menu_id": 10209,
-                        "menu_name": "뜨거운 아메리카노",
+                        "menu_name": "Hot Americano",
                         "menu_description": None,
-                        "menu_search_text": "뜨거운 아메리카노",
+                        "menu_search_text": "Hot Americano",
                     },
                 ],
                 _CAFE_MENU_SEARCH_FUSED_QUERY: [
                     {
                         "cafe_id": str(top_cafe_id),
                         "menu_id": 2394,
-                        "menu_name": "아이스 아메리카노",
-                        "menu_description": "시원한 아메리카노",
+                        "menu_name": "Iced Americano",
+                        "menu_description": "Cold americano",
                         "keyword_rank": 1,
                         "vector_rank": 1,
                         "rrf_score": 0.0327868852459,
@@ -184,7 +183,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(lower_cafe_id),
                         "menu_id": 10209,
-                        "menu_name": "뜨거운 아메리카노",
+                        "menu_name": "Hot Americano",
                         "menu_description": None,
                         "keyword_rank": 2,
                         "vector_rank": 2,
@@ -202,13 +201,13 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                 MapSearchRequest(
                     mood=[],
                     userId=user_id,
-                    keyword="아메리카노",
+                    keyword="americano",
                     latitude=37.5665,
                     longitude=126.978,
                 )
             )
 
-        self.assertEqual(response.extracted_menus, {"2394": 1})
+        self.assertEqual(response.extracted_menus, ["Iced Americano"])
         self.assertEqual(response.cafes, {str(top_cafe_id): 1, str(lower_cafe_id): 2})
 
     async def test_search_logs_info_events(self) -> None:
@@ -216,10 +215,10 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
         preprocess_service = StubPreprocessService(
             PreprocessedQuery(
-                normalized_query="아메리카노",
+                normalized_query="americano",
                 vector=[0.1] * 64,
-                menu_phrases=["아메리카노"],
-                phrase_vectors={"아메리카노": [0.1] * 64},
+                menu_phrases=["americano"],
+                phrase_vectors={"americano": [0.1] * 64},
             )
         )
         service = MapSearchService(query_preprocess_service=preprocess_service)
@@ -230,9 +229,9 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(cafe_id),
                         "name": "Cafe A",
-                        "address": "서울시 중구",
+                        "address": "Seoul",
                         "road_address": None,
-                        "cafe_intro": "조용한 아메리카노 카페",
+                        "cafe_intro": "Quiet coffee bar",
                         "brand_name": None,
                         "branch_name": None,
                         "preference_similarity": 0.8,
@@ -242,16 +241,16 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(cafe_id),
                         "menu_id": 2394,
-                        "menu_name": "아이스 아메리카노",
+                        "menu_name": "Iced Americano",
                         "menu_description": None,
-                        "menu_search_text": "아이스 아메리카노",
+                        "menu_search_text": "Iced Americano",
                     }
                 ],
                 _CAFE_MENU_SEARCH_FUSED_QUERY: [
                     {
                         "cafe_id": str(cafe_id),
                         "menu_id": 2394,
-                        "menu_name": "아이스 아메리카노",
+                        "menu_name": "Iced Americano",
                         "menu_description": None,
                         "keyword_rank": 1,
                         "vector_rank": 1,
@@ -270,7 +269,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                 MapSearchRequest(
                     mood=[],
                     userId=user_id,
-                    keyword="아메리카노",
+                    keyword="americano",
                     latitude=37.5665,
                     longitude=126.978,
                 )
@@ -279,7 +278,9 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any("map_search_started" in message for message in logs.output))
         self.assertTrue(any("map_search_menu_lookup_completed" in message for message in logs.output))
         self.assertTrue(any("map_search_menu_selected" in message for message in logs.output))
+        self.assertTrue(any("selected_menu_name=" in message for message in logs.output))
         self.assertTrue(any("map_search_menu_rrf_completed" in message for message in logs.output))
+        self.assertTrue(any("resolved_menu_names=" in message for message in logs.output))
         self.assertTrue(any("map_search_ranking_completed" in message for message in logs.output))
 
     async def test_search_uses_keyword_only_menu_query_without_phrase_vector(self) -> None:
@@ -348,11 +349,246 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                 )
             )
 
-        self.assertEqual(response.extracted_menus, {"2394": 1})
+        self.assertEqual(response.extracted_menus, ["Iced Americano"])
         self.assertEqual(response.cafes, {str(cafe_id): 1})
         self.assertTrue(
-            any("map_search_menu_resolution_completed" in message and "used_query_fallback=True" in message for message in logs.output)
+            any(
+                "map_search_menu_resolution_completed" in message
+                and "used_query_fallback=True" in message
+                for message in logs.output
+            )
         )
+
+    async def test_search_returns_menu_names_in_phrase_order_with_duplicates(self) -> None:
+        user_id = UUID("123e4567-e89b-12d3-a456-426614174000")
+        cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
+        preprocess_service = StubPreprocessService(
+            PreprocessedQuery(
+                normalized_query="double scone butter rice cake double scone",
+                vector=[0.1] * 64,
+                menu_phrases=["double scone", "butter rice cake", "double scone"],
+                phrase_vectors={
+                    "double scone": [0.1] * 64,
+                    "butter rice cake": [0.2] * 64,
+                },
+            )
+        )
+        service = MapSearchService(query_preprocess_service=preprocess_service)
+        pool = FakePool(
+            {
+                _USER_PREFERENCE_QUERY: {"preference_vector": "[0.1,0.2,0.3]"},
+                _RADIUS_CAFE_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "name": "Cafe A",
+                        "address": "Seoul",
+                        "road_address": None,
+                        "cafe_intro": "Dessert cafe",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.8,
+                    }
+                ],
+                _CAFE_MENU_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "menu_id": 1,
+                        "menu_name": "Double Scone",
+                        "menu_description": None,
+                        "menu_search_text": "Double Scone",
+                    },
+                    {
+                        "cafe_id": str(cafe_id),
+                        "menu_id": 2,
+                        "menu_name": "Butter Rice Cake",
+                        "menu_description": None,
+                        "menu_search_text": "Butter Rice Cake",
+                    },
+                ],
+            }
+        )
+
+        with (
+            patch("app.services.map_search_service.get_pg_pool", return_value=pool),
+            patch("app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS", 3),
+            patch.object(
+                service,
+                "search_menu_hits",
+                new=AsyncMock(
+                    side_effect=[
+                        [
+                            MenuSearchHit(
+                                phrase="double scone",
+                                cafe_id=cafe_id,
+                                menu_id=1,
+                                menu_name="Double Scone",
+                                menu_description=None,
+                                keyword_rank=1,
+                                vector_rank=1,
+                                rrf_score=0.03,
+                            )
+                        ],
+                        [
+                            MenuSearchHit(
+                                phrase="butter rice cake",
+                                cafe_id=cafe_id,
+                                menu_id=2,
+                                menu_name="Butter Rice Cake",
+                                menu_description=None,
+                                keyword_rank=1,
+                                vector_rank=1,
+                                rrf_score=0.029,
+                            )
+                        ],
+                    ]
+                ),
+            ),
+        ):
+            response = await service.search(
+                MapSearchRequest(
+                    mood=[],
+                    userId=user_id,
+                    keyword="double scone butter rice cake double scone",
+                    latitude=37.5665,
+                    longitude=126.978,
+                )
+            )
+
+        self.assertEqual(
+            response.extracted_menus,
+            ["Double Scone", "Butter Rice Cake", "Double Scone"],
+        )
+        self.assertEqual(response.cafes, {str(cafe_id): 1})
+
+    async def test_search_ranks_only_cafes_matching_selected_menu_name(self) -> None:
+        user_id = UUID("123e4567-e89b-12d3-a456-426614174000")
+        top_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
+        second_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174002")
+        excluded_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174003")
+        preprocess_service = StubPreprocessService(
+            PreprocessedQuery(
+                normalized_query="bread",
+                vector=[0.1] * 64,
+                menu_phrases=["bread"],
+                phrase_vectors={"bread": [0.1] * 64},
+            )
+        )
+        service = MapSearchService(query_preprocess_service=preprocess_service)
+        pool = FakePool(
+            {
+                _USER_PREFERENCE_QUERY: {"preference_vector": "[0.1,0.2,0.3]"},
+                _RADIUS_CAFE_QUERY: [
+                    {
+                        "cafe_id": str(top_cafe_id),
+                        "name": "Cafe A",
+                        "address": "Seoul",
+                        "road_address": None,
+                        "cafe_intro": "Bread cafe",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.8,
+                    },
+                    {
+                        "cafe_id": str(second_cafe_id),
+                        "name": "Cafe B",
+                        "address": "Seoul",
+                        "road_address": None,
+                        "cafe_intro": "Bread cafe",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.79,
+                    },
+                    {
+                        "cafe_id": str(excluded_cafe_id),
+                        "name": "Cafe C",
+                        "address": "Seoul",
+                        "road_address": None,
+                        "cafe_intro": "Bread cafe",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.95,
+                    },
+                ],
+                _CAFE_MENU_QUERY: [
+                    {
+                        "cafe_id": str(top_cafe_id),
+                        "menu_id": 1,
+                        "menu_name": "Salt Bread",
+                        "menu_description": None,
+                        "menu_search_text": "Salt Bread",
+                    },
+                    {
+                        "cafe_id": str(second_cafe_id),
+                        "menu_id": 2,
+                        "menu_name": "Salt Bread",
+                        "menu_description": None,
+                        "menu_search_text": "Salt Bread",
+                    },
+                    {
+                        "cafe_id": str(excluded_cafe_id),
+                        "menu_id": 3,
+                        "menu_name": "Butter Bread",
+                        "menu_description": None,
+                        "menu_search_text": "Butter Bread",
+                    },
+                ],
+            }
+        )
+
+        with (
+            patch("app.services.map_search_service.get_pg_pool", return_value=pool),
+            patch("app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS", 3),
+            patch.object(
+                service,
+                "search_menu_hits",
+                new=AsyncMock(
+                    return_value=[
+                        MenuSearchHit(
+                            phrase="bread",
+                            cafe_id=top_cafe_id,
+                            menu_id=1,
+                            menu_name="Salt Bread",
+                            menu_description=None,
+                            keyword_rank=1,
+                            vector_rank=1,
+                            rrf_score=0.03,
+                        ),
+                        MenuSearchHit(
+                            phrase="bread",
+                            cafe_id=second_cafe_id,
+                            menu_id=2,
+                            menu_name="Salt Bread",
+                            menu_description=None,
+                            keyword_rank=2,
+                            vector_rank=2,
+                            rrf_score=0.029,
+                        ),
+                        MenuSearchHit(
+                            phrase="bread",
+                            cafe_id=excluded_cafe_id,
+                            menu_id=3,
+                            menu_name="Butter Bread",
+                            menu_description=None,
+                            keyword_rank=3,
+                            vector_rank=3,
+                            rrf_score=0.028,
+                        ),
+                    ]
+                ),
+            ),
+        ):
+            response = await service.search(
+                MapSearchRequest(
+                    mood=[],
+                    userId=user_id,
+                    keyword="bread",
+                    latitude=37.5665,
+                    longitude=126.978,
+                )
+            )
+
+        self.assertEqual(response.extracted_menus, ["Salt Bread"])
+        self.assertEqual(response.cafes, {str(top_cafe_id): 1, str(second_cafe_id): 2})
 
     async def test_search_raises_when_user_preference_is_missing(self) -> None:
         service = MapSearchService(
@@ -410,7 +646,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Loud Cafe",
                     address=None,
                     road_address=None,
-                    cafe_intro="활기찬 분위기의 카페",
+                    cafe_intro="Busy energetic cafe",
                     brand_name=None,
                     branch_name=None,
                 ),
@@ -420,14 +656,14 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Quiet Cafe",
                     address=None,
                     road_address=None,
-                    cafe_intro="조용한 분위기에서 공부하기 좋은 카페",
+                    cafe_intro="Quiet calm study cafe",
                     brand_name=None,
                     branch_name=None,
                 ),
             ],
             menus_by_cafe={},
-            normalized_keyword="카페",
-            mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
+            normalized_keyword="cafe",
+            mood_keywords=["quiet"],
         )
 
         self.assertEqual(ranked_cafes, [quiet_cafe])
@@ -449,7 +685,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Cafe A",
                     address=None,
                     road_address=None,
-                    cafe_intro="감성 카페",
+                    cafe_intro="Aesthetic cafe",
                     brand_name=None,
                     branch_name=None,
                 ),
@@ -459,7 +695,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Cafe B",
                     address=None,
                     road_address=None,
-                    cafe_intro="감성 카페",
+                    cafe_intro="Aesthetic cafe",
                     brand_name=None,
                     branch_name=None,
                 ),
@@ -500,7 +736,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                 name=f"Cafe {index}",
                 address=None,
                 road_address=None,
-                cafe_intro="조용한 감성 카페",
+                cafe_intro="Quiet aesthetic cafe",
                 brand_name=None,
                 branch_name=None,
             )
@@ -510,8 +746,8 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         ranked_cafes = service.rank_cafes(
             candidates=candidates,
             menus_by_cafe={},
-            normalized_keyword="감성",
-            mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
+            normalized_keyword="aesthetic",
+            mood_keywords=["quiet"],
         )
         cafes = {
             str(cafe_id): rank

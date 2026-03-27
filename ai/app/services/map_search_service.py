@@ -244,6 +244,16 @@ class MenuSearchHit:
     rrf_score: float
 
 
+@dataclass(slots=True)
+class ResolvedMenuNameMatch:
+    phrase: str
+    normalized_phrase: str
+    menu_name: str
+    normalized_menu_name: str
+    top_hit: MenuSearchHit
+    grouped_hits: list[MenuSearchHit]
+
+
 class MapSearchService:
     def __init__(
         self,
@@ -285,12 +295,12 @@ class MapSearchService:
             normalized_query=processed_query.normalized_query,
             menu_phrases=processed_query.menu_phrases,
         )
-        menu_hits_by_phrase: dict[str, list[MenuSearchHit]] = {}
+        resolved_menu_matches: dict[str, ResolvedMenuNameMatch] = {}
         menu_scores_by_cafe: dict[UUID, float] = {}
-        extracted_menus: Counter[str] = Counter()
         unmatched_phrases: list[str] = []
 
         for phrase, occurrence_count in phrase_counts.items():
+            normalized_phrase = self.normalize_menu_name(phrase)
             hits = await self.search_menu_hits(
                 candidate_cafe_ids=candidate_ids,
                 phrase=phrase,
@@ -300,33 +310,41 @@ class MapSearchService:
                 unmatched_phrases.append(phrase)
                 continue
 
-            menu_hits_by_phrase[phrase] = hits
-            selected_hit = hits[0]
-            extracted_menus[str(selected_hit.menu_id)] += occurrence_count
+            resolved_match = self.resolve_menu_name_match(phrase=phrase, hits=hits)
+            if resolved_match is None:
+                unmatched_phrases.append(phrase)
+                continue
+
+            resolved_menu_matches[normalized_phrase] = resolved_match
             logger.info(
-                "map_search_menu_selected: phrase=%s selected_menu_id=%s selected_cafe_id=%s occurrence_count=%s menu_name=%s rrf_score=%.6f",
+                "map_search_menu_selected: phrase=%s selected_menu_name=%s selected_menu_id=%s selected_cafe_id=%s occurrence_count=%s menu_group_size=%s rrf_score=%.6f",
                 phrase[:100],
-                selected_hit.menu_id,
-                selected_hit.cafe_id,
+                resolved_match.menu_name[:_MENU_NAME_LOG_LIMIT],
+                resolved_match.top_hit.menu_id,
+                resolved_match.top_hit.cafe_id,
                 occurrence_count,
-                selected_hit.menu_name[:_MENU_NAME_LOG_LIMIT],
-                selected_hit.rrf_score,
+                len(resolved_match.grouped_hits),
+                resolved_match.top_hit.rrf_score,
             )
-            for hit in hits:
+            for hit in resolved_match.grouped_hits:
                 current_score = menu_scores_by_cafe.get(hit.cafe_id, 0.0)
                 if hit.rrf_score > current_score:
                     menu_scores_by_cafe[hit.cafe_id] = hit.rrf_score
 
+        extracted_menus = self.build_extracted_menu_names(
+            menu_phrases=processed_query.menu_phrases,
+            resolved_menu_matches=resolved_menu_matches,
+        )
         logger.info(
-            "map_search_menu_resolution_completed: menu_phrase_count=%s resolved_menu_count=%s resolved_menu_ids=%s unmatched_phrases=%s used_query_fallback=%s",
-            len(phrase_counts),
+            "map_search_menu_resolution_completed: menu_phrase_count=%s resolved_menu_count=%s resolved_menu_names=%s unmatched_phrases=%s used_query_fallback=%s",
+            len(processed_query.menu_phrases),
             len(extracted_menus),
-            list(extracted_menus.keys())[:_MENU_LOG_LIMIT],
+            extracted_menus[:_MENU_LOG_LIMIT],
             unmatched_phrases[:_MENU_LOG_LIMIT],
             processed_query.used_query_fallback,
         )
 
-        resolved_phrases = list(menu_hits_by_phrase.keys())
+        resolved_phrases = [match.phrase for match in resolved_menu_matches.values()]
         residual_keyword = self.build_residual_keyword(
             processed_query.normalized_query,
             resolved_phrases,
@@ -340,7 +358,7 @@ class MapSearchService:
             menu_scores_by_cafe=menu_scores_by_cafe,
         )
         if not ranked_cafe_ids:
-            return MapSearchResponse(extracted_menus=dict(extracted_menus))
+            return MapSearchResponse(extracted_menus=extracted_menus)
 
         cafes = {
             str(cafe_id): rank
@@ -352,7 +370,7 @@ class MapSearchService:
             len(cafes),
             [str(cafe_id) for cafe_id in ranked_cafe_ids[:_MENU_LOG_LIMIT]],
         )
-        return MapSearchResponse(cafes=cafes, extracted_menus=dict(extracted_menus))
+        return MapSearchResponse(cafes=cafes, extracted_menus=extracted_menus)
 
     async def get_user_preference_vector(self, user_id: UUID) -> list[float]:
         pool = get_pg_pool()
@@ -494,8 +512,9 @@ class MapSearchService:
         if hits:
             top_hit = hits[0]
             logger.info(
-                "map_search_menu_rrf_completed: phrase=%s resolved_menu_id=%s bm25_rank=%s vector_rank=%s rrf_score=%.6f",
+                "map_search_menu_rrf_completed: phrase=%s top_menu_name=%s top_menu_id=%s bm25_rank=%s vector_rank=%s rrf_score=%.6f",
                 normalized_phrase[:100],
+                top_hit.menu_name[:_MENU_NAME_LOG_LIMIT],
                 top_hit.menu_id,
                 top_hit.keyword_rank,
                 top_hit.vector_rank,
@@ -503,14 +522,65 @@ class MapSearchService:
             )
         else:
             logger.info(
-                "map_search_menu_rrf_completed: phrase=%s resolved_menu_id=%s bm25_rank=%s vector_rank=%s rrf_score=%.6f",
+                "map_search_menu_rrf_completed: phrase=%s top_menu_name=%s top_menu_id=%s bm25_rank=%s vector_rank=%s rrf_score=%.6f",
                 normalized_phrase[:100],
+                None,
                 None,
                 None,
                 None,
                 0.0,
             )
         return hits
+
+    def resolve_menu_name_match(
+        self,
+        *,
+        phrase: str,
+        hits: list[MenuSearchHit],
+    ) -> ResolvedMenuNameMatch | None:
+        grouped_hits: dict[str, list[MenuSearchHit]] = defaultdict(list)
+        for hit in hits:
+            normalized_menu_name = self.normalize_menu_name(hit.menu_name)
+            if not normalized_menu_name:
+                continue
+            grouped_hits[normalized_menu_name].append(hit)
+
+        resolved_matches: list[ResolvedMenuNameMatch] = []
+        for normalized_menu_name, menu_name_hits in grouped_hits.items():
+            ordered_hits = sorted(menu_name_hits, key=self.menu_hit_sort_key)
+            top_hit = ordered_hits[0]
+            resolved_matches.append(
+                ResolvedMenuNameMatch(
+                    phrase=phrase.strip(),
+                    normalized_phrase=self.normalize_menu_name(phrase),
+                    menu_name=top_hit.menu_name.strip(),
+                    normalized_menu_name=normalized_menu_name,
+                    top_hit=top_hit,
+                    grouped_hits=ordered_hits,
+                )
+            )
+
+        if not resolved_matches:
+            return None
+
+        return sorted(resolved_matches, key=lambda item: self.menu_hit_sort_key(item.top_hit))[0]
+
+    def build_extracted_menu_names(
+        self,
+        *,
+        menu_phrases: list[str],
+        resolved_menu_matches: dict[str, ResolvedMenuNameMatch],
+    ) -> list[str]:
+        extracted_menu_names: list[str] = []
+        for phrase in menu_phrases:
+            normalized_phrase = self.normalize_menu_name(phrase)
+            if not normalized_phrase:
+                continue
+            resolved_match = resolved_menu_matches.get(normalized_phrase)
+            if resolved_match is None:
+                continue
+            extracted_menu_names.append(resolved_match.menu_name)
+        return extracted_menu_names
 
     def summarize_menu_hits(self, hits: list[MenuSearchHit]) -> list[dict[str, object]]:
         summaries: list[dict[str, object]] = []
@@ -526,6 +596,15 @@ class MapSearchService:
                 }
             )
         return summaries
+
+    def menu_hit_sort_key(self, hit: MenuSearchHit) -> tuple[float, int, int, int, str]:
+        return (
+            -hit.rrf_score,
+            hit.keyword_rank if hit.keyword_rank is not None else 2147483647,
+            hit.vector_rank if hit.vector_rank is not None else 2147483647,
+            hit.menu_id,
+            str(hit.cafe_id),
+        )
 
     def rank_cafes(
         self,
@@ -591,6 +670,9 @@ class MapSearchService:
             query_count = normalized_query.casefold().count(normalized_phrase.casefold())
             phrase_counts[normalized_phrase] = max(1, extracted_count, query_count)
         return phrase_counts
+
+    def normalize_menu_name(self, menu_name: str) -> str:
+        return re.sub(r"\s+", " ", menu_name).strip().casefold()
 
     def build_residual_keyword(self, normalized_query: str, resolved_phrases: list[str]) -> str:
         residual = normalized_query

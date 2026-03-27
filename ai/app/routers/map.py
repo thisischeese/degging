@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+
 from app.models.map_search import MapSearchRequest, MapSearchResponse
 from app.services.map_search_service import MapSearchService
 from app.services.preference_vector import UserPreferenceNotFoundError
@@ -13,10 +14,10 @@ def get_map_search_service() -> MapSearchService:
 @router.post(
     "/search",
     response_model=MapSearchResponse,
-    summary="지도용 카페 검색",
+    summary="Map cafe search",
     description=(
-        "사용자 검색어를 전처리하고 주변 카페 후보를 찾은 뒤, "
-        "정렬된 카페 목록과 추출된 메뉴 ID를 반환합니다."
+        "Preprocesses the user keyword, ranks nearby cafes, and returns cafe "
+        "rankings with resolved menu names."
     ),
 )
 async def map_search(
