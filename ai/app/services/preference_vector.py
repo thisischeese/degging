@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 from typing import Protocol
 from uuid import UUID
+
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +15,20 @@ USER_PREFERENCE_QUERY = """
     SELECT preference_vector::text AS preference_vector
     FROM user_preference
     WHERE user_id = $1
+"""
+
+UPDATE_USER_PREFERENCE_QUERY = """
+    UPDATE user_preference
+    SET preference_vector = $2::vector,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE user_id = $1
+    RETURNING updated_at
+"""
+
+INSERT_USER_PREFERENCE_QUERY = """
+    INSERT INTO user_preference (user_id, preference_vector, updated_at)
+    VALUES ($1, $2::vector, CURRENT_TIMESTAMP)
+    RETURNING updated_at
 """
 
 
@@ -100,3 +117,23 @@ async def fetch_user_preference_vector(
             user_id,
         )
         raise
+
+
+async def upsert_user_preference_vector(
+    conn: SupportsFetchRow,
+    user_id: UUID,
+    preference_vector: list[float],
+) -> datetime:
+    validate_vector_dimensions(preference_vector)
+    vector_literal = to_vector_literal(preference_vector)
+
+    row = await conn.fetchrow(UPDATE_USER_PREFERENCE_QUERY, user_id, vector_literal)
+    if row is None:
+        try:
+            row = await conn.fetchrow(INSERT_USER_PREFERENCE_QUERY, user_id, vector_literal)
+        except asyncpg.UniqueViolationError:
+            row = await conn.fetchrow(UPDATE_USER_PREFERENCE_QUERY, user_id, vector_literal)
+
+    if row is None or row["updated_at"] is None:
+        raise RuntimeError(f"Failed to persist preference vector for user_id={user_id}")
+    return row["updated_at"]
