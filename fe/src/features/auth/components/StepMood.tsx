@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getOnboardingCafes } from "@/features/onboarding/api/onboardingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 import { getImageUrl } from "@/common/utils/image";
+import { OnboardingCafe } from "@/features/onboarding/types";
 
 export default function StepMood({ next, updateData, formData }: SignupStepProps) {
   const { data: cafeData } = useQuery({
@@ -50,36 +51,15 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
       {/* 2. 이미지 그리드: 고정 영역을 제외하고 스크롤 가능 */}
       <div className="flex-1 min-h-0 mt-4 px-6 overflow-y-auto no-scrollbar">
         <div className="grid grid-cols-2 gap-3 pb-6">
-          {cafes.map((cafe) => {
-            const isActive = selectedMoods.includes(cafe.cafeId);
-            
-            // 이미지 경로 처리: raw UUID인 경우 'cafe/' 접두사 추가
-            const rawPath = cafe.thumbnailUrl;
-            const formattedPath = rawPath && !rawPath.startsWith("http") && !rawPath.includes("/")
-              ? `cafe/${rawPath}`
-              : rawPath;
-
-            return (
-              <div
-                key={cafe.cafeId}
-                onClick={() => toggleMood(cafe.cafeId)}
-                className="relative cursor-pointer"
-              >
-                <div className={`relative aspect-square rounded-[16px] overflow-hidden border-[3px] transition-all duration-200 bg-gray-100 ${
-                  isActive ? "border-[#C3304F] shadow-[0_0_15px_rgba(195,48,79,0.3)]" : "border-transparent"
-                }`}>
-                  <Image
-                    src={getImageUrl(formattedPath)}
-                    alt="Cafe Mood"
-                    fill
-                    priority={cafes.indexOf(cafe) < 4} // 처음 4개 이미지는 우선순위 높게 로드
-                    sizes="(max-width: 768px) 50vw, 33vw" // 뷰포트 크기에 맞는 최적의 이미지 로드
-                    className={`object-cover transition-transform duration-300 ${isActive ? "scale-105" : "scale-100"}`}
-                  />
-                </div>
-              </div>
-            );
-          })}
+          {cafes.map((cafe, index) => (
+            <MoodItem
+              key={cafe.cafeId}
+              cafe={cafe}
+              isActive={selectedMoods.includes(cafe.cafeId)}
+              onToggle={() => toggleMood(cafe.cafeId)}
+              isPriority={index < 4}
+            />
+          ))}
         </div>
       </div>
 
@@ -105,6 +85,55 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
         >
           다음 단계로
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// --- 개별 무드 아이템 컴포넌트 (스켈레톤 처리 포함) ---
+function MoodItem({ 
+  cafe, 
+  isActive, 
+  onToggle,
+  isPriority
+}: { 
+  cafe: OnboardingCafe; 
+  isActive: boolean; 
+  onToggle: () => void;
+  isPriority: boolean;
+}) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // 이미지 경로 처리: raw UUID인 경우 'cafe/' 접두사 추가
+  const rawPath = cafe.thumbnailUrl;
+  const formattedPath = rawPath && !rawPath.startsWith("http") && !rawPath.includes("/")
+    ? `cafe/${rawPath}`
+    : rawPath;
+
+  return (
+    <div
+      onClick={onToggle}
+      className="relative cursor-pointer"
+    >
+      <div className={`relative aspect-square rounded-[16px] overflow-hidden border-[3px] transition-all duration-200 bg-gray-100 ${
+        isActive ? "border-[#C3304F] shadow-[0_0_15px_rgba(195,48,79,0.3)]" : "border-transparent"
+      }`}>
+        {/* 스켈레톤 레이어 */}
+        {!isLoaded && (
+          <div className="absolute inset-0 bg-gray-200 animate-pulse z-10" />
+        )}
+        
+        <Image
+          src={getImageUrl(formattedPath)}
+          alt="Cafe Mood"
+          fill
+          sizes="(max-width: 768px) 50vw, 33vw"
+          priority={isPriority}
+          onLoad={() => setIsLoaded(true)}
+          className={`object-cover transition-transform duration-300 ${
+            isActive ? "scale-105" : "scale-100"
+          } ${isLoaded ? "opacity-100" : "opacity-0"}`}
+        />
       </div>
     </div>
   );

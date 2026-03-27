@@ -62,7 +62,7 @@ const CURATION_DATA: Record<string, CurationTheme> = {
       },
       {
         name: "2. 카페하인나",
-        cafeName: "하이나카페",
+        cafeName: "카페하인나",
         shortDescription: "부드러운 우유 얼음과 듬뿍 올린 망고 청크의 절묘한 조화",
         description1: "순수한 우유를 얼려 갈아낸 밀크 빙수 위로 탐스러운 망고 청크를 아낌없이 쌓아 올린다. 인위적인 당도 없이 과일 본연의 달콤함만으로 완성한 정직한 한 그릇이다.",
         imageSrc: "/images/curation/mangoBingsu2.webp",
@@ -176,7 +176,7 @@ const CURATION_DATA: Record<string, CurationTheme> = {
   },
   "4": {
     themeId: "4",
-    category: "딸기 케이크",
+    category: "딸기케이크",
     heroImage: "/images/curation/ddalgi.webp",
     title: "상큼 달콤한 과일의 제왕\n프리미엄 딸기 케이크",
     introTitle: "입안 가득 번지는 싱그러운 맛\n실패 없는 딸기 케이크 대전\n",
