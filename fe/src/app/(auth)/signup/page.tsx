@@ -102,6 +102,8 @@ export default function SignupPage() {
         selectedCafeIds: dataToUse.moods, // StepMood에서 모은 cafeId 배열
         preferredTags: dataToUse.trends, // StepTrend에서 모은 키워드 배열
       };
+      
+      console.log("전송될 온보딩 데이터:", onboardingData);
 
       await postOnboardingResults(onboardingData);
       console.log("온보딩 데이터 제출 성공");
@@ -135,6 +137,8 @@ export default function SignupPage() {
     setStep((prev) => prev + 1);
   };
 
+
+  console.log(`[SignupPage Render] Step: ${step}`, formData);
 
   return (
     <div className="flex flex-1 flex-col bg-bg_white min-h-0">
