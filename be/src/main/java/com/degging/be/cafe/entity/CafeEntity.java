@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import com.degging.be.global.converter.VectorConverter;
+import org.hibernate.annotations.ColumnTransformer;
 
 /**
  * 카페 정보를 저장하는 엔티티 클래스
@@ -86,6 +87,7 @@ public class CafeEntity extends BaseEntity {
 
     @Convert(converter = VectorConverter.class)
     @Column(columnDefinition = "vector(64)")
+    @ColumnTransformer(write = "?::vector")
     private float[] cafeVector; // 카페 대표 벡터
 
     @Column(length = 500)

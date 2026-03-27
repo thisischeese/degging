@@ -2,6 +2,7 @@ package com.degging.be.user.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
@@ -30,6 +31,7 @@ public class UserPreferenceEntity {
 
     @Convert(converter = VectorConverter.class)
     @Column(name = "preference_vector", columnDefinition = "vector(64)")
+    @ColumnTransformer(write = "?::vector")
     private float[] preferenceVector;
 
     @JdbcTypeCode(SqlTypes.JSON)
