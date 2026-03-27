@@ -57,6 +57,8 @@ public class CafeSearchService {
         // request 속 mood 를 tag_name (자연어) -> tag_id (UUID) 로 맵핑
         List<UUID> tagIds = vibeRepository.findTagIdByTagNames(request.getMood());
         AiSearchRequest aiSearchRequest = AiSearchRequest.of(userId, request, tagIds);
+        log.info("[AI검색] aiSearchRequest = {}", aiSearchRequest.toString());
+        log.info("[AI검색 mood] aiSearchRequest = {}", aiSearchRequest.getMood());
 
         // 검색된 분위기 태그를 유저 취향에 반영 (MongoDB)
         for (int i = 0; i < tagIds.size(); i++){

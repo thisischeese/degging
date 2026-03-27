@@ -16,18 +16,24 @@ import java.util.*;
 @NoArgsConstructor
 @Builder
 public class AiSearchResponse {
-    private Map<UUID, Integer> cafes; // AI가 추천한 카페 ID 리스트
+    private Map<String, Integer> cafes; // AI가 추천한 카페 ID 리스트 (String 으로 받아 UUID 로 변환하여 사용)
 
     @JsonProperty("extracted_menus")
     private Map<String, Integer> extractedMenus;
-    // AI 로 검색어에서 추출한 디저트 키워드 (전송 시 깨짐을 방지하기 위해 메뉴 ID를 String 으로 하여 Integer 로 변환해 사용, 언급 횟수)
+    // AI 로 검색어에서 추출한 디저트 키워드 (전송 시 깨짐을 방지하기 위해 메뉴 ID를 String 으로 하여 Long 으로 변환해 사용, 언급 횟수)
 
     @JsonProperty("menu_count")
     private int menuCount; // 추출된 메뉴 개수
 
     // 편의상 UUID 리스트만 뽑아주는 메서드
     public List<UUID> getCafeIds() {
-        return cafes == null ? Collections.emptyList() : new ArrayList<>(cafes.keySet());
+        if (cafes == null || cafes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return cafes.keySet().stream()
+                .map(UUID::fromString) // String을 UUID로 변환
+                .toList();
     }
 
     // 빈 리스트 반환하는 메서드
