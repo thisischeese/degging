@@ -22,7 +22,7 @@ public class AiSearchRequest {
     @JsonProperty("mood")
     private List<UUID> mood; // 분위기 태그
 
-    @JsonProperty("user_id")
+    @JsonProperty("userId") // 카멜로 보내야함
     private UUID userId; 
 
     private String keyword; // 사용자 입력 검색어
