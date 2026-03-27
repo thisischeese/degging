@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncpg
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 import logging
@@ -27,6 +28,7 @@ _MENU_LOG_LIMIT = 5
 _MENU_SEARCH_BM25_INDEX = "cafe_menus_menu_search_bm25_idx"
 _RRF_K = 60
 _MENU_NAME_LOG_LIMIT = 80
+_LEGACY_MENU_SEARCH_TEXT_SQL = "concat_ws(' ', menu.menu_name, COALESCE(menu.menu_description, ''))"
 _MOOD_KEYWORDS: dict[str, tuple[str, ...]] = {
     "7ab663df-31be-43f8-b06a-2e8979806d89": (
         "우드톤",
@@ -87,14 +89,63 @@ _RADIUS_CAFE_QUERY = """
       )
 """
 
+_RADIUS_MENU_CAFE_QUERY = """
+    WITH phrase_list AS (
+        SELECT DISTINCT LOWER(REGEXP_REPLACE(BTRIM(phrase), '\\s+', ' ', 'g')) AS normalized_phrase
+        FROM UNNEST($5::text[]) AS phrase
+        WHERE COALESCE(BTRIM(phrase), '') <> ''
+    )
+    SELECT
+        cafe.cafe_id,
+        cafe.name,
+        cafe.address,
+        cafe.road_address,
+        cafe.cafe_intro,
+        cafe.brand_name,
+        cafe.branch_name,
+        COUNT(DISTINCT phrase_list.normalized_phrase) AS matched_phrase_count,
+        1 - (cafe.cafe_vector <=> $1::vector) AS preference_similarity
+    FROM cafes AS cafe
+    JOIN cafe_menus AS menu
+      ON menu.cafe_id = cafe.cafe_id
+    JOIN phrase_list
+      ON LOWER(REGEXP_REPLACE(menu.menu_name, '\\s+', ' ', 'g')) LIKE '%' || phrase_list.normalized_phrase || '%'
+    WHERE cafe.cafe_vector IS NOT NULL
+      AND ST_DWithin(
+          cafe.location,
+          ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
+          $4
+      )
+    GROUP BY
+        cafe.cafe_id,
+        cafe.name,
+        cafe.address,
+        cafe.road_address,
+        cafe.cafe_intro,
+        cafe.brand_name,
+        cafe.branch_name,
+        cafe.cafe_vector
+"""
+
 _CAFE_MENU_QUERY = """
     SELECT
         cafe_id,
         menu_id,
         menu_name,
-        menu_description,
-        menu_search_text
+        menu_description
     FROM cafe_menus
+    WHERE cafe_id = ANY($1::uuid[])
+    ORDER BY cafe_id, menu_id
+"""
+
+_CAFE_MENU_QUERY_LEGACY = f"""
+    SELECT
+        cafe_id,
+        menu_id,
+        menu_name,
+        menu_description,
+        {_LEGACY_MENU_SEARCH_TEXT_SQL} AS menu_search_text
+    FROM cafe_menus AS menu
     WHERE cafe_id = ANY($1::uuid[])
     ORDER BY cafe_id, menu_id
 """
@@ -134,6 +185,142 @@ _CAFE_MENU_SEARCH_KEYWORD_ONLY_QUERY = f"""
     FROM ranked_keyword_hits
     WHERE keyword_rank <= $4
       AND keyword_distance < 0
+    ORDER BY rrf_score DESC, keyword_rank, menu_id
+"""
+
+_CAFE_MENU_SEARCH_KEYWORD_ONLY_GLOBAL_QUERY = f"""
+    WITH scored_keyword_hits AS (
+        SELECT
+            menu.cafe_id,
+            menu.menu_id,
+            menu.menu_name,
+            menu.menu_description,
+            menu.menu_search_text <@> to_bm25query($1, $2) AS keyword_distance
+        FROM cafe_menus AS menu
+        WHERE COALESCE(menu.menu_search_text, '') <> ''
+    ),
+    ranked_keyword_hits AS (
+        SELECT
+            cafe_id,
+            menu_id,
+            menu_name,
+            menu_description,
+            keyword_distance,
+            ROW_NUMBER() OVER (
+                ORDER BY keyword_distance ASC, menu_id
+            ) AS keyword_rank
+        FROM scored_keyword_hits
+    )
+    SELECT
+        cafe_id,
+        menu_id,
+        menu_name,
+        menu_description,
+        keyword_rank,
+        NULL::integer AS vector_rank,
+        1.0 / ({_RRF_K} + keyword_rank) AS rrf_score
+    FROM ranked_keyword_hits
+    WHERE keyword_rank <= $3
+      AND keyword_distance < 0
+    ORDER BY rrf_score DESC, keyword_rank, menu_id
+"""
+
+_CAFE_MENU_SEARCH_LEGACY_QUERY = f"""
+    WITH menu_source AS (
+        SELECT
+            menu.cafe_id,
+            menu.menu_id,
+            menu.menu_name,
+            menu.menu_description,
+            {_LEGACY_MENU_SEARCH_TEXT_SQL} AS searchable_text
+        FROM cafe_menus AS menu
+        WHERE menu.cafe_id = ANY($1::uuid[])
+    ),
+    matched_hits AS (
+        SELECT
+            cafe_id,
+            menu_id,
+            menu_name,
+            menu_description,
+            CASE
+                WHEN LOWER(menu_name) = LOWER($2) THEN 0
+                WHEN LOWER(menu_name) LIKE LOWER($2) || '%' THEN 1
+                ELSE 2
+            END AS match_rank,
+            POSITION(LOWER($2) IN LOWER(searchable_text)) AS match_position
+        FROM menu_source
+        WHERE LOWER(searchable_text) LIKE '%' || LOWER($2) || '%'
+    ),
+    ranked_hits AS (
+        SELECT
+            cafe_id,
+            menu_id,
+            menu_name,
+            menu_description,
+            ROW_NUMBER() OVER (
+                ORDER BY match_rank ASC, match_position ASC, menu_id
+            ) AS keyword_rank
+        FROM matched_hits
+    )
+    SELECT
+        cafe_id,
+        menu_id,
+        menu_name,
+        menu_description,
+        keyword_rank,
+        NULL::integer AS vector_rank,
+        1.0 / ({_RRF_K} + keyword_rank) AS rrf_score
+    FROM ranked_hits
+    WHERE keyword_rank <= $3
+    ORDER BY rrf_score DESC, keyword_rank, menu_id
+"""
+
+_CAFE_MENU_SEARCH_LEGACY_GLOBAL_QUERY = f"""
+    WITH menu_source AS (
+        SELECT
+            menu.cafe_id,
+            menu.menu_id,
+            menu.menu_name,
+            menu.menu_description,
+            {_LEGACY_MENU_SEARCH_TEXT_SQL} AS searchable_text
+        FROM cafe_menus AS menu
+    ),
+    matched_hits AS (
+        SELECT
+            cafe_id,
+            menu_id,
+            menu_name,
+            menu_description,
+            CASE
+                WHEN LOWER(menu_name) = LOWER($1) THEN 0
+                WHEN LOWER(menu_name) LIKE LOWER($1) || '%' THEN 1
+                ELSE 2
+            END AS match_rank,
+            POSITION(LOWER($1) IN LOWER(searchable_text)) AS match_position
+        FROM menu_source
+        WHERE LOWER(searchable_text) LIKE '%' || LOWER($1) || '%'
+    ),
+    ranked_hits AS (
+        SELECT
+            cafe_id,
+            menu_id,
+            menu_name,
+            menu_description,
+            ROW_NUMBER() OVER (
+                ORDER BY match_rank ASC, match_position ASC, menu_id
+            ) AS keyword_rank
+        FROM matched_hits
+    )
+    SELECT
+        cafe_id,
+        menu_id,
+        menu_name,
+        menu_description,
+        keyword_rank,
+        NULL::integer AS vector_rank,
+        1.0 / ({_RRF_K} + keyword_rank) AS rrf_score
+    FROM ranked_hits
+    WHERE keyword_rank <= $2
     ORDER BY rrf_score DESC, keyword_rank, menu_id
 """
 
@@ -210,11 +397,83 @@ _CAFE_MENU_SEARCH_FUSED_QUERY = """
         fused_hits.menu_id
 """
 
+_CAFE_MENU_SEARCH_FUSED_GLOBAL_QUERY = """
+    WITH scored_keyword_hits AS (
+        SELECT
+            menu.cafe_id,
+            menu.menu_id,
+            menu.menu_search_text <@> to_bm25query($1, $3) AS keyword_distance
+        FROM cafe_menus AS menu
+        WHERE COALESCE(menu.menu_search_text, '') <> ''
+    ),
+    ranked_keyword_hits AS (
+        SELECT
+            cafe_id,
+            menu_id,
+            keyword_distance,
+            ROW_NUMBER() OVER (
+                ORDER BY keyword_distance ASC, menu_id
+            ) AS keyword_rank
+        FROM scored_keyword_hits
+    ),
+    keyword_hits AS (
+        SELECT cafe_id, menu_id, keyword_rank
+        FROM ranked_keyword_hits
+        WHERE keyword_rank <= $4
+          AND keyword_distance < 0
+    ),
+    ranked_vector_hits AS (
+        SELECT
+            menu.cafe_id,
+            menu.menu_id,
+            ROW_NUMBER() OVER (
+                ORDER BY menu.menu_vector <=> $2::vector(64), menu.menu_id
+            ) AS vector_rank
+        FROM cafe_menus AS menu
+        WHERE menu.menu_vector IS NOT NULL
+    ),
+    vector_hits AS (
+        SELECT cafe_id, menu_id, vector_rank
+        FROM ranked_vector_hits
+        WHERE vector_rank <= $4
+    ),
+    fused_hits AS (
+        SELECT
+            COALESCE(keyword_hits.cafe_id, vector_hits.cafe_id) AS cafe_id,
+            COALESCE(keyword_hits.menu_id, vector_hits.menu_id) AS menu_id,
+            keyword_hits.keyword_rank,
+            vector_hits.vector_rank,
+            calculate_rrf(keyword_hits.keyword_rank, vector_hits.vector_rank) AS rrf_score
+        FROM keyword_hits
+        FULL OUTER JOIN vector_hits
+            ON keyword_hits.cafe_id = vector_hits.cafe_id
+           AND keyword_hits.menu_id = vector_hits.menu_id
+    )
+    SELECT
+        fused_hits.cafe_id,
+        fused_hits.menu_id,
+        menu.menu_name,
+        menu.menu_description,
+        fused_hits.keyword_rank,
+        fused_hits.vector_rank,
+        fused_hits.rrf_score
+    FROM fused_hits
+    JOIN cafe_menus AS menu
+      ON menu.cafe_id = fused_hits.cafe_id
+     AND menu.menu_id = fused_hits.menu_id
+    ORDER BY
+        fused_hits.rrf_score DESC,
+        COALESCE(fused_hits.keyword_rank, 2147483647),
+        COALESCE(fused_hits.vector_rank, 2147483647),
+        fused_hits.menu_id
+"""
+
 
 @dataclass(slots=True)
 class CafeCandidate:
     cafe_id: UUID
     preference_similarity: float
+    matched_phrase_count: int
     name: str
     address: str | None
     road_address: str | None
@@ -271,6 +530,20 @@ class MapSearchService:
             request.longitude,
         )
         processed_query = await self._query_preprocess_service.preprocess(request.keyword)
+        extracted_menus = list(processed_query.menu_phrases)
+        logger.info(
+            "map_search_menu_list_completed: menu_phrase_count=%s extracted_menus=%s",
+            len(extracted_menus),
+            extracted_menus[:_MENU_LOG_LIMIT],
+        )
+        if not extracted_menus:
+            logger.info(
+                "map_search_no_menu_phrases: user_id=%s keyword=%s",
+                request.user_id,
+                request.keyword[:100],
+            )
+            return MapSearchResponse()
+
         mood_keywords = self.resolve_mood_keywords(request.mood)
         user_preference_vector = await self.get_user_preference_vector(request.user_id)
 
@@ -278,84 +551,31 @@ class MapSearchService:
             latitude=request.latitude,
             longitude=request.longitude,
             preference_vector=user_preference_vector,
+            menu_phrases=extracted_menus,
         )
-        if not candidates:
-            return MapSearchResponse()
-
         candidate_ids = [candidate.cafe_id for candidate in candidates]
         menus_by_cafe = await self.get_cafe_menus(candidate_ids)
         logger.info(
-            "map_search_candidates_loaded: candidate_count=%s cafe_count_with_menus=%s menu_row_count=%s",
+            "map_search_candidates_loaded: candidate_count=%s matched_phrase_count=%s cafe_count_with_menus=%s menu_row_count=%s",
             len(candidates),
+            max((candidate.matched_phrase_count for candidate in candidates), default=0),
             len(menus_by_cafe),
             sum(len(menus) for menus in menus_by_cafe.values()),
         )
-
-        phrase_counts = self.collect_menu_phrase_counts(
-            normalized_query=processed_query.normalized_query,
-            menu_phrases=processed_query.menu_phrases,
-        )
-        resolved_menu_matches: dict[str, ResolvedMenuNameMatch] = {}
-        menu_scores_by_cafe: dict[UUID, float] = {}
-        unmatched_phrases: list[str] = []
-
-        for phrase, occurrence_count in phrase_counts.items():
-            normalized_phrase = self.normalize_menu_name(phrase)
-            hits = await self.search_menu_hits(
-                candidate_cafe_ids=candidate_ids,
-                phrase=phrase,
-                phrase_vector=processed_query.phrase_vectors.get(phrase, []),
-            )
-            if not hits:
-                unmatched_phrases.append(phrase)
-                continue
-
-            resolved_match = self.resolve_menu_name_match(phrase=phrase, hits=hits)
-            if resolved_match is None:
-                unmatched_phrases.append(phrase)
-                continue
-
-            resolved_menu_matches[normalized_phrase] = resolved_match
+        if not candidates:
             logger.info(
-                "map_search_menu_selected: phrase=%s selected_menu_name=%s selected_menu_id=%s selected_cafe_id=%s occurrence_count=%s menu_group_size=%s rrf_score=%.6f",
-                phrase[:100],
-                resolved_match.menu_name[:_MENU_NAME_LOG_LIMIT],
-                resolved_match.top_hit.menu_id,
-                resolved_match.top_hit.cafe_id,
-                occurrence_count,
-                len(resolved_match.grouped_hits),
-                resolved_match.top_hit.rrf_score,
+                "map_search_no_candidates: latitude=%.4f longitude=%.4f radius_meters=%s extracted_menus=%s",
+                request.latitude,
+                request.longitude,
+                _RADIUS_METERS,
+                extracted_menus[:_MENU_LOG_LIMIT],
             )
-            for hit in resolved_match.grouped_hits:
-                current_score = menu_scores_by_cafe.get(hit.cafe_id, 0.0)
-                if hit.rrf_score > current_score:
-                    menu_scores_by_cafe[hit.cafe_id] = hit.rrf_score
+            return MapSearchResponse(extracted_menus=extracted_menus)
 
-        extracted_menus = self.build_extracted_menu_names(
-            menu_phrases=processed_query.menu_phrases,
-            resolved_menu_matches=resolved_menu_matches,
-        )
-        logger.info(
-            "map_search_menu_resolution_completed: menu_phrase_count=%s resolved_menu_count=%s resolved_menu_names=%s unmatched_phrases=%s used_query_fallback=%s",
-            len(processed_query.menu_phrases),
-            len(extracted_menus),
-            extracted_menus[:_MENU_LOG_LIMIT],
-            unmatched_phrases[:_MENU_LOG_LIMIT],
-            processed_query.used_query_fallback,
-        )
-
-        resolved_phrases = [match.phrase for match in resolved_menu_matches.values()]
-        residual_keyword = self.build_residual_keyword(
-            processed_query.normalized_query,
-            resolved_phrases,
-        )
         ranked_cafe_ids = self.rank_cafes(
             candidates=candidates,
             menus_by_cafe=menus_by_cafe,
-            normalized_keyword=processed_query.normalized_query,
-            residual_keyword=residual_keyword,
             mood_keywords=mood_keywords,
-            menu_scores_by_cafe=menu_scores_by_cafe,
         )
         if not ranked_cafe_ids:
             return MapSearchResponse(extracted_menus=extracted_menus)
@@ -365,10 +585,15 @@ class MapSearchService:
             for rank, cafe_id in enumerate(ranked_cafe_ids[:_MAX_RESULTS], start=1)
         }
         logger.info(
-            "map_search_ranking_completed: ranked_cafe_count=%s returned_cafe_count=%s top_cafe_ids=%s",
+            "map_search_ranking_completed: ranked_cafe_count=%s returned_cafe_count=%s top_cafe_ids=%s top_vector_similarity=%s",
             len(ranked_cafe_ids),
             len(cafes),
             [str(cafe_id) for cafe_id in ranked_cafe_ids[:_MENU_LOG_LIMIT]],
+            [
+                round(candidate.preference_similarity, 6)
+                for candidate in candidates
+                if candidate.cafe_id in ranked_cafe_ids[:_MENU_LOG_LIMIT]
+            ],
         )
         return MapSearchResponse(cafes=cafes, extracted_menus=extracted_menus)
 
@@ -384,23 +609,29 @@ class MapSearchService:
         latitude: float,
         longitude: float,
         preference_vector: list[float],
+        menu_phrases: list[str],
     ) -> list[CafeCandidate]:
+        if not menu_phrases:
+            return []
+
         pool = get_pg_pool()
         vector_literal = self.to_vector_literal(preference_vector)
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(
-                _RADIUS_CAFE_QUERY,
+                _RADIUS_MENU_CAFE_QUERY,
                 vector_literal,
                 longitude,
                 latitude,
                 _RADIUS_METERS,
+                menu_phrases,
             )
 
         return [
             CafeCandidate(
                 cafe_id=UUID(str(row["cafe_id"])),
                 preference_similarity=self.clamp_similarity(row["preference_similarity"]),
+                matched_phrase_count=int(row["matched_phrase_count"] or 0),
                 name=row["name"] or "",
                 address=row["address"],
                 road_address=row["road_address"],
@@ -428,7 +659,6 @@ class MapSearchService:
                     menu_id=int(row["menu_id"]),
                     menu_name=row["menu_name"],
                     menu_description=row["menu_description"],
-                    menu_search_text=row["menu_search_text"] if "menu_search_text" in row.keys() else None,
                 )
             )
 
@@ -442,35 +672,54 @@ class MapSearchService:
         phrase_vector: list[float],
     ) -> list[MenuSearchHit]:
         normalized_phrase = phrase.strip()
-        if not candidate_cafe_ids or not normalized_phrase:
+        if not normalized_phrase:
             return []
 
         pool = get_pg_pool()
+        search_scope = "candidate" if candidate_cafe_ids else "global"
         search_mode = "fused" if phrase_vector else "keyword_only"
         logger.info(
-            "map_search_menu_lookup_started: phrase=%s candidate_cafe_count=%s search_mode=%s phrase_vector_dim=%s",
+            "map_search_menu_lookup_started: phrase=%s candidate_cafe_count=%s search_scope=%s search_mode=%s phrase_vector_dim=%s",
             normalized_phrase[:100],
             len(candidate_cafe_ids),
+            search_scope,
             search_mode,
             len(phrase_vector),
         )
         if phrase_vector:
-            query = _CAFE_MENU_SEARCH_FUSED_QUERY
-            args: tuple[object, ...] = (
-                candidate_cafe_ids,
-                normalized_phrase,
-                self.to_vector_literal(phrase_vector),
-                _MENU_SEARCH_BM25_INDEX,
-                _MENU_SEARCH_LIMIT,
-            )
+            if candidate_cafe_ids:
+                query = _CAFE_MENU_SEARCH_FUSED_QUERY
+                args: tuple[object, ...] = (
+                    candidate_cafe_ids,
+                    normalized_phrase,
+                    self.to_vector_literal(phrase_vector),
+                    _MENU_SEARCH_BM25_INDEX,
+                    _MENU_SEARCH_LIMIT,
+                )
+            else:
+                query = _CAFE_MENU_SEARCH_FUSED_GLOBAL_QUERY
+                args = (
+                    normalized_phrase,
+                    self.to_vector_literal(phrase_vector),
+                    _MENU_SEARCH_BM25_INDEX,
+                    _MENU_SEARCH_LIMIT,
+                )
         else:
-            query = _CAFE_MENU_SEARCH_KEYWORD_ONLY_QUERY
-            args = (
-                candidate_cafe_ids,
-                normalized_phrase,
-                _MENU_SEARCH_BM25_INDEX,
-                _MENU_SEARCH_LIMIT,
-            )
+            if candidate_cafe_ids:
+                query = _CAFE_MENU_SEARCH_KEYWORD_ONLY_QUERY
+                args = (
+                    candidate_cafe_ids,
+                    normalized_phrase,
+                    _MENU_SEARCH_BM25_INDEX,
+                    _MENU_SEARCH_LIMIT,
+                )
+            else:
+                query = _CAFE_MENU_SEARCH_KEYWORD_ONLY_GLOBAL_QUERY
+                args = (
+                    normalized_phrase,
+                    _MENU_SEARCH_BM25_INDEX,
+                    _MENU_SEARCH_LIMIT,
+                )
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(query, *args)
@@ -491,8 +740,9 @@ class MapSearchService:
         keyword_hits = [hit for hit in hits if hit.keyword_rank is not None]
         vector_hits = [hit for hit in hits if hit.vector_rank is not None]
         logger.info(
-            "map_search_menu_lookup_completed: phrase=%s search_mode=%s hit_count=%s top_hits=%s",
+            "map_search_menu_lookup_completed: phrase=%s search_scope=%s search_mode=%s hit_count=%s top_hits=%s",
             normalized_phrase[:100],
+            search_scope,
             search_mode,
             len(hits),
             self.summarize_menu_hits(hits),
@@ -611,49 +861,28 @@ class MapSearchService:
         *,
         candidates: list[CafeCandidate],
         menus_by_cafe: dict[UUID, list[CafeMenu]],
-        normalized_keyword: str,
         mood_keywords: list[str],
-        residual_keyword: str | None = None,
-        menu_scores_by_cafe: dict[UUID, float] | None = None,
     ) -> list[UUID]:
-        active_keyword = normalized_keyword if residual_keyword is None else residual_keyword
-        keyword_terms = self.build_keyword_terms(active_keyword)
         mood_terms = self.build_keyword_terms(" ".join(mood_keywords))
-        required_menu_match = bool(menu_scores_by_cafe)
-        menu_scores_by_cafe = menu_scores_by_cafe or {}
-        scored_candidates: list[tuple[float, float, float, float, str, UUID]] = []
+        scored_candidates: list[tuple[float, float, str, UUID]] = []
 
         for candidate in candidates:
             searchable_text = self.build_searchable_text(
                 candidate,
                 menus_by_cafe.get(candidate.cafe_id, []),
             )
-            if required_menu_match and candidate.cafe_id not in menu_scores_by_cafe:
-                continue
-
-            keyword_score = self.score_text_terms(keyword_terms, searchable_text)
             mood_score = self.score_text_terms(mood_terms, searchable_text)
-            if keyword_terms and keyword_score == 0.0 and not required_menu_match:
-                continue
-            if mood_terms and mood_score == 0.0:
-                continue
-
-            menu_score = menu_scores_by_cafe.get(candidate.cafe_id, 0.0)
-            lexical_score = keyword_score + mood_score
-            total_score = candidate.preference_similarity + menu_score + lexical_score
             scored_candidates.append(
                 (
-                    total_score,
                     candidate.preference_similarity,
-                    menu_score,
-                    lexical_score,
+                    mood_score,
                     str(candidate.cafe_id),
                     candidate.cafe_id,
                 )
             )
 
-        scored_candidates.sort(key=lambda item: (-item[0], -item[1], -item[2], -item[3], item[4]))
-        return [item[5] for item in scored_candidates]
+        scored_candidates.sort(key=lambda item: (-item[0], -item[1], item[2]))
+        return [item[3] for item in scored_candidates]
 
     def collect_menu_phrase_counts(
         self,
@@ -726,8 +955,7 @@ class MapSearchService:
             candidate.cafe_intro or "",
         ]
         for menu in menus:
-            text_parts.append(menu.menu_search_text or menu.menu_name)
-            text_parts.append(menu.menu_description or "")
+            text_parts.append(menu.menu_name)
         return " ".join(part for part in text_parts if part).casefold()
 
     def score_text_terms(self, terms: list[str], searchable_text: str) -> float:

@@ -2,6 +2,7 @@ from contextlib import nullcontext
 from pathlib import Path
 import unittest
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 from app.services.query_preprocess_service import (
     QueryPreprocessService,
@@ -95,41 +96,29 @@ class QueryPreprocessServiceTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(vector, [])
 
-    async def test_extract_menu_phrases_merges_adjacent_food_tokens(self) -> None:
+    async def test_extract_menu_phrases_uses_ner_and_mecab_together(self) -> None:
         service = QueryPreprocessService()
         tokenizer = FakeTokenizer(
-            offset_mapping=[[(0, 0), (0, 3), (4, 9), (10, 14), (0, 0)]],
-            special_tokens_mask=[[1, 0, 0, 0, 1]],
+            offset_mapping=[[(0, 0), (0, 4), (0, 0)]],
+            special_tokens_mask=[[1, 0, 1]],
         )
-        model = FakeModel(predicted_ids=[299, 28, 178, 0, 299])
+        model = FakeModel(predicted_ids=[299, 27, 299])
+        mecab_rows = [
+            {"alias": "word", "token": "latte", "lexemes": ["latte"]},
+            {"alias": "word", "token": "coffee", "lexemes": ["coffee"]},
+            {"alias": "word", "token": "want", "lexemes": ["want"]},
+        ]
 
-        with patch(
-            "app.services.query_preprocess_service._load_menu_ner_components",
-            return_value=(tokenizer, model, FakeTorch()),
+        with (
+            patch.object(service, "log_mecab_analysis", AsyncMock(return_value=mecab_rows)),
+            patch(
+                "app.services.query_preprocess_service._load_menu_ner_components",
+                return_value=(tokenizer, model, FakeTorch()),
+            ),
         ):
-            phrases = await service.extract_menu_phrases("ice cream shop")
+            phrases = await service.extract_menu_phrases("latte coffee")
 
-        self.assertEqual(phrases, ["ice cream"])
-        self.assertEqual(tokenizer.calls[0][0], "ice cream shop")
-
-    async def test_extract_menu_phrases_uses_semantic_food_labels_when_present(self) -> None:
-        service = QueryPreprocessService()
-        tokenizer = FakeTokenizer(
-            offset_mapping=[[(0, 0), (0, 4), (5, 9), (0, 0)]],
-            special_tokens_mask=[[1, 0, 0, 1]],
-        )
-        model = FakeModel(
-            predicted_ids=[0, 10, 11, 0],
-            id2label={0: "O", 10: "B-CV_FOOD", 11: "I-CV_FOOD"},
-        )
-
-        with patch(
-            "app.services.query_preprocess_service._load_menu_ner_components",
-            return_value=(tokenizer, model, FakeTorch()),
-        ):
-            phrases = await service.extract_menu_phrases("cake pie")
-
-        self.assertEqual(phrases, ["cake pie"])
+        self.assertEqual(phrases, ["latte", "coffee"])
 
     async def test_extract_menu_phrases_returns_empty_for_blank_query_without_loading_model(
         self,
@@ -144,23 +133,45 @@ class QueryPreprocessServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(phrases, [])
         load_components.assert_not_called()
 
-    async def test_preprocess_uses_query_fallback_and_logs_completion(self) -> None:
+    async def test_preprocess_does_not_use_query_fallback_and_logs_completion(self) -> None:
         service = QueryPreprocessService()
 
         with (
             patch.object(service, "extract_menu_phrases", AsyncMock(return_value=[])),
-            patch.object(service, "encode_query", AsyncMock(return_value=[0.1, 0.2])),
+            patch.object(service, "encode_query", AsyncMock(return_value=[0.1, 0.2])) as encode_query,
             self.assertLogs("uvicorn.error", level="INFO") as logs,
         ):
-            processed = await service.preprocess("  아메리카노  ")
+            processed = await service.preprocess("americano")
 
-        self.assertEqual(processed.menu_phrases, ["아메리카노"])
-        self.assertEqual(processed.phrase_vectors, {"아메리카노": [0.1, 0.2]})
-        self.assertEqual(processed.vector, [0.1, 0.2])
-        self.assertTrue(processed.used_query_fallback)
+        self.assertEqual(processed.menu_phrases, [])
+        self.assertEqual(processed.phrase_vectors, {})
+        self.assertEqual(processed.vector, [])
+        self.assertFalse(processed.used_query_fallback)
+        encode_query.assert_not_called()
         self.assertTrue(
-            any("menu_phrase_extraction_completed" in message for message in logs.output)
+            any(
+                "menu_phrase_extraction_completed" in message
+                and "used_query_fallback=False" in message
+                for message in logs.output
+            )
         )
+
+    async def test_preprocess_query_encodes_first_menu_phrase_for_public_payload(self) -> None:
+        service = QueryPreprocessService()
+
+        with (
+            patch.object(service, "extract_menu_phrases", AsyncMock(return_value=["latte"])),
+            patch.object(service, "encode_query", AsyncMock(return_value=[0.1, 0.2])),
+        ):
+            payload = await service.preprocess_query(
+                "latte",
+                user_id=UUID("123e4567-e89b-12d3-a456-426614174000"),
+            )
+
+        self.assertEqual(payload.original_query, "latte")
+        self.assertEqual(payload.vector, [0.1, 0.2])
+        self.assertEqual(payload.dimensions, 2)
+        self.assertEqual(payload.extracted_menus, {})
 
 
 class QueryPreprocessServiceLoaderTest(unittest.TestCase):

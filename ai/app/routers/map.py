@@ -17,7 +17,7 @@ def get_map_search_service() -> MapSearchService:
     summary="Map cafe search",
     description=(
         "Preprocesses the user keyword, ranks nearby cafes, and returns cafe "
-        "rankings with resolved menu names."
+        "rankings with extracted menu phrases."
     ),
 )
 async def map_search(

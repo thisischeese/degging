@@ -50,5 +50,5 @@ class MapSearchResponse(BaseModel):
     )
     extracted_menus: list[str] = Field(
         default_factory=list,
-        description="Resolved menu names in query order",
+        description="Extracted menu phrases in query order",
     )
