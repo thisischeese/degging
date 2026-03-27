@@ -21,11 +21,6 @@ axios_instance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
-      hasAuth: !!config.headers.Authorization,
-      tokenType: access_token ? "Access" : (onboarding_token ? "Onboarding" : "None")
-    });
-    
     return config;
   },
   (error) => Promise.reject(error)

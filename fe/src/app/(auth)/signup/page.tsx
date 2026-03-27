@@ -108,7 +108,6 @@ export default function SignupPage() {
       };
 
       await postOnboardingResults(onboardingData);
-      console.log("온보딩 데이터 제출 성공");
       
       // 온보딩 완료 시 임시 토큰 즉시 파기
       sessionStorage.removeItem("ONBOARDING_TOKEN");

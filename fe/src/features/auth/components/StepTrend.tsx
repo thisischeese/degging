@@ -26,14 +26,15 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
     ...QUERY_OPTIONS.STATIC,
   });
   
-  const menus = rankingData || [];
+  // 키워드 문자열 배열만 추출 (원본 패턴)
+  const menus = rankingData?.map(item => item.keyword) || [];
   const [selectedMenus, setSelectedMenus] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
 
   const toggleMenu = (keyword: string) => {
     setErrorMessage("");
     if (selectedMenus.includes(keyword)) {
-      setSelectedMenus((prev) => prev.filter((k) => k !== keyword));
+      setSelectedMenus((prev) => prev.filter((item) => item !== keyword));
     } else {
       if (selectedMenus.length >= 3) {
         setErrorMessage("최대 3개까지만 선택 가능합니다.");
@@ -48,11 +49,11 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
       setErrorMessage("정확히 3개의 메뉴를 선택해주세요!");
       return;
     }
-    // keyword로 선택 후, menuId(number)로 변환하여 API 명세에 맞게 전송
-    const selectedMenuIds = menus
-      .filter((m) => selectedMenus.includes(m.keyword))
-      .map((m) => String(m.menuId));
-    next({ trends: selectedMenuIds });
+    // API 응답에 menuId 없음 → rank를 numeric ID로 사용
+    const selectedRanks = (rankingData || [])
+      .filter(item => selectedMenus.includes(item.keyword))
+      .map(item => String(item.rank));
+    next({ trends: selectedRanks });
   };
 
   return (
@@ -72,15 +73,15 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
         <div className="max-h-full overflow-y-auto no-scrollbar">
           <div className="flex flex-wrap gap-x-2 gap-y-4 justify-center max-w-[360px] mx-auto pb-4">
             {menus.map((menu, index) => {
-              const isActive = selectedMenus.includes(menu.keyword);
+              const isActive = selectedMenus.includes(menu);
               return (
-                <div key={`${menu.keyword}-${index}`} className="relative">
+                <div key={`${menu}-${index}`} className="relative">
                   <Chip
-                    label={menu.keyword}
+                    label={menu}
                     variant="onboarding"
                     isActive={isActive}
-                    onClick={() => toggleMenu(menu.keyword)}
-                    className="w-auto px-5 py-2.5 text-[14px] transition-colors duration-200 [&_svg]:hidden"
+                    onClick={() => toggleMenu(menu)}
+                    className="w-auto px-5 py-2.5 text-[14px] transition-colors duration-200 [&_svg]:hidden [&_img]:hidden"
                   />
                 </div>
               );
