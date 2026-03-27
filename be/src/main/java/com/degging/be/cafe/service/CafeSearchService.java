@@ -52,6 +52,8 @@ public class CafeSearchService {
      * @return AI 분석 결과
      */
     public CafeSearchResponse processSearch(UUID userId, CafeSearchRequest request) {
+        log.info("[검색 request] userId : {}", userId);
+
         // request 속 mood 를 tag_name (자연어) -> tag_id (UUID) 로 맵핑
         log.info("[검색 request] tagString : {}", request.getMood());
         List<UUID> tagIds = vibeRepository.findTagIdByTagNames(request.getMood());
