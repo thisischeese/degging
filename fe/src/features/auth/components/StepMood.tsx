@@ -4,10 +4,10 @@ import { useState } from "react";
 import Image from "next/image";
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
-
 import { useQuery } from "@tanstack/react-query";
 import { getOnboardingCafes } from "@/features/onboarding/api/onboardingApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
+import { getImageUrl } from "@/common/utils/image";
 
 export default function StepMood({ next, updateData, formData }: SignupStepProps) {
   const { data: cafeData } = useQuery({
@@ -52,6 +52,13 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
         <div className="grid grid-cols-2 gap-3 pb-6">
           {cafes.map((cafe) => {
             const isActive = selectedMoods.includes(cafe.cafeId);
+            
+            // 이미지 경로 처리: raw UUID인 경우 'cafe/' 접두사 추가
+            const rawPath = cafe.thumbnailUrl;
+            const formattedPath = rawPath && !rawPath.startsWith("http") && !rawPath.includes("/")
+              ? `cafe/${rawPath}`
+              : rawPath;
+
             return (
               <div
                 key={cafe.cafeId}
@@ -62,7 +69,7 @@ export default function StepMood({ next, updateData, formData }: SignupStepProps
                   isActive ? "border-[#C3304F] shadow-[0_0_15px_rgba(195,48,79,0.3)]" : "border-transparent"
                 }`}>
                   <Image
-                    src={cafe.thumbnailUrl}
+                    src={getImageUrl(formattedPath)}
                     alt="Cafe Mood"
                     fill
                     priority={cafes.indexOf(cafe) < 4} // 처음 4개 이미지는 우선순위 높게 로드
