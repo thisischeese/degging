@@ -6,6 +6,7 @@ export interface Menu {
   price: number | string | null;
   menuDescription?: string | null;
   image?: string | null;
+  menuImageUrl?: string | null;
 }
 
 // 카페 상세 조회 응답 데이터 모델
