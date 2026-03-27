@@ -21,18 +21,16 @@ public class CurationCafeResponse {
     private UUID cafeId;
     private String thumbnailUrl;
     private String name;
-    private String cafeIntro; // 기존 intro를 cafeIntro로 변경
-    private String roadAddress; // 기존 address를 roadAddress로 변경
-    private boolean isScrapped;
+    private String cafeIntro;
+    private String roadAddress;
 
-    public static CurationCafeResponse from(CafeEntity cafe, boolean isScrapped) {
+    public static CurationCafeResponse from(CafeEntity cafe) {
         return CurationCafeResponse.builder()
                 .cafeId(cafe.getCafeId())
                 .thumbnailUrl(cafe.getThumbnailUrl())
                 .name(cafe.getName())
                 .cafeIntro(cafe.getCafeIntro())
                 .roadAddress(cafe.getRoadAddress())
-                .isScrapped(isScrapped)
                 .build();
     }
 }

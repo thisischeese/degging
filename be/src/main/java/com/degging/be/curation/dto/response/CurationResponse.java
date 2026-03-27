@@ -17,7 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 public class CurationResponse {
 
-    private List<CurationCafeResponse> cafeList; // 추천 카페 목록 (각 아이템에 좌표 및 소개글 포함)
+    private List<CurationCafeResponse> cafeList;
 
     public static CurationResponse of(List<CurationCafeResponse> cafeList) {
         return CurationResponse.builder()

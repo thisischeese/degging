@@ -8,7 +8,6 @@ import com.degging.be.curation.dto.response.CurationResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CurationErrorCode;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
-import com.degging.be.scrap.repository.ScrapRepository;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +28,6 @@ import java.util.stream.Collectors;
 public class CurationService {
 
     private final CafeRepository cafeRepository;
-    private final ScrapRepository scrapRepository;
     private final UserRepository userRepository;
 
     // 큐레이션 카테고리별 카페 매핑
@@ -99,10 +97,7 @@ public class CurationService {
 
         // DTO 변환 및 반환
         List<CurationCafeResponse> cafeList = cafes.stream()
-                .map(cafe -> {
-                    boolean isScrapped = (userId != null) && scrapRepository.existsByUserIdAndCafeId(userId, cafe.getCafeId());
-                    return CurationCafeResponse.from(cafe, isScrapped);
-                })
+                .map(CurationCafeResponse::from)
                 .collect(Collectors.toList());
 
         return CurationResponse.of(cafeList);
