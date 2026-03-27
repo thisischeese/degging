@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Chip } from "@/common/components/Chip";
+
 import Button from "@/common/components/Button";
 import { SignupStepProps } from "../types";
 import { useQuery } from "@tanstack/react-query";
@@ -26,9 +27,7 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
   });
   
   const menus = rankingData || [];
-  const [selectedMenus, setSelectedMenus] = useState<number[]>(
-    formData.trends.map((id) => Number(id))
-  );
+  const [selectedMenus, setSelectedMenus] = useState<number[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
 
   const toggleMenu = (menuId: number) => {
@@ -77,13 +76,7 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
                     variant="onboarding"
                     isActive={isActive}
                     onClick={() => toggleMenu(menu.menuId)}
-                    className={`
-                      w-auto px-5 py-2.5 text-[14px] transition-colors duration-200
-                      [&_svg]:hidden [&_img]:hidden
-                      ${isActive 
-                        ? "font-bold border-[#C3304F] bg-[#F9EBEF] text-[#C3304F]" 
-                        : "border-gray-200 bg-white text-gray-600"}
-                    `}
+                    className="w-auto px-5 py-2.5 text-[14px] transition-colors duration-200 [&_svg]:hidden"
                   />
                 </div>
               );
@@ -92,7 +85,6 @@ export default function StepTrend({ next, formData }: SignupStepProps) {
         </div>
       </div>
 
-      {/* 3. 에러 메시지 및 하단 버튼 영역 */}
       {/* 3. 에러 메시지 및 하단 버튼 영역 */}
       <div className="pb-4 mt-2">
         <div className="min-h-[24px] mb-2 text-center">
