@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
+import re
 from typing import Any
 from uuid import UUID
 
 from app.models.query_preprocess import QueryPreprocessData
+from app.services.menu_query_encoder import encode_menu_query
 
 _MENU_NER_TOKENIZER_NAME = "KPF/KPF-bert-ner"
 _MENU_NER_MODEL_DIR = "food_ner_model"
-# Official KPF label order maps CV_FOOD to B/I indices below.
-_MENU_NER_FOOD_LABEL_IDS = frozenset({28, 178})
+_MENU_NER_FALLBACK_FOOD_LABEL_IDS = frozenset({28, 178})
+_GENERIC_LABEL_PATTERN = re.compile(r"^LABEL_\d+$")
+_MENU_PHRASE_LOG_LIMIT = 5
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def _resolve_menu_ner_model_path() -> Path:
@@ -43,11 +49,40 @@ def _to_list(value: Any) -> Any:
     return value
 
 
+def _resolve_food_label_ids(model: Any) -> tuple[frozenset[int], str]:
+    config = getattr(model, "config", None)
+    id2label = getattr(config, "id2label", {}) or {}
+    normalized_labels: dict[int, str] = {}
+    for key, value in id2label.items():
+        try:
+            normalized_key = int(key)
+        except (TypeError, ValueError):
+            continue
+        normalized_labels[normalized_key] = str(value or "").strip()
+
+    semantic_label_ids = frozenset(
+        label_id
+        for label_id, label in normalized_labels.items()
+        if "food" in label.casefold()
+    )
+    if semantic_label_ids:
+        return semantic_label_ids, "config"
+
+    if not normalized_labels or all(
+        label.casefold() == "o" or _GENERIC_LABEL_PATTERN.match(label)
+        for label in normalized_labels.values()
+    ):
+        return _MENU_NER_FALLBACK_FOOD_LABEL_IDS, "fallback"
+
+    raise RuntimeError("Failed to resolve menu NER food label IDs from model configuration.")
+
+
 def _collect_food_phrases(
     query: str,
     predicted_ids: list[int],
     offset_mapping: list[list[int] | tuple[int, int]],
     special_tokens_mask: list[int],
+    food_label_ids: frozenset[int],
 ) -> list[str]:
     phrases: list[str] = []
     span_start: int | None = None
@@ -75,7 +110,7 @@ def _collect_food_phrases(
         start = int(offsets[0])
         end = int(offsets[1])
 
-        if is_special or end <= start or label_id not in _MENU_NER_FOOD_LABEL_IDS:
+        if is_special or end <= start or label_id not in food_label_ids:
             flush_span()
             continue
 
@@ -175,6 +210,13 @@ def _load_menu_ner_components() -> tuple[Any, Any, Any]:
     if hasattr(model, "to"):
         model.to("cpu")
     model.eval()
+    food_label_ids, label_source = _resolve_food_label_ids(model)
+    logger.info(
+        "menu_ner_components_loaded: model_path=%s label_source=%s food_label_ids=%s",
+        model_path,
+        label_source,
+        sorted(food_label_ids),
+    )
 
     return tokenizer, model, torch
 
@@ -184,56 +226,87 @@ class PreprocessedQuery:
     normalized_query: str
     vector: list[float] = field(default_factory=list)
     menu_phrases: list[str] = field(default_factory=list)
+    phrase_vectors: dict[str, list[float]] = field(default_factory=dict)
+    used_query_fallback: bool = False
 
 
 class QueryPreprocessService:
     async def encode_query(self, query: str) -> list[float]:
-        """
-        Encode the incoming query text into a vector.
-        The encoder integration is intentionally stubbed until the model is ready.
-        """
-        # encoder_client = get_query_encoder()
-        # return await encoder_client.encode(query)
-        return []
+        try:
+            return encode_menu_query(query)
+        except RuntimeError:
+            return []
 
     async def extract_menu_phrases(self, query: str) -> list[str]:
         normalized_query = query.strip()
         if not normalized_query:
             return []
 
-        tokenizer, model, torch = _load_menu_ner_components()
-        encoded_inputs = tokenizer(
-            normalized_query,
-            return_tensors="pt",
-            return_offsets_mapping=True,
-            return_special_tokens_mask=True,
-            truncation=True,
-            max_length=512,
-        )
-        offset_mapping = _to_list(encoded_inputs.pop("offset_mapping")[0])
-        special_tokens_mask = _to_list(encoded_inputs.pop("special_tokens_mask")[0])
+        try:
+            tokenizer, model, torch = _load_menu_ner_components()
+            food_label_ids, _ = _resolve_food_label_ids(model)
+            encoded_inputs = tokenizer(
+                normalized_query,
+                return_tensors="pt",
+                return_offsets_mapping=True,
+                return_special_tokens_mask=True,
+                truncation=True,
+                max_length=512,
+            )
+            offset_mapping = _to_list(encoded_inputs.pop("offset_mapping")[0])
+            special_tokens_mask = _to_list(encoded_inputs.pop("special_tokens_mask")[0])
 
-        with torch.no_grad():
-            outputs = model(**encoded_inputs)
+            with torch.no_grad():
+                outputs = model(**encoded_inputs)
 
-        logits = outputs.logits if hasattr(outputs, "logits") else outputs[0]
-        predicted_ids = _to_list(logits.argmax(dim=-1)[0])
-
-        return _collect_food_phrases(
-            normalized_query,
-            [int(label_id) for label_id in predicted_ids],
-            offset_mapping,
-            special_tokens_mask,
-        )
+            logits = outputs.logits if hasattr(outputs, "logits") else outputs[0]
+            predicted_ids = _to_list(logits.argmax(dim=-1)[0])
+            return _collect_food_phrases(
+                normalized_query,
+                [int(label_id) for label_id in predicted_ids],
+                offset_mapping,
+                special_tokens_mask,
+                food_label_ids,
+            )
+        except Exception:
+            logger.exception(
+                "menu_phrase_extraction_failed: query=%s",
+                normalized_query[:100],
+            )
+            return []
 
     async def preprocess(self, query: str) -> PreprocessedQuery:
         normalized_query = query.strip()
-        vector = await self.encode_query(normalized_query)
-        menu_phrases = await self.extract_menu_phrases(normalized_query)
+        extracted_phrases = await self.extract_menu_phrases(normalized_query)
+        used_query_fallback = False
+        menu_phrases = [phrase.strip() for phrase in extracted_phrases if phrase.strip()]
+        if normalized_query and not menu_phrases:
+            menu_phrases = [normalized_query]
+            used_query_fallback = True
+
+        phrase_vectors: dict[str, list[float]] = {}
+        first_vector: list[float] = []
+        for phrase in menu_phrases:
+            if phrase in phrase_vectors:
+                continue
+            phrase_vector = await self.encode_query(phrase)
+            phrase_vectors[phrase] = phrase_vector
+            if not first_vector and phrase_vector:
+                first_vector = phrase_vector
+
+        logger.info(
+            "menu_phrase_extraction_completed: query=%s phrase_count=%s phrases=%s used_query_fallback=%s",
+            normalized_query[:100],
+            len(menu_phrases),
+            menu_phrases[:_MENU_PHRASE_LOG_LIMIT],
+            used_query_fallback,
+        )
         return PreprocessedQuery(
             normalized_query=normalized_query,
-            vector=vector,
+            vector=first_vector,
             menu_phrases=menu_phrases,
+            phrase_vectors=phrase_vectors,
+            used_query_fallback=used_query_fallback,
         )
 
     async def preprocess_query(self, query: str, user_id: UUID) -> QueryPreprocessData:

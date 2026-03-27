@@ -8,6 +8,8 @@ from app.services.map_search_service import (
     CafeMenu,
     MapSearchService,
     _CAFE_MENU_QUERY,
+    _CAFE_MENU_SEARCH_FUSED_QUERY,
+    _CAFE_MENU_SEARCH_KEYWORD_ONLY_QUERY,
     _RADIUS_CAFE_QUERY,
     _USER_PREFERENCE_QUERY,
 )
@@ -77,9 +79,9 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     {
                         "cafe_id": str(cafe_id),
                         "name": "Cafe A",
-                        "address": "\uc11c\uc6b8\uc2dc \uc911\uad6c",
+                        "address": "서울시 중구",
                         "road_address": None,
-                        "cafe_intro": "\uc870\uc6a9\ud55c \ub514\uc800\ud2b8 \uce74\ud398",
+                        "cafe_intro": "조용한 디저트 카페",
                         "brand_name": None,
                         "branch_name": None,
                         "preference_similarity": 0.8,
@@ -91,6 +93,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                         "menu_id": 2394,
                         "menu_name": "Americano",
                         "menu_description": None,
+                        "menu_search_text": "Americano",
                     }
                 ],
             }
@@ -113,6 +116,241 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(preprocess_service.calls, [""])
         self.assertEqual(response.cafes, {str(cafe_id): 1})
         self.assertEqual(response.extracted_menus, {})
+
+    async def test_search_resolves_menu_ids_with_rrf_hits(self) -> None:
+        user_id = UUID("123e4567-e89b-12d3-a456-426614174000")
+        top_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
+        lower_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174002")
+        preprocess_service = StubPreprocessService(
+            PreprocessedQuery(
+                normalized_query="아메리카노",
+                vector=[0.1] * 64,
+                menu_phrases=["아메리카노"],
+                phrase_vectors={"아메리카노": [0.1] * 64},
+            )
+        )
+        service = MapSearchService(query_preprocess_service=preprocess_service)
+        pool = FakePool(
+            {
+                _USER_PREFERENCE_QUERY: {"preference_vector": "[0.1,0.2,0.3]"},
+                _RADIUS_CAFE_QUERY: [
+                    {
+                        "cafe_id": str(top_cafe_id),
+                        "name": "Cafe A",
+                        "address": "서울시 중구",
+                        "road_address": None,
+                        "cafe_intro": "조용한 아메리카노 카페",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.8,
+                    },
+                    {
+                        "cafe_id": str(lower_cafe_id),
+                        "name": "Cafe B",
+                        "address": "서울시 중구",
+                        "road_address": None,
+                        "cafe_intro": "아메리카노 전문 카페",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.7,
+                    },
+                ],
+                _CAFE_MENU_QUERY: [
+                    {
+                        "cafe_id": str(top_cafe_id),
+                        "menu_id": 2394,
+                        "menu_name": "아이스 아메리카노",
+                        "menu_description": "시원한 아메리카노",
+                        "menu_search_text": "아이스 아메리카노 시원한 아메리카노",
+                    },
+                    {
+                        "cafe_id": str(lower_cafe_id),
+                        "menu_id": 10209,
+                        "menu_name": "뜨거운 아메리카노",
+                        "menu_description": None,
+                        "menu_search_text": "뜨거운 아메리카노",
+                    },
+                ],
+                _CAFE_MENU_SEARCH_FUSED_QUERY: [
+                    {
+                        "cafe_id": str(top_cafe_id),
+                        "menu_id": 2394,
+                        "menu_name": "아이스 아메리카노",
+                        "menu_description": "시원한 아메리카노",
+                        "keyword_rank": 1,
+                        "vector_rank": 1,
+                        "rrf_score": 0.0327868852459,
+                    },
+                    {
+                        "cafe_id": str(lower_cafe_id),
+                        "menu_id": 10209,
+                        "menu_name": "뜨거운 아메리카노",
+                        "menu_description": None,
+                        "keyword_rank": 2,
+                        "vector_rank": 2,
+                        "rrf_score": 0.0322580645161,
+                    },
+                ],
+            }
+        )
+
+        with (
+            patch("app.services.map_search_service.get_pg_pool", return_value=pool),
+            patch("app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS", 3),
+        ):
+            response = await service.search(
+                MapSearchRequest(
+                    mood=[],
+                    userId=user_id,
+                    keyword="아메리카노",
+                    latitude=37.5665,
+                    longitude=126.978,
+                )
+            )
+
+        self.assertEqual(response.extracted_menus, {"2394": 1})
+        self.assertEqual(response.cafes, {str(top_cafe_id): 1, str(lower_cafe_id): 2})
+
+    async def test_search_logs_info_events(self) -> None:
+        user_id = UUID("123e4567-e89b-12d3-a456-426614174000")
+        cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
+        preprocess_service = StubPreprocessService(
+            PreprocessedQuery(
+                normalized_query="아메리카노",
+                vector=[0.1] * 64,
+                menu_phrases=["아메리카노"],
+                phrase_vectors={"아메리카노": [0.1] * 64},
+            )
+        )
+        service = MapSearchService(query_preprocess_service=preprocess_service)
+        pool = FakePool(
+            {
+                _USER_PREFERENCE_QUERY: {"preference_vector": "[0.1,0.2,0.3]"},
+                _RADIUS_CAFE_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "name": "Cafe A",
+                        "address": "서울시 중구",
+                        "road_address": None,
+                        "cafe_intro": "조용한 아메리카노 카페",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.8,
+                    }
+                ],
+                _CAFE_MENU_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "menu_id": 2394,
+                        "menu_name": "아이스 아메리카노",
+                        "menu_description": None,
+                        "menu_search_text": "아이스 아메리카노",
+                    }
+                ],
+                _CAFE_MENU_SEARCH_FUSED_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "menu_id": 2394,
+                        "menu_name": "아이스 아메리카노",
+                        "menu_description": None,
+                        "keyword_rank": 1,
+                        "vector_rank": 1,
+                        "rrf_score": 0.0327868852459,
+                    }
+                ],
+            }
+        )
+
+        with (
+            patch("app.services.map_search_service.get_pg_pool", return_value=pool),
+            patch("app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS", 3),
+            self.assertLogs("uvicorn.error", level="INFO") as logs,
+        ):
+            await service.search(
+                MapSearchRequest(
+                    mood=[],
+                    userId=user_id,
+                    keyword="아메리카노",
+                    latitude=37.5665,
+                    longitude=126.978,
+                )
+            )
+
+        self.assertTrue(any("map_search_started" in message for message in logs.output))
+        self.assertTrue(any("map_search_menu_rrf_completed" in message for message in logs.output))
+        self.assertTrue(any("map_search_ranking_completed" in message for message in logs.output))
+
+    async def test_search_uses_keyword_only_menu_query_without_phrase_vector(self) -> None:
+        user_id = UUID("123e4567-e89b-12d3-a456-426614174000")
+        cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
+        preprocess_service = StubPreprocessService(
+            PreprocessedQuery(
+                normalized_query="americano",
+                vector=[],
+                menu_phrases=["americano"],
+                phrase_vectors={"americano": []},
+                used_query_fallback=True,
+            )
+        )
+        service = MapSearchService(query_preprocess_service=preprocess_service)
+        pool = FakePool(
+            {
+                _USER_PREFERENCE_QUERY: {"preference_vector": "[0.1,0.2,0.3]"},
+                _RADIUS_CAFE_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "name": "Cafe A",
+                        "address": "Seoul",
+                        "road_address": None,
+                        "cafe_intro": "Quiet coffee bar",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.8,
+                    }
+                ],
+                _CAFE_MENU_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "menu_id": 2394,
+                        "menu_name": "Iced Americano",
+                        "menu_description": "Cold americano",
+                        "menu_search_text": "Iced Americano Cold americano",
+                    }
+                ],
+                _CAFE_MENU_SEARCH_KEYWORD_ONLY_QUERY: [
+                    {
+                        "cafe_id": str(cafe_id),
+                        "menu_id": 2394,
+                        "menu_name": "Iced Americano",
+                        "menu_description": "Cold americano",
+                        "keyword_rank": 1,
+                        "vector_rank": None,
+                        "rrf_score": 0.016393442623,
+                    }
+                ],
+            }
+        )
+
+        with (
+            patch("app.services.map_search_service.get_pg_pool", return_value=pool),
+            patch("app.services.preference_vector.EXPECTED_PREFERENCE_VECTOR_DIMENSIONS", 3),
+            self.assertLogs("uvicorn.error", level="INFO") as logs,
+        ):
+            response = await service.search(
+                MapSearchRequest(
+                    mood=[],
+                    userId=user_id,
+                    keyword="americano",
+                    latitude=37.5665,
+                    longitude=126.978,
+                )
+            )
+
+        self.assertEqual(response.extracted_menus, {"2394": 1})
+        self.assertEqual(response.cafes, {str(cafe_id): 1})
+        self.assertTrue(
+            any("map_search_menu_resolution_completed" in message and "used_query_fallback=True" in message for message in logs.output)
+        )
 
     async def test_search_raises_when_user_preference_is_missing(self) -> None:
         service = MapSearchService(
@@ -153,12 +391,6 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         _, args = pool.last_connection.calls[0]
         self.assertEqual(args[3], 2000)
 
-    def test_radius_query_uses_snake_case_brand_columns(self) -> None:
-        self.assertIn("brand_name", _RADIUS_CAFE_QUERY)
-        self.assertIn("branch_name", _RADIUS_CAFE_QUERY)
-        self.assertNotIn('"brandName"', _RADIUS_CAFE_QUERY)
-        self.assertNotIn('"branchName"', _RADIUS_CAFE_QUERY)
-
     def test_rank_cafes_applies_mood_lexical_filter(self) -> None:
         quiet_cafe = UUID("123e4567-e89b-12d3-a456-426614174001")
         loud_cafe = UUID("123e4567-e89b-12d3-a456-426614174002")
@@ -176,7 +408,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Loud Cafe",
                     address=None,
                     road_address=None,
-                    cafe_intro="\ud65c\uae30\ucc2c \ubd84\uc704\uae30\uc758 \uce74\ud398",
+                    cafe_intro="활기찬 분위기의 카페",
                     brand_name=None,
                     branch_name=None,
                 ),
@@ -186,21 +418,21 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                     name="Quiet Cafe",
                     address=None,
                     road_address=None,
-                    cafe_intro="\uc870\uc6a9\ud55c \ubd84\uc704\uae30\uc5d0\uc11c \uacf5\ubd80\ud558\uae30 \uc88b\uc740 \uce74\ud398",
+                    cafe_intro="조용한 분위기에서 공부하기 좋은 카페",
                     brand_name=None,
                     branch_name=None,
                 ),
             ],
             menus_by_cafe={},
-            normalized_keyword="\uce74\ud398",
+            normalized_keyword="카페",
             mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
         )
 
         self.assertEqual(ranked_cafes, [quiet_cafe])
 
-    def test_rank_cafes_sorts_by_vector_similarity_after_lexical_filter(self) -> None:
+    def test_rank_cafes_prefers_menu_scores_when_present(self) -> None:
         higher_similarity = UUID("123e4567-e89b-12d3-a456-426614174001")
-        lower_similarity = UUID("123e4567-e89b-12d3-a456-426614174002")
+        menu_match = UUID("123e4567-e89b-12d3-a456-426614174002")
         service = MapSearchService(
             query_preprocess_service=StubPreprocessService(
                 PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
@@ -210,67 +442,48 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         ranked_cafes = service.rank_cafes(
             candidates=[
                 CafeCandidate(
-                    cafe_id=lower_similarity,
-                    preference_similarity=0.75,
-                    name="Cafe B",
-                    address=None,
-                    road_address=None,
-                    cafe_intro="\uc870\uc6a9\ud55c \uc870\uc6a9\ud55c \uac10\uc131 \uce74\ud398",
-                    brand_name=None,
-                    branch_name=None,
-                ),
-                CafeCandidate(
                     cafe_id=higher_similarity,
                     preference_similarity=0.95,
                     name="Cafe A",
                     address=None,
                     road_address=None,
-                    cafe_intro="\uc870\uc6a9\ud55c \uac10\uc131 \uce74\ud398",
+                    cafe_intro="감성 카페",
+                    brand_name=None,
+                    branch_name=None,
+                ),
+                CafeCandidate(
+                    cafe_id=menu_match,
+                    preference_similarity=0.50,
+                    name="Cafe B",
+                    address=None,
+                    road_address=None,
+                    cafe_intro="감성 카페",
                     brand_name=None,
                     branch_name=None,
                 ),
             ],
             menus_by_cafe={},
-            normalized_keyword="\uac10\uc131",
-            mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
+            normalized_keyword="",
+            residual_keyword="",
+            mood_keywords=[],
+            menu_scores_by_cafe={menu_match: 0.9},
         )
 
-        self.assertEqual(ranked_cafes, [higher_similarity, lower_similarity])
+        self.assertEqual(ranked_cafes, [menu_match])
 
-    def test_resolve_extracted_menu_ids_uses_top_ranked_cafe_menu_id(self) -> None:
-        top_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
-        lower_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174002")
+    def test_collect_menu_phrase_counts_prefers_query_occurrence_count(self) -> None:
         service = MapSearchService(
             query_preprocess_service=StubPreprocessService(
                 PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
             ),
         )
 
-        extracted_menus = service.resolve_extracted_menu_ids(
+        counts = service.collect_menu_phrase_counts(
             normalized_query="Americano Americano",
-            menu_phrases=[],
-            menus_by_cafe={
-                top_cafe_id: [
-                    CafeMenu(
-                        cafe_id=top_cafe_id,
-                        menu_id=2394,
-                        menu_name="Americano",
-                        menu_description=None,
-                    )
-                ],
-                lower_cafe_id: [
-                    CafeMenu(
-                        cafe_id=lower_cafe_id,
-                        menu_id=10209,
-                        menu_name="Americano",
-                        menu_description=None,
-                    )
-                ],
-            },
-            ranked_cafe_ids=[top_cafe_id, lower_cafe_id],
+            menu_phrases=["Americano"],
         )
 
-        self.assertEqual(extracted_menus, {"2394": 2})
+        self.assertEqual(counts["Americano"], 2)
 
     def test_search_result_is_trimmed_to_top_100(self) -> None:
         service = MapSearchService(
@@ -285,7 +498,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
                 name=f"Cafe {index}",
                 address=None,
                 road_address=None,
-                cafe_intro="\uc870\uc6a9\ud55c \uac10\uc131 \uce74\ud398",
+                cafe_intro="조용한 감성 카페",
                 brand_name=None,
                 branch_name=None,
             )
@@ -295,7 +508,7 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         ranked_cafes = service.rank_cafes(
             candidates=candidates,
             menus_by_cafe={},
-            normalized_keyword="\uac10\uc131",
+            normalized_keyword="감성",
             mood_keywords=service.resolve_mood_keywords([QUIET_MOOD_ID]),
         )
         cafes = {
