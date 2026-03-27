@@ -5,37 +5,45 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from uuid import UUID
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
-
 from app.core.config import settings
 from app.db.postgresql import get_pg_pool
 from app.models.map_search import MapSearchRequest, MapSearchResponse
-from app.services.discovery_service import DiscoveryService
+from app.services.discovery_service import UserPreferenceNotFoundError
 from app.services.query_preprocess_service import QueryPreprocessService
 
 _RADIUS_METERS = 2000
 _MAX_RESULTS = settings.discovery_top_k
+_MOOD_KEYWORDS: dict[int, tuple[str, ...]] = {
+    0: ("우드톤", "따뜻함", "따뜻한", "아늑한", "포근한"),
+    1: ("식물원", "플랜테리어", "식물", "초록", "녹음"),
+    2: ("힙한", "힙", "트렌디", "감성", "감각적인"),
+    3: ("조용한", "조용", "차분한", "차분", "고요한"),
+    4: ("탁트인", "탁 트인", "뷰 좋은", "뷰", "전망", "창가"),
+}
+
+_USER_PREFERENCE_QUERY = """
+    SELECT preference_vector::text AS preference_vector
+    FROM user_preference
+    WHERE user_id = $1
+"""
 
 _RADIUS_CAFE_QUERY = """
     SELECT
-        cafes.cafe_id,
-        1 - (cafe_embeddings.embedding <=> $1::vector) AS preference_similarity
-    FROM cafes
-    JOIN cafe_embeddings
-        ON cafe_embeddings.cafe_id = cafes.cafe_id
-    WHERE ST_DWithin(
-        cafes.location,
-        ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
-        $4
-    )
-"""
-
-_QUERY_SIMILARITY_QUERY = """
-    SELECT
         cafe_id,
-        1 - (embedding <=> $1::vector) AS query_similarity
-    FROM cafe_embeddings
-    WHERE cafe_id = ANY($2::uuid[])
+        name,
+        address,
+        road_address,
+        cafe_intro,
+        "brandName" AS brand_name,
+        "branchName" AS branch_name,
+        1 - (cafe_vector <=> $1::vector) AS preference_similarity
+    FROM cafes
+    WHERE cafe_vector IS NOT NULL
+      AND ST_DWithin(
+          location,
+          ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
+          $4
+      )
 """
 
 _CAFE_MENU_QUERY = """
@@ -54,6 +62,12 @@ _CAFE_MENU_QUERY = """
 class CafeCandidate:
     cafe_id: UUID
     preference_similarity: float
+    name: str
+    address: str | None
+    road_address: str | None
+    cafe_intro: str | None
+    brand_name: str | None
+    branch_name: str | None
 
 
 @dataclass(slots=True)
@@ -67,19 +81,14 @@ class CafeMenu:
 class MapSearchService:
     def __init__(
         self,
-        mongo_db: AsyncIOMotorDatabase,
         query_preprocess_service: QueryPreprocessService | None = None,
-        discovery_service: DiscoveryService | None = None,
     ) -> None:
         self._query_preprocess_service = query_preprocess_service or QueryPreprocessService()
-        self._discovery_service = discovery_service or DiscoveryService(mongo_db)
 
     async def search(self, request: MapSearchRequest) -> MapSearchResponse:
         processed_query = await self._query_preprocess_service.preprocess(request.keyword)
         mood_keywords = self.resolve_mood_keywords(request.mood)
-        user_preference_vector = await self._discovery_service.get_user_preference_vector(
-            request.user_id
-        )
+        user_preference_vector = await self.get_user_preference_vector(request.user_id)
 
         candidates = await self.get_candidates_within_radius(
             latitude=request.latitude,
@@ -91,30 +100,42 @@ class MapSearchService:
 
         candidate_ids = [candidate.cafe_id for candidate in candidates]
         menus_by_cafe = await self.get_cafe_menus(candidate_ids)
-        query_similarity_scores = await self.get_query_similarity_scores(
-            candidate_ids,
-            processed_query.vector,
-        )
         ranked_cafe_ids = self.rank_cafes(
             candidates=candidates,
             menus_by_cafe=menus_by_cafe,
             normalized_keyword=processed_query.normalized_query,
             mood_keywords=mood_keywords,
-            query_similarity_scores=query_similarity_scores,
         )
+        if not ranked_cafe_ids:
+            return MapSearchResponse()
+
         extracted_menus = self.resolve_extracted_menu_ids(
             normalized_query=processed_query.normalized_query,
             menu_phrases=processed_query.menu_phrases,
             menus_by_cafe=menus_by_cafe,
             ranked_cafe_ids=ranked_cafe_ids,
         )
-
         cafes = {
             str(cafe_id): rank
             for rank, cafe_id in enumerate(ranked_cafe_ids[:_MAX_RESULTS], start=1)
         }
 
         return MapSearchResponse(cafes=cafes, extracted_menus=extracted_menus)
+
+    async def get_user_preference_vector(self, user_id: UUID) -> list[float]:
+        pool = get_pg_pool()
+
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(_USER_PREFERENCE_QUERY, user_id)
+
+        if row is None or row["preference_vector"] is None:
+            raise UserPreferenceNotFoundError(f"user_id={user_id} preference vector not found.")
+
+        preference_vector = self.parse_vector_literal(row["preference_vector"])
+        if not preference_vector:
+            raise UserPreferenceNotFoundError(f"user_id={user_id} preference vector not found.")
+
+        return preference_vector
 
     async def get_candidates_within_radius(
         self,
@@ -139,28 +160,15 @@ class MapSearchService:
             CafeCandidate(
                 cafe_id=UUID(str(row["cafe_id"])),
                 preference_similarity=self.clamp_similarity(row["preference_similarity"]),
+                name=row["name"] or "",
+                address=row["address"],
+                road_address=row["road_address"],
+                cafe_intro=row["cafe_intro"],
+                brand_name=row["brand_name"],
+                branch_name=row["branch_name"],
             )
             for row in rows
         ]
-
-    async def get_query_similarity_scores(
-        self,
-        candidate_ids: list[UUID],
-        query_vector: list[float],
-    ) -> dict[UUID, float]:
-        if not query_vector:
-            return {}
-
-        pool = get_pg_pool()
-        vector_literal = self.to_vector_literal(query_vector)
-
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(_QUERY_SIMILARITY_QUERY, vector_literal, candidate_ids)
-
-        return {
-            UUID(str(row["cafe_id"])): self.clamp_similarity(row["query_similarity"])
-            for row in rows
-        }
 
     async def get_cafe_menus(self, cafe_ids: list[UUID]) -> dict[UUID, list[CafeMenu]]:
         if not cafe_ids:
@@ -191,34 +199,36 @@ class MapSearchService:
         menus_by_cafe: dict[UUID, list[CafeMenu]],
         normalized_keyword: str,
         mood_keywords: list[str],
-        query_similarity_scores: dict[UUID, float],
     ) -> list[UUID]:
-        keyword_terms = self.build_keyword_terms(normalized_keyword, mood_keywords)
-        scored_candidates: list[tuple[float, float, float, str, UUID]] = []
+        keyword_terms = self.build_keyword_terms(normalized_keyword)
+        mood_terms = self.build_keyword_terms(" ".join(mood_keywords))
+        scored_candidates: list[tuple[float, float, str, UUID]] = []
 
         for candidate in candidates:
-            keyword_score = self.score_cafe_menus(
-                keyword_terms,
+            searchable_text = self.build_searchable_text(
+                candidate,
                 menus_by_cafe.get(candidate.cafe_id, []),
             )
-            query_similarity = query_similarity_scores.get(candidate.cafe_id, 0.0)
-            final_score = (
-                0.5 * candidate.preference_similarity
-                + 0.2 * query_similarity
-                + 0.3 * keyword_score
-            )
+            keyword_score = self.score_text_terms(keyword_terms, searchable_text)
+            mood_score = self.score_text_terms(mood_terms, searchable_text)
+
+            if keyword_terms and keyword_score == 0.0:
+                continue
+            if mood_terms and mood_score == 0.0:
+                continue
+
+            lexical_score = keyword_score + mood_score
             scored_candidates.append(
                 (
-                    final_score,
                     candidate.preference_similarity,
-                    keyword_score,
+                    lexical_score,
                     str(candidate.cafe_id),
                     candidate.cafe_id,
                 )
             )
 
-        scored_candidates.sort(key=lambda item: (-item[0], -item[1], -item[2], item[3]))
-        return [item[4] for item in scored_candidates]
+        scored_candidates.sort(key=lambda item: (-item[0], -item[1], item[2]))
+        return [item[3] for item in scored_candidates]
 
     def resolve_extracted_menu_ids(
         self,
@@ -309,18 +319,27 @@ class MapSearchService:
 
         return None
 
-    def build_keyword_terms(
-        self,
-        normalized_keyword: str,
-        mood_keywords: list[str],
-    ) -> list[str]:
+    def resolve_mood_keywords(self, mood: list[int]) -> list[str]:
+        resolved_keywords: list[str] = []
+        seen_keywords: set[str] = set()
+
+        for mood_id in mood:
+            for keyword in _MOOD_KEYWORDS.get(mood_id, ()):
+                normalized_keyword = keyword.strip()
+                if not normalized_keyword or normalized_keyword in seen_keywords:
+                    continue
+                seen_keywords.add(normalized_keyword)
+                resolved_keywords.append(normalized_keyword)
+
+        return resolved_keywords
+
+    def build_keyword_terms(self, text: str) -> list[str]:
         keyword_terms: list[str] = []
-        if normalized_keyword:
-            keyword_terms.append(normalized_keyword.casefold())
-            keyword_terms.extend(self.tokenize(normalized_keyword))
-        for mood_keyword in mood_keywords:
-            keyword_terms.append(mood_keyword.casefold())
-            keyword_terms.extend(self.tokenize(mood_keyword))
+        normalized_text = text.strip()
+
+        if normalized_text:
+            keyword_terms.append(normalized_text.casefold())
+            keyword_terms.extend(self.tokenize(normalized_text))
 
         deduplicated_terms: list[str] = []
         seen_terms: set[str] = set()
@@ -332,34 +351,55 @@ class MapSearchService:
             deduplicated_terms.append(normalized_term)
         return deduplicated_terms
 
-    def score_cafe_menus(
+    def build_searchable_text(
         self,
-        keyword_terms: list[str],
+        candidate: CafeCandidate,
         menus: list[CafeMenu],
-    ) -> float:
-        if not keyword_terms or not menus:
+    ) -> str:
+        text_parts = [
+            candidate.name,
+            candidate.brand_name or "",
+            candidate.branch_name or "",
+            candidate.address or "",
+            candidate.road_address or "",
+            candidate.cafe_intro or "",
+        ]
+        for menu in menus:
+            text_parts.append(menu.menu_name)
+            text_parts.append(menu.menu_description or "")
+        return " ".join(part for part in text_parts if part).casefold()
+
+    def score_text_terms(self, terms: list[str], searchable_text: str) -> float:
+        if not terms or not searchable_text:
             return 0.0
 
-        score = 0.0
-        for term in keyword_terms:
-            for menu in menus:
-                score += menu.menu_name.casefold().count(term) * 2.0
-                score += (menu.menu_description or "").casefold().count(term)
-
-        return min(score / len(keyword_terms), 1.0)
-
-    def resolve_mood_keywords(self, mood: list[int]) -> list[str]:
-        _ = mood
-        return []
+        return sum(searchable_text.count(term) for term in terms)
 
     def tokenize(self, text: str) -> list[str]:
-        return [token.casefold() for token in re.split(r"\s+", text) if token.strip()]
+        return [
+            token.casefold()
+            for token in re.split(r"[\s/|,+]+", text)
+            if token.strip()
+        ]
 
     def clamp_similarity(self, value: object) -> float:
         if value is None:
             return 0.0
         numeric_value = float(value)
-        return max(0.0, min(numeric_value, 1.0))
+        return max(-1.0, min(numeric_value, 1.0))
 
     def to_vector_literal(self, vector: list[float]) -> str:
         return "[" + ",".join(str(value) for value in vector) + "]"
+
+    def parse_vector_literal(self, vector_literal: str) -> list[float]:
+        normalized_literal = vector_literal.strip()
+        if not normalized_literal or normalized_literal == "[]":
+            return []
+        if not (normalized_literal.startswith("[") and normalized_literal.endswith("]")):
+            raise ValueError(f"Invalid vector literal: {vector_literal}")
+
+        values = normalized_literal[1:-1].strip()
+        if not values:
+            return []
+
+        return [float(value.strip()) for value in values.split(",") if value.strip()]

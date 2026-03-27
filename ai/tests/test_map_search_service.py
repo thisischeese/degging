@@ -4,25 +4,15 @@ from unittest.mock import patch
 
 from app.models.map_search import MapSearchRequest
 from app.services.discovery_service import UserPreferenceNotFoundError
-from app.services.map_search_service import CafeCandidate, CafeMenu, MapSearchService
-from app.services.map_search_service import _CAFE_MENU_QUERY, _RADIUS_CAFE_QUERY
+from app.services.map_search_service import (
+    CafeCandidate,
+    CafeMenu,
+    MapSearchService,
+    _CAFE_MENU_QUERY,
+    _RADIUS_CAFE_QUERY,
+    _USER_PREFERENCE_QUERY,
+)
 from app.services.query_preprocess_service import PreprocessedQuery
-
-
-class FakeCollection:
-    def __init__(self, document):
-        self._document = document
-
-    async def find_one(self, *args, **kwargs):
-        return self._document
-
-
-class FakeMongoDatabase:
-    def __init__(self, document):
-        self._document = document
-
-    def __getitem__(self, name):
-        return FakeCollection(self._document)
 
 
 class FakeConnection:
@@ -32,7 +22,11 @@ class FakeConnection:
 
     async def fetch(self, query, *args):
         self.calls.append((query, args))
-        return self._rows_by_query[query]
+        return self._rows_by_query.get(query, [])
+
+    async def fetchrow(self, query, *args):
+        self.calls.append((query, args))
+        return self._rows_by_query.get(query)
 
 
 class FakeAcquire:
@@ -70,18 +64,24 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
     async def test_search_allows_blank_keyword_and_returns_ranked_cafes(self) -> None:
         user_id = UUID("123e4567-e89b-12d3-a456-426614174000")
         cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
-        mongo_db = FakeMongoDatabase({"u_rt": [0.1, 0.2, 0.3]})
         preprocess_service = StubPreprocessService(
             PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
         )
-        service = MapSearchService(
-            mongo_db,
-            query_preprocess_service=preprocess_service,
-        )
+        service = MapSearchService(query_preprocess_service=preprocess_service)
         pool = FakePool(
             {
+                _USER_PREFERENCE_QUERY: {"preference_vector": "[0.1,0.2,0.3]"},
                 _RADIUS_CAFE_QUERY: [
-                    {"cafe_id": str(cafe_id), "preference_similarity": 0.8}
+                    {
+                        "cafe_id": str(cafe_id),
+                        "name": "Cafe A",
+                        "address": "서울시 중구",
+                        "road_address": None,
+                        "cafe_intro": "조용한 디저트 카페",
+                        "brand_name": None,
+                        "branch_name": None,
+                        "preference_similarity": 0.8,
+                    }
                 ],
                 _CAFE_MENU_QUERY: [
                     {
@@ -111,26 +111,26 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_search_raises_when_user_preference_is_missing(self) -> None:
         service = MapSearchService(
-            FakeMongoDatabase(None),
             query_preprocess_service=StubPreprocessService(
                 PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
             ),
         )
+        pool = FakePool({_USER_PREFERENCE_QUERY: None})
 
-        with self.assertRaises(UserPreferenceNotFoundError):
-            await service.search(
-                MapSearchRequest(
-                    mood=[],
-                    userId=UUID("123e4567-e89b-12d3-a456-426614174000"),
-                    keyword="",
-                    latitude=37.5665,
-                    longitude=126.978,
+        with patch("app.services.map_search_service.get_pg_pool", return_value=pool):
+            with self.assertRaises(UserPreferenceNotFoundError):
+                await service.search(
+                    MapSearchRequest(
+                        mood=[],
+                        userId=UUID("123e4567-e89b-12d3-a456-426614174000"),
+                        keyword="",
+                        latitude=37.5665,
+                        longitude=126.978,
+                    )
                 )
-            )
 
     async def test_get_candidates_within_radius_uses_2km_radius(self) -> None:
         service = MapSearchService(
-            FakeMongoDatabase({"u_rt": [0.1, 0.2, 0.3]}),
             query_preprocess_service=StubPreprocessService(
                 PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
             ),
@@ -148,33 +148,88 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         _, args = pool.last_connection.calls[0]
         self.assertEqual(args[3], 2000)
 
-    def test_score_cafe_menus_handles_null_description(self) -> None:
+    def test_rank_cafes_applies_mood_lexical_filter(self) -> None:
+        quiet_cafe = UUID("123e4567-e89b-12d3-a456-426614174001")
+        loud_cafe = UUID("123e4567-e89b-12d3-a456-426614174002")
         service = MapSearchService(
-            FakeMongoDatabase({"u_rt": [0.1, 0.2, 0.3]}),
             query_preprocess_service=StubPreprocessService(
                 PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
             ),
         )
 
-        score = service.score_cafe_menus(
-            ["americano"],
-            [
-                CafeMenu(
-                    cafe_id=UUID("123e4567-e89b-12d3-a456-426614174001"),
-                    menu_id=1,
-                    menu_name="Americano",
-                    menu_description=None,
-                )
+        ranked_cafes = service.rank_cafes(
+            candidates=[
+                CafeCandidate(
+                    cafe_id=loud_cafe,
+                    preference_similarity=0.99,
+                    name="Loud Cafe",
+                    address=None,
+                    road_address=None,
+                    cafe_intro="활기찬 분위기의 카페",
+                    brand_name=None,
+                    branch_name=None,
+                ),
+                CafeCandidate(
+                    cafe_id=quiet_cafe,
+                    preference_similarity=0.80,
+                    name="Quiet Cafe",
+                    address=None,
+                    road_address=None,
+                    cafe_intro="조용한 분위기에서 공부하기 좋은 카페",
+                    brand_name=None,
+                    branch_name=None,
+                ),
             ],
+            menus_by_cafe={},
+            normalized_keyword="카페",
+            mood_keywords=service.resolve_mood_keywords([3]),
         )
 
-        self.assertGreater(score, 0.0)
+        self.assertEqual(ranked_cafes, [quiet_cafe])
+
+    def test_rank_cafes_sorts_by_vector_similarity_after_lexical_filter(self) -> None:
+        higher_similarity = UUID("123e4567-e89b-12d3-a456-426614174001")
+        lower_similarity = UUID("123e4567-e89b-12d3-a456-426614174002")
+        service = MapSearchService(
+            query_preprocess_service=StubPreprocessService(
+                PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
+            ),
+        )
+
+        ranked_cafes = service.rank_cafes(
+            candidates=[
+                CafeCandidate(
+                    cafe_id=lower_similarity,
+                    preference_similarity=0.75,
+                    name="Cafe B",
+                    address=None,
+                    road_address=None,
+                    cafe_intro="조용한 조용한 감성 카페",
+                    brand_name=None,
+                    branch_name=None,
+                ),
+                CafeCandidate(
+                    cafe_id=higher_similarity,
+                    preference_similarity=0.95,
+                    name="Cafe A",
+                    address=None,
+                    road_address=None,
+                    cafe_intro="조용한 감성 카페",
+                    brand_name=None,
+                    branch_name=None,
+                ),
+            ],
+            menus_by_cafe={},
+            normalized_keyword="감성",
+            mood_keywords=service.resolve_mood_keywords([3]),
+        )
+
+        self.assertEqual(ranked_cafes, [higher_similarity, lower_similarity])
 
     def test_resolve_extracted_menu_ids_uses_top_ranked_cafe_menu_id(self) -> None:
         top_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
         lower_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174002")
         service = MapSearchService(
-            FakeMongoDatabase({"u_rt": [0.1, 0.2, 0.3]}),
             query_preprocess_service=StubPreprocessService(
                 PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
             ),
@@ -206,32 +261,8 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(extracted_menus, {"2394": 2})
 
-    def test_rank_cafes_orders_by_final_score(self) -> None:
-        top_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
-        lower_cafe_id = UUID("123e4567-e89b-12d3-a456-426614174002")
-        service = MapSearchService(
-            FakeMongoDatabase({"u_rt": [0.1, 0.2, 0.3]}),
-            query_preprocess_service=StubPreprocessService(
-                PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
-            ),
-        )
-
-        ranked_cafes = service.rank_cafes(
-            candidates=[
-                CafeCandidate(cafe_id=lower_cafe_id, preference_similarity=0.2),
-                CafeCandidate(cafe_id=top_cafe_id, preference_similarity=0.9),
-            ],
-            menus_by_cafe={},
-            normalized_keyword="",
-            mood_keywords=[],
-            query_similarity_scores={},
-        )
-
-        self.assertEqual(ranked_cafes, [top_cafe_id, lower_cafe_id])
-
     def test_search_result_is_trimmed_to_top_100(self) -> None:
         service = MapSearchService(
-            FakeMongoDatabase({"u_rt": [0.1, 0.2, 0.3]}),
             query_preprocess_service=StubPreprocessService(
                 PreprocessedQuery(normalized_query="", vector=[], menu_phrases=[])
             ),
@@ -240,6 +271,12 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
             CafeCandidate(
                 cafe_id=UUID(f"00000000-0000-0000-0000-{index:012d}"),
                 preference_similarity=1.0 - (index / 1000.0),
+                name=f"Cafe {index}",
+                address=None,
+                road_address=None,
+                cafe_intro="조용한 감성 카페",
+                brand_name=None,
+                branch_name=None,
             )
             for index in range(101)
         ]
@@ -247,9 +284,8 @@ class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
         ranked_cafes = service.rank_cafes(
             candidates=candidates,
             menus_by_cafe={},
-            normalized_keyword="",
-            mood_keywords=[],
-            query_similarity_scores={},
+            normalized_keyword="감성",
+            mood_keywords=service.resolve_mood_keywords([3]),
         )
         cafes = {
             str(cafe_id): rank

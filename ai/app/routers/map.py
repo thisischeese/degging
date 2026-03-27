@@ -1,7 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
-
-from app.db.mongodb import get_mongo_db
 from app.models.map_search import MapSearchRequest, MapSearchResponse
 from app.services.discovery_service import UserPreferenceNotFoundError
 from app.services.map_search_service import MapSearchService
@@ -9,10 +6,8 @@ from app.services.map_search_service import MapSearchService
 router = APIRouter(prefix="/map", tags=["map"])
 
 
-def get_map_search_service(
-    mongo_db: AsyncIOMotorDatabase = Depends(get_mongo_db),
-) -> MapSearchService:
-    return MapSearchService(mongo_db)
+def get_map_search_service() -> MapSearchService:
+    return MapSearchService()
 
 
 @router.post(
