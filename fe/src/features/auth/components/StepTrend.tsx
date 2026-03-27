@@ -126,7 +126,7 @@ export default function StepTrend({ next, updateData, formData }: SignupStepProp
                  src={getImageUrl(formattedPath)} 
                  alt="preload"
                  fill
-                 sizes="(max-width: 768px) 50vw, 33vw" // StepMood와 반드시 일치야 함
+                 sizes="(max-width: 768px) 50vw, 33vw" // StepMood와 일치
                  priority={true} 
                />
              </div>
