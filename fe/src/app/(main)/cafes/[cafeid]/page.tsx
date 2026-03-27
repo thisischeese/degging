@@ -437,7 +437,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
             <Image
               src={
                 cafe.images && cafe.images.length > 0
-                  ? `${process.env.NEXT_PUBLIC_CLOUDFRONT_URL}/${cafe.images[currentIndex]}`
+                  ? cafe.images[currentIndex]
                   : "/images/cafe/cafe1.png"
               }
               alt={`${cafe.name} 이미지 ${currentIndex + 1}`}
