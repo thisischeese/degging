@@ -45,3 +45,9 @@ export const deleteUsers = async (): Promise<BaseResponse<null>> => {
 export const postFindPassword = async (data: FindPasswordData): Promise<BaseResponse<null>> => {
     return axios_instance.post<BaseResponse<null>>('/api/auth/password/find', data) as unknown as Promise<BaseResponse<null>>;
 };
+
+/** 8. 취향 태그 조회 */
+export const getUserPreferences = async (): Promise<string[]> => {
+    const response = await axios_instance.get<BaseResponse<string[]>>('/api/users/preferences') as unknown as BaseResponse<string[]>;
+    return response.data;
+};
