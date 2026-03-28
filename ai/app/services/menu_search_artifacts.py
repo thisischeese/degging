@@ -14,12 +14,23 @@ from app.services.menu_query_encoder import (
 
 _EXPORT_MENU_ROWS_QUERY = """
     SELECT
-        cafe_id,
-        menu_id,
-        menu_name,
-        menu_description
-    FROM cafe_menus
-    ORDER BY menu_id
+        menu.cafe_id,
+        menu.menu_id,
+        menu.menu_name,
+        menu.menu_description,
+        COALESCE(
+            ARRAY_AGG(DISTINCT vibe.tag_id::text) FILTER (WHERE vibe.tag_id IS NOT NULL),
+            ARRAY[]::text[]
+        ) AS vibe_tag_ids
+    FROM cafe_menus AS menu
+    LEFT JOIN cafe_vibe_tags AS vibe
+      ON vibe.cafe_id = menu.cafe_id
+    GROUP BY
+        menu.cafe_id,
+        menu.menu_id,
+        menu.menu_name,
+        menu.menu_description
+    ORDER BY menu.menu_id
 """
 
 logger = logging.getLogger("uvicorn.error")
@@ -38,7 +49,11 @@ async def fetch_menu_rows() -> list[dict[str, Any]]:
 
 async def export_menu_search_artifacts() -> tuple[Path, Path]:
     rows = await fetch_menu_rows()
-    logger.info("menu_search_artifact_export_started: menu_row_count=%s", len(rows))
+    logger.info(
+        "menu_search_artifact_export_started: menu_row_count=%s cafe_count=%s",
+        len(rows),
+        len({str(row.get("cafe_id") or "") for row in rows}),
+    )
     artifact_path, records = build_menu_encoder_and_records(rows)
     export_path = resolve_menu_vector_export_path()
     export_path.parent.mkdir(parents=True, exist_ok=True)
