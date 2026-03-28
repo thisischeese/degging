@@ -117,7 +117,7 @@ export default function SurveyModal({
 
             <button
               onClick={handleSubmit}
-              className="mt-1 w-full max-w-[140px] mx-auto bg-gray-200 text-gray-700 font-bold text-[14px] py-2.5 rounded-xl hover:bg-[#B7C26F] hover:text-white transition-colors"
+              className="mt-1 w-full max-w-[140px] mx-auto bg-[#B7C26F] text-white font-bold text-[14px] py-2.5 rounded-xl active:scale-95 transition-all shadow-sm"
             >
               제출하기
             </button>
@@ -132,7 +132,7 @@ export default function SurveyModal({
             </p>
             <button
               onClick={handleEventClick}
-              className="w-full max-w-[160px] bg-gray-200 text-gray-700 font-bold text-[14px] py-3 rounded-xl hover:bg-[#B7C26F] hover:text-white transition-colors"
+              className="w-full max-w-[160px] bg-[#B7C26F] text-white font-bold text-[14px] py-3 rounded-xl active:scale-95 transition-all shadow-sm"
             >
               이벤트 응모하기
             </button>
