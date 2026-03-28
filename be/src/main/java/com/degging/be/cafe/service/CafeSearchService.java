@@ -111,18 +111,14 @@ public class CafeSearchService {
                         request.getLatitude(),
                         request.getLongitude()
                 ))
-                /* item의 cafeId(UUID)를 rankMap에서 찾아
-                   AI가 원래 부여했던 인덱스(순서)대로 정렬
-                */
                 .sorted(Comparator.comparingInt(item ->
-                        rankMap.getOrDefault(item.getCafeId(), 999)))
+                        // res.getCafes()의 Key가 String이므로 toString()으로 매칭
+                        res.getCafes().getOrDefault(item.getCafeId().toString(), 999)))
                 .toList();
 
-        // 비동기로 추천 결과 캐싱 및 반환
+        // 캐싱 및 반환
         saveRecommendCache(userId, items);
-        return CafeSearchResponse.builder()
-                .cafes(items)
-                .build();
+        return CafeSearchResponse.builder().cafes(items).build();
     }
 
     // AI 추천 결과를 Redis 에 저장
