@@ -11,7 +11,7 @@ export interface SignupRequest {
 
 /** 2. 프론트엔드 회원가입 단계(Step1~5)에서 관리하는 전체 데이터 */
 export interface SignupFormData extends SignupRequest {
-  trends: number[]; // 온보딩용 (메뉴 ID)
+  trends: string[]; // 온보딩용 (메뉴 명칭)
   moods: string[]; // 온보딩용 (카페 UUID)
 }
 

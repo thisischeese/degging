@@ -64,13 +64,15 @@ export default function SignupPage() {
         console.log("회원가입 성공:", result.message);
         
         // 1. 회원가입 응답에서 onboardingToken 추출 (타입 안전성 확보)
+        // result.data가 null인 경우를 대비한 Optional Chaining 사용
         const token = result.data?.onboardingToken;
 
-        if (token) {
+        if (token && token !== "null" && token !== "undefined") {
           // 백엔드 레퍼런스 코드에 맞춰 sessionStorage에 저장
           sessionStorage.setItem("ONBOARDING_TOKEN", token);
           console.log("Onboarding Token 세션 저장 완료!");
         } else {
+          console.warn("⚠️ 회원가입 성공했으나 onboardingToken이 누락되었거나 null입니다.");
           // 2. 만약 onboardingToken이 명세와 달리 안 들어왔다면 기존 자동 로그인(폴백) 시도
           try {
             await postLogin({
@@ -95,27 +97,50 @@ export default function SignupPage() {
     }
   };
 
-  // 2단계: 온보딩 결과 제출 (Step 6 직전 호출)
+  // 2. 온보딩 결과 제출 (Step 6 직전 호출)
   const handleOnboardingRequest = async (currentData?: SignupFormData) => {
     try {
       const dataToUse = currentData || formData;
       const token = sessionStorage.getItem("ONBOARDING_TOKEN") || "";
 
+      if (!token || token === "undefined" || token === "null") {
+        console.error("❌ 온보딩 토큰이 없습니다.");
+        return false;
+      }
+
+      const cafeIds = (dataToUse.moods || []).filter((id): id is string => 
+        !!id && String(id) !== "null" && String(id) !== "undefined" && String(id).trim() !== ""
+      );
+
+      const menuNames = (dataToUse.trends || []).filter((name): name is string =>
+        !!name && String(name) !== "null" && String(name) !== "undefined" && String(name).trim() !== ""
+      );
+
       const onboardingData: OnboardingResult = {
         onboardingToken: token,
-        cafeIds: dataToUse.moods,
-        menuIds: dataToUse.trends.map(id => Number(id)), // string인 경우 숫자로 변환 (기존 호환성 및 명세 준수)
+        cafeIds: cafeIds,
+        menuNames: menuNames,
       };
 
+      // console.log("🚀 온보딩 최종 페이로드:", onboardingData);
+
+      // 1. 온보딩 결과 전송
       await postOnboardingResults(onboardingData);
       console.log("온보딩 데이터 제출 성공");
       
-      // 온보딩 완료 시 임시 토큰 즉시 파기 (보안 및 백엔드 지침 준수)
+      // 2. 온보딩 성공 후 자동 로그인 (onboardingToken -> access_token 전환)
+      console.log("🔑 온보딩 성공! 자동 로그인 시도 중...");
+      await postLogin({
+        email: formData.email,
+        password: formData.password
+      });
+
+      // 3. 임시 토큰 파기 (보안 및 백엔드 지침 준수)
       sessionStorage.removeItem("ONBOARDING_TOKEN");
       
       return true;
     } catch (error) {
-      console.error("온보딩 실패:", error);
+      console.error("온보딩 또는 자동 로그인 실패:", error);
       return false;
     }
   };
@@ -139,7 +164,7 @@ export default function SignupPage() {
   };
 
 
-  console.log(`[SignupPage Render] Step: ${step}`, formData);
+  // console.log(`[SignupPage Render] Step: ${step}`, formData);
 
   return (
     <div className="flex flex-1 flex-col bg-bg_white min-h-0">
@@ -163,8 +188,12 @@ export default function SignupPage() {
               <StepLoading 
                 next={nextStep} 
                 onSignup={async () => {
-                   // 상태 업데이트 지연 방지를 위해 명시적으로 formData를 넘김
-                   await handleOnboardingRequest(formData); 
+                   // 온보딩과 로그인이 모두 성공해야만 다음 단계(Step 7)로 이동
+                   const success = await handleOnboardingRequest(formData); 
+                   if (!success) {
+                     // 실패 시 사용자에게 알림 (필요 시 showAlert 추가)
+                     throw new Error("Onboarding or Login failed");
+                   }
                 }}
               />
             )}
