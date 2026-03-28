@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { pushGtmEvent } from "@/lib/abTest";
@@ -36,7 +36,10 @@ export default function DiscoveryPage() {
           fetchNextPage();
         }
       },
-      { threshold: 0.5 }
+      { 
+        rootMargin: "800px",
+        threshold: 0 
+      }
     );
 
     if (loaderRef.current) {
@@ -62,6 +65,11 @@ export default function DiscoveryPage() {
     router.push(`/cafes/${cafeId}`);
   };
 
+  // 데이터를 useMemo로 관리하여 불필요한 재계산 및 참조 변경 방지
+  const allFeeds = useMemo(() => {
+    return data?.pages.flatMap((page) => page.content) || [];
+  }, [data]);
+
   if (status === "pending") {
     return (
       <div className="h-full min-h-full bg-[#F7F7F5] p-4 columns-2 gap-4 space-y-4">
@@ -80,13 +88,11 @@ export default function DiscoveryPage() {
     );
   }
 
-  const allFeeds = data.pages.flatMap((page) => page.content);
-
   return (
     <div className="h-full min-h-full bg-[#F7F7F5] pb-24 font-pretendard">
       <div className="pt-6 px-4 pb-4"></div>
 
-      <div className="px-4 columns-2 gap-4 space-y-4">
+      <div className="px-4 columns-2 gap-4 pb-4">
         {allFeeds.map((feed, index) => {
           // 디자인 가이드: 세로 사진은 2:3, 가로 사진은 1:1로 크롭
           // 현재 데이터의 원본 비율을 알 수 없으므로 index에 따라 패턴 적용
@@ -104,7 +110,7 @@ export default function DiscoveryPage() {
           return (
             <div 
               key={`${feed.cafeId}-${index}`} 
-              className={`break-inside-avoid relative w-full rounded-xl overflow-hidden cursor-pointer shadow-sm active:scale-[0.98] transition-transform bg-[#F5F0E8] ${
+              className={`break-inside-avoid relative w-full rounded-xl overflow-hidden cursor-pointer shadow-sm active:scale-[0.98] transition-transform bg-[#F5F0E8] mb-4 ${
                 isTall ? "aspect-[2/3]" : "aspect-square"
               }`}
               onClick={() => handleImageClick(feed.cafeId)}
