@@ -17,55 +17,56 @@ import java.util.*;
 @NoArgsConstructor
 @Builder
 public class AiSearchResponse {
-    private Map<String, Integer> cafes; // AI가 추천한 카페 ID 리스트 (String 으로 받아 UUID 로 변환하여 사용)
+    private Object cafes; // 어떻게 들어오든 일단 받기 위함
 
     @JsonProperty("extracted_menus")
-    private Map<String, Integer> extractedMenus; // 디저트명, 횟수
+    private Map<String, Integer> extractedMenus;
 
     @JsonProperty("menu_count")
-    private int menuCount; // 추출된 메뉴 개수
+    private int menuCount;
 
-    // cafes로 오든, top_cafe_ids로 오든 이 메서드로 처리 가능
+    // 실제로 우리가 로직에서 쓸 '진짜' 데이터 보관소
+    @Builder.Default
+    private Map<String, Integer> cafeMap = new LinkedHashMap<>();
+
+    // Jackson이 JSON을 읽을 때 이 메서드를 강제로 실행하게 합니다.
     @JsonSetter(value = "cafes")
     @JsonProperty("top_cafe_ids")
-    public void setCafes(Object cafes) {
-        if (cafes instanceof List<?> list) {
-            // List로 올 때: ["uuid1", "uuid2"] -> Map에 순서대로 담기
-            this.cafes = new LinkedHashMap<>(); // 순서 유지를 위해 LinkedHashMap 사용
+    public void setCafes(Object input) {
+        this.cafes = input; // 원본 데이터 보관
+
+        if (input instanceof List<?> list) {
+            // AI가 []로 던졌을 때: 리스트를 돌면서 맵에 채워넣음
+            this.cafeMap = new LinkedHashMap<>();
             for (int i = 0; i < list.size(); i++) {
-                Object item = list.get(i);
-                if (item != null) {
-                    this.cafes.put(item.toString(), i + 1);
+                if (list.get(i) != null) {
+                    this.cafeMap.put(list.get(i).toString(), i + 1);
                 }
             }
-        } else if (cafes instanceof Map<?, ?> map) {
-            // Map으로 올 때: {"uuid1": 1, "uuid2": 2} -> 그대로 캐스팅
-            // Key는 String(UUID), Value는 Integer(순위)
-            this.cafes = new LinkedHashMap<>();
+        } else if (input instanceof Map<?, ?> map) {
+            // AI가 {}로 던졌을 때: 그대로 복사
+            this.cafeMap = new LinkedHashMap<>();
             map.forEach((k, v) -> {
                 if (k != null && v != null) {
-                    this.cafes.put(k.toString(), Integer.parseInt(v.toString()));
+                    this.cafeMap.put(k.toString(), Integer.parseInt(v.toString()));
                 }
             });
         }
     }
 
-    // 편의상 UUID 리스트만 뽑아주는 메서드
+    // 서비스 레이어에서는 이 메서드만 씁니다.
     public List<UUID> getCafeIds() {
-        if (cafes == null || cafes.isEmpty()) {
+        if (cafeMap == null || cafeMap.isEmpty()) {
             return Collections.emptyList();
         }
-
-        // Map의 Key(UUID 문자열)들을 추출하여 UUID로 변환
-        return cafes.keySet().stream()
+        return cafeMap.keySet().stream()
                 .map(UUID::fromString)
                 .toList();
     }
 
-    // 빈 리스트 반환하는 메서드
     public static AiSearchResponse empty() {
         return AiSearchResponse.builder()
-                .cafes(Collections.emptyMap())
+                .cafeMap(Collections.emptyMap())
                 .extractedMenus(Collections.emptyMap())
                 .menuCount(0)
                 .build();

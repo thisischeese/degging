@@ -92,6 +92,8 @@ public class CafeSearchService {
                     .cafes(Collections.emptyList())
                     .build();
         }
+        log.info("[AI 응답 파싱 완료] 데이터 : {}", String.valueOf(res.getCafes()));
+
         List<UUID> recommendedIds = res.getCafeIds(); // AI가 준 순서 리스트 String -> UUID
         // DB 에서 추천 카페 상세정보 조회
         List<CafeEntity> cafeList = cafeRepository.findAllById(recommendedIds);
@@ -101,24 +103,22 @@ public class CafeSearchService {
         }
 
         // AI가 보내준 순서(index)를 UUID와 매핑
-        Map<UUID, Integer> rankMap = new HashMap<>();
+        Map<UUID, Integer> orderMap = new HashMap<>();
         for (int i = 0; i < recommendedIds.size(); i++) {
-            rankMap.put(recommendedIds.get(i), i);
+            orderMap.put(recommendedIds.get(i), i);
         }
 
-        // DTO 로 변환 및 AI가 정해준 순서대로 정렬
         List<CafeSearchResponse.CafeSearchItem> items = cafeList.stream()
                 .map(cafe -> CafeSearchResponse.CafeSearchItem.from(
                         cafe,
                         request.getLatitude(),
                         request.getLongitude()
                 ))
-                .sorted(Comparator.comparingInt(item ->
-                        // res.getCafes()의 Key가 String이므로 toString()으로 매칭
-                        res.getCafes().getOrDefault(item.getCafeId().toString(), 999)))
+                // orderMap에 저장된 순서(index)를 기준으로 정렬 (0위, 1위, 2위...)
+                .sorted(Comparator.comparingInt(item -> orderMap.getOrDefault(item.getCafeId(), 999)))
                 .toList();
 
-        // 캐싱 및 반환
+        // 5. 캐싱 및 반환
         saveRecommendCache(userId, items);
         return CafeSearchResponse.builder().cafes(items).build();
     }
