@@ -86,6 +86,7 @@ MAX_STALE_SCROLL_ROUNDS = 2
 BROWSER_RECYCLE_CAFE_THRESHOLD = 10
 MENU_IMAGE_KEY_SEGMENT = "menus"
 MENU_IMAGE_SOURCE_FIELD = "_menu_image_source_url"
+ENABLE_PLACE_CATEGORY_FILTER = False
 _LABEL_TOKEN_CASEFOLDS = frozenset(token.casefold() for token in LABEL_TOKENS)
 _RESOURCE_COUNTER_LOCK = Lock()
 _RESOURCE_COUNTERS = defaultdict(
@@ -1461,7 +1462,8 @@ async def crawl_single_cafe(
     with track_stage("total"):
         crawl_result = await crawl_place(seed, resources, worker_state)
         place_category = normalize_place_category(crawl_result.get("place_category"))
-        if not is_allowed_place_category(place_category):
+        # Keep collecting place_category, but temporarily disable rejection on it.
+        if ENABLE_PLACE_CATEGORY_FILTER and not is_allowed_place_category(place_category):
             reason = "missing_place_category" if place_category is None else "filtered_place_category"
             logger.info(
                 "Cafe crawling item skipped by place category: cafe_id=%s name=%s worker_id=%s browser_generation=%s cafes_processed_in_browser=%s place_category=%s reason=%s",

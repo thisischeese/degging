@@ -505,7 +505,7 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["texts"][cafe_crawling_runtime.tab_name_for_slug("menu")], "menu text")
         self.assertEqual(close_tracked_page.await_count, len(cafe_crawling_runtime.TAB_CONFIG))
 
-    async def test_crawl_single_cafe_skips_disallowed_place_category_before_side_effects(self) -> None:
+    async def test_crawl_single_cafe_allows_disallowed_place_category_when_filter_disabled(self) -> None:
         seed = build_seed(CAFE_ID_1)
         resources = SimpleNamespace(
             http_client=AsyncMock(),
@@ -515,22 +515,51 @@ class CafeCrawlingRuntimeTest(unittest.IsolatedAsyncioTestCase):
             image_concurrency=3,
         )
         worker_state = cafe_crawling_runtime.WorkerBrowserState(worker_id=1, browser_generation=1)
-        upload_images = AsyncMock()
-        upload_menu_images = AsyncMock()
-        resolve_gms = AsyncMock()
+        upload_images = AsyncMock(return_value=(None, []))
+        upload_menu_images = AsyncMock(return_value=[])
+        resolve_gms = AsyncMock(return_value=("", [cafe_crawling_runtime.DEFAULT_VIBE_TAG_ID]))
+        crawl_result = {
+            "place_category": "\ud559\uc6d0",
+            "texts": {
+                cafe_crawling_runtime.tab_name_for_slug("home"): "home text",
+                cafe_crawling_runtime.tab_name_for_slug("menu"): "menu text",
+                cafe_crawling_runtime.tab_name_for_slug("review"): "review text",
+                cafe_crawling_runtime.tab_name_for_slug("information"): "info text",
+            },
+            "structured_business_hours": cafe_crawling_runtime.empty_business_hours(),
+            "menu_cards": [],
+            "photo_urls": [],
+            "visitor_reviews": [],
+        }
 
         with (
-            patch.object(cafe_crawling_runtime, "crawl_place", AsyncMock(return_value={"place_category": "\ud559\uc6d0"})),
+            patch.object(cafe_crawling_runtime, "crawl_place", AsyncMock(return_value=crawl_result)),
+            patch.object(cafe_crawling_runtime, "parse_intro", return_value=""),
+            patch.object(
+                cafe_crawling_runtime,
+                "parse_review_metrics",
+                return_value={
+                    "review_count": 0,
+                    "rating_sum": 0,
+                    "solo_ratio": None,
+                    "date_ratio": None,
+                    "friends_ratio": None,
+                    "reviews": [],
+                },
+            ),
+            patch.object(cafe_crawling_runtime, "parse_business_hours", return_value=cafe_crawling_runtime.empty_business_hours()),
+            patch.object(cafe_crawling_runtime, "build_menus_with_image_candidates", return_value=[]),
             patch.object(cafe_crawling_runtime, "upload_images_with_metrics", upload_images),
             patch.object(cafe_crawling_runtime, "upload_menu_images_with_metrics", upload_menu_images),
             patch.object(cafe_crawling_runtime, "resolve_gms_enrichment", resolve_gms),
         ):
-            with self.assertRaises(CafeCrawlingItemError):
-                await cafe_crawling_runtime.crawl_single_cafe(seed, resources, worker_state)
+            result = await cafe_crawling_runtime.crawl_single_cafe(seed, resources, worker_state)
 
-        upload_images.assert_not_awaited()
-        upload_menu_images.assert_not_awaited()
-        resolve_gms.assert_not_awaited()
+        self.assertEqual(result["cafe_id"], seed.cafe_id)
+        self.assertEqual(result["cafes"]["name"], seed.name)
+        upload_images.assert_awaited_once()
+        upload_menu_images.assert_awaited_once()
+        resolve_gms.assert_awaited_once()
 
     async def test_crawl_single_cafe_prefers_structured_business_hours(self) -> None:
         seed = build_seed(CAFE_ID_1)
