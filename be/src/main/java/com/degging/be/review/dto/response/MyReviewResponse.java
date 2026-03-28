@@ -27,7 +27,7 @@ public class MyReviewResponse {
         // 썸네일 존재 확인
         String thumbKey = (entity.getReviewImages() != null && !entity.getReviewImages().isEmpty())
                 ? entity.getReviewImages().getFirst().getImageUrl() 
-                : null;
+                : entity.getCafe().getThumbnailUrl();
 
         return MyReviewResponse.builder()
                 .reviewId(entity.getReviewId())

@@ -2,6 +2,7 @@ package com.degging.be.cafe.repository;
 
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.entity.CafeStatus;
+import com.degging.be.cafe.entity.CafeVibeTagEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -86,13 +87,11 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * [마커] 반경 내 카페 조회 + 태그 필터링
      */
-    @Query("SELECT DISTINCT c FROM CafeEntity c " +
-            "JOIN c.vibeTags vt " +
-            "JOIN vt.vibe v " +
+    @Query("SELECT c FROM CafeEntity c " +
             "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false) " +
-            "AND v.tagName IN :tags " +
-            "AND c.isCafe = true")
+            "AND c.isCafe = true " +
+            "AND EXISTS (SELECT 1 FROM CafeVibeTagEntity vt WHERE vt.cafe = c AND vt.vibe.tagName IN :tags)")
     List<CafeEntity> findMarkersByRadiusAndTags(
             @Param("point") String point,
             @Param("radius") Double radius,
@@ -149,13 +148,11 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * [바텀시트] 반경 내 카페 조회 + 태그 필터링 - 거리순
      */
-    @Query("SELECT DISTINCT c FROM CafeEntity c " +
-            "JOIN c.vibeTags vt " +
-            "JOIN vt.vibe v " +
+    @Query("SELECT c FROM CafeEntity c " +
             "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false) " +
-            "AND v.tagName IN :tags " +
             "AND c.isCafe = true " +
+            "AND EXISTS (SELECT 1 FROM CafeVibeTagEntity vt WHERE vt.cafe = c AND vt.vibe.tagName IN :tags) " +
             "ORDER BY ST_Distance(c.location, ST_GeogFromText(:point)) ASC")
     Slice<CafeEntity> findBottomSheetByDistanceAndTags(
             @Param("point") String point,
@@ -184,14 +181,12 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * [바텀시트] 반경 내 카페 조회 + 태그 필터링 - 별점 높은 순
      */
-    @Query("SELECT DISTINCT c FROM CafeEntity c " +
-            "JOIN c.vibeTags vt " +
-            "JOIN vt.vibe v " +
+    @Query("SELECT c FROM CafeEntity c " +
             "LEFT JOIN c.ratingStats rs " +
             "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false) " +
-            "AND v.tagName IN :tags " +
             "AND c.isCafe = true " +
+            "AND EXISTS (SELECT 1 FROM CafeVibeTagEntity vt WHERE vt.cafe = c AND vt.vibe.tagName IN :tags) " +
             "ORDER BY CASE WHEN rs.reviewCount > 0 THEN CAST(rs.ratingSum AS double) / rs.reviewCount ELSE 0 END DESC")
     Slice<CafeEntity> findBottomSheetByRatingAndTags(
             @Param("point") String point,
@@ -220,14 +215,12 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * [바텀시트] 반경 내 카페 조회 + 태그 필터링 - 리뷰 많은 순
      */
-    @Query("SELECT DISTINCT c FROM CafeEntity c " +
-            "JOIN c.vibeTags vt " +
-            "JOIN vt.vibe v " +
+    @Query("SELECT c FROM CafeEntity c " +
             "LEFT JOIN c.ratingStats rs " +
             "WHERE ST_Distance(c.location, ST_GeogFromText(:point)) <= :radius " +
             "AND (:includeFranchise = true OR c.franchise = false) " +
-            "AND v.tagName IN :tags " +
             "AND c.isCafe = true " +
+            "AND EXISTS (SELECT 1 FROM CafeVibeTagEntity vt WHERE vt.cafe = c AND vt.vibe.tagName IN :tags) " +
             "ORDER BY COALESCE(rs.reviewCount, 0) DESC")
     Slice<CafeEntity> findBottomSheetByReviewCountAndTags(
             @Param("point") String point,

@@ -48,7 +48,7 @@ public class UserOnboardingService {
                 userId,
                 preferredTags,
                 request.getCafeIds(),
-                request.getMenuIds());
+                request.getMenuNames());
 
         // MongoDB에 최종 적재
         onboardingRepository.save(onboarding);
