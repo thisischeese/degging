@@ -88,37 +88,30 @@ public class CafeSearchService {
         // AI 응답 검증
         if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
             log.warn("AI 응답이 비어있습니다. 빈 결과를 반환합니다. User: {}", userId);
-            return CafeSearchResponse.builder()
-                    .cafes(Collections.emptyList())
-                    .build();
+            return CafeSearchResponse.builder().cafes(Collections.emptyList()).build();
         }
-        log.info("[AI 응답 파싱 완료] 데이터 : {}", String.valueOf(res.getCafes()));
 
-        List<UUID> recommendedIds = res.getCafeIds(); // AI가 준 순서 리스트 String -> UUID
-        // DB 에서 추천 카페 상세정보 조회
+        List<UUID> recommendedIds = res.getCafeIds();
         List<CafeEntity> cafeList = cafeRepository.findAllById(recommendedIds);
 
         if (cafeList.isEmpty()) {
             return CafeSearchResponse.builder().cafes(Collections.emptyList()).build();
         }
 
-        // AI가 보내준 순서(index)를 UUID와 매핑
-        Map<UUID, Integer> orderMap = new HashMap<>();
-        for (int i = 0; i < recommendedIds.size(); i++) {
-            orderMap.put(recommendedIds.get(i), i);
-        }
-
+        // DTO 변환 및 정렬
         List<CafeSearchResponse.CafeSearchItem> items = cafeList.stream()
                 .map(cafe -> CafeSearchResponse.CafeSearchItem.from(
                         cafe,
                         request.getLatitude(),
                         request.getLongitude()
                 ))
-                // orderMap에 저장된 순서(index)를 기준으로 정렬 (0위, 1위, 2위...)
-                .sorted(Comparator.comparingInt(item -> orderMap.getOrDefault(item.getCafeId(), 999)))
+                // DTO 내부의 getCafeRank(Integer 반환)를 사용하여 정렬
+                .sorted(Comparator.comparingInt(item ->
+                        res.getCafeRank(item.getCafeId().toString())
+                ))
                 .toList();
 
-        // 5. 캐싱 및 반환
+        // 캐싱 및 반환
         saveRecommendCache(userId, items);
         return CafeSearchResponse.builder().cafes(items).build();
     }

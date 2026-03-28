@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
+import java.util.List;
 
 /**
  * 카프카에서 이벤트를 가져다 처리하는 Consumer 설정
@@ -26,7 +26,7 @@ public class KafkaConsumer {
         log.info("[Kafka Consumer] 메시지 수신 - 유저 검색 이벤트 처리 시작");
 
         // 검색한 메뉴 조회
-        Map<String, Integer> extractedMenus = event.extractedMenus();
+        List<String> extractedMenus = event.extractedMenus();
         if (extractedMenus == null || extractedMenus.isEmpty()) {
             log.warn("[Kafka Consumer] 처리할 메뉴 데이터가 없습니다.");
             return;
@@ -37,8 +37,8 @@ public class KafkaConsumer {
             double baseScore = rankService.calculateBaseScore();
 
             // 메뉴별 점수 반영
-            extractedMenus.forEach((menuName, aiCount) ->
-                    rankService.processMenuScore(menuName, aiCount, baseScore)
+            extractedMenus.forEach((menuName) ->
+                    rankService.processMenuScore(menuName, 1, baseScore)
             );
 
             log.info("[Kafka Consumer] 랭킹 반영 완료: {} 건", extractedMenus.size());
