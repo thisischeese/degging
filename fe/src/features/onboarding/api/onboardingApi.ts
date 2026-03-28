@@ -4,9 +4,9 @@ import { OnboardingCafe, OnboardingResult, OnboardingInitialData } from "../type
 
 /** 온보딩 페이지 애착메뉴 조회 */
 export const getOnboardingMenus = async (): Promise<string[]> => {
-  const response = await axios_instance.get<BaseResponse<{ menuName: string[] }>>('/api/ranks/desserts/onboarding');
-  const baseResponse = response as unknown as BaseResponse<{ menuName: string[] }>;
-  return baseResponse.data.menuName;
+  const response = await axios_instance.get<BaseResponse<{ menuNames: string[] }>>('/api/ranks/desserts/onboarding');
+  const baseResponse = response as unknown as BaseResponse<{ menuNames: string[] }>;
+  return baseResponse.data.menuNames;
 };
 
 /** 온보딩 페이지 카페 이미지 조회 */

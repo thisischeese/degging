@@ -64,13 +64,15 @@ export default function SignupPage() {
         console.log("회원가입 성공:", result.message);
         
         // 1. 회원가입 응답에서 onboardingToken 추출 (타입 안전성 확보)
+        // result.data가 null인 경우를 대비한 Optional Chaining 사용
         const token = result.data?.onboardingToken;
 
-        if (token) {
+        if (token && token !== "null" && token !== "undefined") {
           // 백엔드 레퍼런스 코드에 맞춰 sessionStorage에 저장
           sessionStorage.setItem("ONBOARDING_TOKEN", token);
           console.log("Onboarding Token 세션 저장 완료!");
         } else {
+          console.warn("⚠️ 회원가입 성공했으나 onboardingToken이 누락되었거나 null입니다.");
           // 2. 만약 onboardingToken이 명세와 달리 안 들어왔다면 기존 자동 로그인(폴백) 시도
           try {
             await postLogin({
@@ -110,13 +112,17 @@ export default function SignupPage() {
         !!id && String(id) !== "null" && String(id) !== "undefined" && String(id).trim() !== ""
       );
 
+      const menuNames = (dataToUse.trends || []).filter((name): name is string =>
+        !!name && String(name) !== "null" && String(name) !== "undefined" && String(name).trim() !== ""
+      );
+
       const onboardingData: OnboardingResult = {
         onboardingToken: token,
         cafeIds: cafeIds,
-        menuNames: dataToUse.trends,
+        menuNames: menuNames,
       };
 
-      console.log("🚀 온보딩 최종 페이로드:", onboardingData);
+      // console.log("🚀 온보딩 최종 페이로드:", onboardingData);
 
       // 1. 온보딩 결과 전송
       await postOnboardingResults(onboardingData);
@@ -158,7 +164,7 @@ export default function SignupPage() {
   };
 
 
-  console.log(`[SignupPage Render] Step: ${step}`, formData);
+  // console.log(`[SignupPage Render] Step: ${step}`, formData);
 
   return (
     <div className="flex flex-1 flex-col bg-bg_white min-h-0">
