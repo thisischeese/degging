@@ -16,6 +16,7 @@ import { getUserInfo } from "@/features/users/api/userApi";
 export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  const [bannerIndex, setBannerIndex] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -76,6 +77,7 @@ export default function MainPage() {
   // 마우스를 클릭했을 시점에, 스크롤이 이미 얼마나 넘어가 있었는지를 기억
   const scrollLeft = useRef(0);
   const isDragPassed = useRef(false); // 드래그 시 클릭 이벤트 방지
+  const bannerScrollRef = useRef<HTMLDivElement>(null);
 
   const onDragStart = (e: React.MouseEvent) => {
     isDragging.current = true;
@@ -214,26 +216,104 @@ export default function MainPage() {
         </div>
       </section>
 
-      {/* 이벤트 배너 영역 (설문조사 유도) */}
-      <section className="px-6 mb-7">
+      {/* 이벤트 배너 영역 (캐러셀 슬라이더) */}
+      <section className="mb-7 relative group">
         <div 
-          onClick={() => setIsSurveyOpen(true)}
-          className="bg-[#FCD82B] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform"
+          ref={bannerScrollRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            const index = Math.round(el.scrollLeft / el.clientWidth);
+            setBannerIndex(index);
+          }}
+          className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
         >
-          <div className="flex flex-col z-10">
-            <span className="text-black font-extrabold text-[16px] leading-tight">
-              Degging 서비스 오픈 기념<br />설문하고 기프티콘 받자!
-            </span>
-            <span className="text-[#8B7404] text-[12px] font-bold mt-1.5 bg-white/40 px-2.5 py-1 rounded-md inline-block w-fit">
-              최대 1만원 상당 디저트 지원
-            </span>
+          {/* 1. 설문조사 배너 */}
+          <div className="flex-none w-full px-6 snap-center">
+            <div 
+              onClick={() => {
+                pushGtmEvent('main_banner_click', { 
+                  banner_name: 'survey_banner',
+                  ab_group: activeGroup 
+                });
+                setIsSurveyOpen(true);
+              }}
+              className="bg-[#FCD82B] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform h-[105px]"
+            >
+              <div className="flex flex-col z-10">
+                <span className="text-black font-extrabold text-[16px] leading-tight">
+                  Degging 서비스 오픈 기념<br />설문하고 기프티콘 받자!
+                </span>
+                <span className="text-[#8B7404] text-[12px] font-bold mt-1.5 bg-white/40 px-2.5 py-1 rounded-md inline-block w-fit">
+                  최대 1만원 상당 디저트 지원
+                </span>
+              </div>
+              <div className="text-5xl z-10">🎁</div>
+              <div className="absolute right-[-10px] top-[-10px] w-24 h-24 bg-white opacity-20 rounded-full"></div>
+              <div className="absolute right-[40px] bottom-[-20px] w-16 h-16 bg-white opacity-20 rounded-full"></div>
+            </div>
           </div>
-          <div className="text-5xl z-10">
-            🎁
+
+          {/* 2. 역삼 베통 x SSAFY 제휴 배너 */}
+          <div className="flex-none w-full px-6 snap-center">
+            <div 
+              onClick={() => {
+                pushGtmEvent('main_banner_click', { 
+                  banner_name: 'betong_banner',
+                  ab_group: activeGroup 
+                });
+                window.open('https://www.instagram.com/beton.kr/', '_blank');
+              }}
+              className="bg-[#FF9162] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform h-[105px]"
+            >
+              <div className="flex flex-col z-10">
+                <span className="text-white font-extrabold text-[16px] leading-tight">
+                  역삼 베통 x SSAFY 우대 제휴<br />학생증 제시 시 아메리카노 무료
+                </span>
+                <span className="text-[#632D15] text-[12px] font-bold mt-1.5 bg-black/10 px-2.5 py-1 rounded-md inline-block w-fit">
+                  베통 역삼점 한정 이벤트
+                </span>
+              </div>
+              <div className="text-5xl z-10">🥯</div>
+              <div className="absolute left-[-20px] bottom-[-20px] w-32 h-32 bg-black opacity-5 rounded-full"></div>
+            </div>
           </div>
-          {/* Background decoration */}
-          <div className="absolute right-[-10px] top-[-10px] w-24 h-24 bg-white opacity-20 rounded-full"></div>
-          <div className="absolute right-[40px] bottom-[-20px] w-16 h-16 bg-white opacity-20 rounded-full"></div>
+
+          {/* 3. 삼성 카드 10% 할인 배너 */}
+          <div className="flex-none w-full px-6 snap-center">
+            <div 
+              onClick={() => {
+                pushGtmEvent('main_banner_click', { 
+                  banner_name: 'samsung_card_banner',
+                  ab_group: activeGroup 
+                });
+                window.open('https://www.samsungcard.com/personal/main/UHPPCO0101M0.jsp', '_blank');
+              }}
+              className="bg-[#074C91] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform h-[105px]"
+            >
+              <div className="flex flex-col z-10">
+                <span className="text-white font-extrabold text-[16px] leading-tight">
+                  삼성 카드 결제 시 10% 즉시 할인<br />디징 추천 카페 어디서나!
+                </span>
+                <span className="text-white/80 text-[12px] font-bold mt-1.5 bg-white/10 px-2.5 py-1 rounded-md inline-block w-fit">
+                  최대 5천원 할인 혜택
+                </span>
+              </div>
+              <div className="text-5xl z-10">💳</div>
+              <div className="absolute right-[-20px] bottom-[-20px] w-32 h-32 bg-white opacity-10 rounded-full italic font-black text-4xl flex items-center justify-center pr-4">SAMSUNG</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 인디케이터 (Dots) */}
+        <div className="flex justify-center gap-1.5 mt-3">
+          {[0, 1, 2].map((i) => (
+            <div 
+              key={i} 
+              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                bannerIndex === i ? "bg-gray-800 w-4" : "bg-gray-300"
+              }`} 
+            />
+          ))}
         </div>
       </section>
 
