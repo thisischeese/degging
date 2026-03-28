@@ -17,7 +17,26 @@ export default function MainPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
   const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerScrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // 자동 배너 롤링 로직 (4초마다)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!bannerScrollRef.current) return;
+      
+      const nextIndex = (bannerIndex + 1) % 3; // 현재 배너 총 3개
+      const scrollAmount = bannerScrollRef.current.clientWidth * nextIndex;
+      
+      bannerScrollRef.current.scrollTo({
+        left: scrollAmount,
+        behavior: "smooth"
+      });
+      setBannerIndex(nextIndex);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [bannerIndex]);
 
   useEffect(() => {
     // 페이지 진입 시 현재 할당된 AB 그룹 정보를 GTM/GA4에 다시 알림.
@@ -77,7 +96,6 @@ export default function MainPage() {
   // 마우스를 클릭했을 시점에, 스크롤이 이미 얼마나 넘어가 있었는지를 기억
   const scrollLeft = useRef(0);
   const isDragPassed = useRef(false); // 드래그 시 클릭 이벤트 방지
-  const bannerScrollRef = useRef<HTMLDivElement>(null);
 
   const onDragStart = (e: React.MouseEvent) => {
     isDragging.current = true;
@@ -223,9 +241,30 @@ export default function MainPage() {
           onScroll={(e) => {
             const el = e.currentTarget;
             const index = Math.round(el.scrollLeft / el.clientWidth);
-            setBannerIndex(index);
+            if (index !== bannerIndex) setBannerIndex(index);
           }}
-          className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
+          onMouseDown={(e) => {
+            const el = bannerScrollRef.current;
+            if (!el) return;
+            el.dataset.isDown = "true";
+            el.dataset.startX = (e.pageX - el.offsetLeft).toString();
+            el.dataset.scrollLeft = el.scrollLeft.toString();
+          }}
+          onMouseLeave={() => {
+            if (bannerScrollRef.current) bannerScrollRef.current.dataset.isDown = "false";
+          }}
+          onMouseUp={() => {
+            if (bannerScrollRef.current) bannerScrollRef.current.dataset.isDown = "false";
+          }}
+          onMouseMove={(e) => {
+            const el = bannerScrollRef.current;
+            if (!el || el.dataset.isDown !== "true") return;
+            e.preventDefault();
+            const x = e.pageX - el.offsetLeft;
+            const walk = (x - Number(el.dataset.startX)) * 2;
+            el.scrollLeft = Number(el.dataset.scrollLeft) - walk;
+          }}
+          className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar cursor-grab active:cursor-grabbing"
         >
           {/* 1. 설문조사 배너 */}
           <div className="flex-none w-full px-6 snap-center">
@@ -292,7 +331,7 @@ export default function MainPage() {
             >
               <div className="flex flex-col z-10">
                 <span className="text-white font-extrabold text-[16px] leading-tight">
-                  삼성 카드 결제 시 10% 즉시 할인<br />디징 추천 카페 어디서나!
+                  삼성 카드 결제 시 10% 즉시 할인<br />Degging 추천 카페 어디서나!
                 </span>
                 <span className="text-white/80 text-[12px] font-bold mt-1.5 bg-white/10 px-2.5 py-1 rounded-md inline-block w-fit">
                   최대 5천원 할인 혜택
