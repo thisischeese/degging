@@ -34,7 +34,7 @@ public class AiSearchRequest {
     public static AiSearchRequest of(UUID userId, CafeSearchRequest request, List<UUID> tagIds){
         return AiSearchRequest.builder()
                 .userId(userId)
-                .mood(tagIds != null ? tagIds : Collections.emptyList())
+                .mood(tagIds)
                 .keyword(request.getKeyword())
                 .longitude(request.getLongitude())
                 .latitude(request.getLatitude())
