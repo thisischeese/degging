@@ -32,8 +32,8 @@ public class CafeSearchController {
     }
 
     /**
-     * 프론트엔드 검색 시작 - AI 처리 전 수신 확인용
-     * @param request 프론트엔드가 보낸 원본 검색어 및 좌표
+     * 검색 메서드
+     * @param request 프론트엔드가 보낸 원본 검색어, 태그 및 좌표
      * @param user 인증된 사용자 정보
      * @return 200, AI 분석 결과 (추천 카페 리스트)
      */
@@ -41,9 +41,6 @@ public class CafeSearchController {
     public BaseResponse<CafeSearchResponse> processSearch(
                                                  @RequestBody CafeSearchRequest request,
                                                  @AuthenticationPrincipal UserDetails user) {
-        log.info("검색 요청 수신됨! 키워드: {}, 좌표: ({}, {}), 분위기 : ({})",
-                request.getKeyword(), request.getLatitude(), request.getLongitude(), request.getMood().getFirst());
-
         UUID userId = getUserId(user);
         CafeSearchResponse result = cafeSearchService.processSearch(userId, request);
         return BaseResponse.success(result);
