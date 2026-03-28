@@ -44,7 +44,7 @@ public class UserOnboarding {
     @AllArgsConstructor
     public static class SelectedData {
         private List<UUID> cafeIds; // 선택된 카페 식별자 목록
-        private List<Long> menuIds; // 선택된 메뉴 식별자 목록
+        private List<String> menuNames; // 선택된 메뉴 식별자 목록
     }
 
     /**
@@ -53,16 +53,16 @@ public class UserOnboarding {
      * @param userId 유저 식별자
      * @param tags 분석된 태그 맵
      * @param cafeIds 선택한 카페 목록
-     * @param menuIds 선택한 메뉴 목록
+     * @param menuNames 선택한 메뉴 목록
      * @return 생성된 유저 취향 도큐먼트 객체
      */
-    public static UserOnboarding of(UUID userId, Map<String, Integer> tags, List<UUID> cafeIds, List<Long> menuIds) {
+    public static UserOnboarding of(UUID userId, Map<String, Integer> tags, List<UUID> cafeIds, List<String> menuNames) {
         return UserOnboarding.builder()
                 .userId(userId)
                 .preferredTags(tags)
                 .selectedData(SelectedData.builder()
                                       .cafeIds(cafeIds)
-                                      .menuIds(menuIds)
+                                      .menuNames(menuNames)
                                       .build())
                 .createdAt(LocalDateTime.now())
                 .build();
