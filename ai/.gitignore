@@ -34,3 +34,8 @@ data/
 checkpoints/
 food_ner_model/
 !models/user_embeddings.npy
+
+.venv-codex/
+.venv-verify/
+.venv-py311
+
