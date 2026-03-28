@@ -1,7 +1,10 @@
 package com.degging.be.rank.service;
 
+import com.degging.be.cafe.entity.DessertCategory;
+import com.degging.be.cafe.repository.CafeMenuRepository;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.rank.dto.response.RankOnboardingResponse;
 import com.degging.be.rank.dto.response.RankResponse;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import java.util.stream.IntStream;
 public class RankService {
 
     private final StringRedisTemplate redisTemplate;
+    private final CafeMenuRepository cafeMenuRepository;
 
     // Redis 에 실시간 데이터를 저장할 키
     private static final String RANKING_KEY = "dessert_ranking";
@@ -69,11 +73,11 @@ public class RankService {
     }
 
     /**
-     * 실시간 디저트 순위 1~count 위를 조회하는 메서드
+     * 실시간 디저트 순위 1~5 위를 조회하는 메서드
      */
-    public RankResponse getTopRanks(int count){
-        // Redis 에서 내림차순(점수) 1위부터 count 위까지 꺼냄
-        Set<String> keywords = redisTemplate.opsForZSet().reverseRange(RANKING_KEY, 0, count-1);
+    public RankResponse getTop5(){
+        // Redis 에서 내림차순(점수) 1위부터 count 위까지 꺼냄 -> 메뉴랑 매칭이 안 됨
+        Set<String> keywords = redisTemplate.opsForZSet().reverseRange(RANKING_KEY, 0, 4);
 
         // 데이터 유효성 검사
         if (keywords.isEmpty()){
@@ -100,6 +104,21 @@ public class RankService {
     }
 
     /**
+     * 온보딩용 20개 디저트 조회
+     */
+    public RankOnboardingResponse getOnboardingRanks() {
+        // Enum에서 'OTHER'를 제외한 모든 한글 이름(description)을 가져옴
+        List<String> categoryNames = Arrays.stream(DessertCategory.values())
+                .filter(category -> category != DessertCategory.OTHER)
+                .map(DessertCategory::getDescription)
+                .toList();
+
+        return RankOnboardingResponse.builder()
+                .menuNames(categoryNames)
+                .build();
+    }
+
+    /**
      * 기준점 대비 시간 가중치가 적용된 기본 점수 계산
      */
     public double calculateBaseScore() {
@@ -112,21 +131,18 @@ public class RankService {
     /**
      * 개별 메뉴의 ID 변환 및 Redis 점수 업데이트 처리
      */
-    public void processMenuScore(String menuIdStr, Integer aiCount, double baseScore) {
+    public void processMenuScore(String menuName, Integer aiCount, double baseScore) {
         try {
-            // String -> Long 검증
-            Long.parseLong(menuIdStr);
-
             double finalScore = baseScore * aiCount;
 
             // Redis 업데이트
-            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, menuIdStr, finalScore);
+            redisTemplate.opsForZSet().incrementScore(RANKING_KEY, menuName, finalScore);
 
             log.info("[Redis Trend] 메뉴ID: {}, 반영점수: {} (AI횟수: {})",
-                    menuIdStr, String.format("%.4f", finalScore), aiCount);
+                    menuName, String.format("%.4f", finalScore), aiCount);
 
         } catch (NumberFormatException e) {
-            log.error("[Type Error] MenuId 변환 실패: {}", menuIdStr);
+            log.error("[Type Error] MenuId 변환 실패: {}", menuName);
         }
     }
 
