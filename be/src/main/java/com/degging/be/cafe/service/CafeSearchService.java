@@ -90,29 +90,35 @@ public class CafeSearchService {
                     .cafes(Collections.emptyList())
                     .build();
         }
-
+        List<UUID> recommendedIds = res.getCafeIds(); // AI가 준 순서 리스트 String -> UUID
         // DB 에서 추천 카페 상세정보 조회
-        List<CafeEntity> cafeList = cafeRepository.findAllById(res.getCafeIds());
+        List<CafeEntity> cafeList = cafeRepository.findAllById(recommendedIds);
 
         if (cafeList.isEmpty()) {
             return CafeSearchResponse.builder().cafes(Collections.emptyList()).build();
         }
 
-        // DTO 로 변환 및 추천 순서대로 정렬
+        // AI가 보내준 순서(index)를 UUID와 매핑
+        Map<UUID, Integer> rankMap = new HashMap<>();
+        for (int i = 0; i < recommendedIds.size(); i++) {
+            rankMap.put(recommendedIds.get(i), i);
+        }
+
+        // DTO 로 변환 및 AI가 정해준 순서대로 정렬
         List<CafeSearchResponse.CafeSearchItem> items = cafeList.stream()
                 .map(cafe -> CafeSearchResponse.CafeSearchItem.from(
-                        cafe, request.getLatitude(),
+                        cafe,
+                        request.getLatitude(),
                         request.getLongitude()
                 ))
-                // AI 응답에 있는 sortNum 에 따라 정렬하는데,
-                /* NPE 방어: AI 결과 맵에 ID가 없으면 가장 뒤 순위(999)로 밀어냄
-               res.getCafes()가 Map<UUID, Integer> 형태라고 가정할 때 안전함
+                /* item의 cafeId(UUID)를 rankMap에서 찾아
+                   AI가 원래 부여했던 인덱스(순서)대로 정렬
                 */
                 .sorted(Comparator.comparingInt(item ->
-                        res.getCafes().getOrDefault(item.getCafeId(), 999)))
+                        rankMap.getOrDefault(item.getCafeId(), 999)))
                 .toList();
 
-        // 비동기로 추천 결과 캐싱  10분 저장
+        // 비동기로 추천 결과 캐싱 및 반환
         saveRecommendCache(userId, items);
         return CafeSearchResponse.builder()
                 .cafes(items)

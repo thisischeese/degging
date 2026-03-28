@@ -37,8 +37,8 @@ public class KafkaConsumer {
             double baseScore = rankService.calculateBaseScore();
 
             // 메뉴별 점수 반영
-            extractedMenus.forEach((menuIdStr, aiCount) ->
-                    rankService.processMenuScore(menuIdStr, aiCount, baseScore)
+            extractedMenus.forEach((menuName, aiCount) ->
+                    rankService.processMenuScore(menuName, aiCount, baseScore)
             );
 
             log.info("[Kafka Consumer] 랭킹 반영 완료: {} 건", extractedMenus.size());
