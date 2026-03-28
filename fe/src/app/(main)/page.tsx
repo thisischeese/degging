@@ -231,7 +231,10 @@ export default function MainPage() {
           <div className="flex-none w-full px-6 snap-center">
             <div 
               onClick={() => {
-                pushGtmEvent('main_banner_click', { banner_name: 'survey_banner' });
+                pushGtmEvent('main_banner_click', { 
+                  banner_name: 'survey_banner',
+                  ab_group: activeGroup 
+                });
                 setIsSurveyOpen(true);
               }}
               className="bg-[#FCD82B] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform h-[105px]"
@@ -254,7 +257,10 @@ export default function MainPage() {
           <div className="flex-none w-full px-6 snap-center">
             <div 
               onClick={() => {
-                pushGtmEvent('main_banner_click', { banner_name: 'betong_banner' });
+                pushGtmEvent('main_banner_click', { 
+                  banner_name: 'betong_banner',
+                  ab_group: activeGroup 
+                });
                 window.open('https://www.instagram.com/beton.kr/', '_blank');
               }}
               className="bg-[#FF9162] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform h-[105px]"
@@ -276,7 +282,10 @@ export default function MainPage() {
           <div className="flex-none w-full px-6 snap-center">
             <div 
               onClick={() => {
-                pushGtmEvent('main_banner_click', { banner_name: 'samsung_card_banner' });
+                pushGtmEvent('main_banner_click', { 
+                  banner_name: 'samsung_card_banner',
+                  ab_group: activeGroup 
+                });
                 window.open('https://www.samsungcard.com/personal/main/UHPPCO0101M0.jsp', '_blank');
               }}
               className="bg-[#074C91] rounded-[24px] p-5 flex items-center justify-between cursor-pointer shadow-sm relative overflow-hidden active:scale-95 transition-transform h-[105px]"
