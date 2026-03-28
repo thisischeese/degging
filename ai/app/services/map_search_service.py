@@ -67,9 +67,9 @@ _CANDIDATE_MENU_SEARCH_FUSED_QUERY = """
             cafe_id,
             menu_id,
             keyword_distance,
-            ROW_NUMBER() OVER (
+            (ROW_NUMBER() OVER (
                 ORDER BY keyword_distance ASC, menu_id, cafe_id
-            ) AS keyword_rank
+            ))::integer AS keyword_rank
         FROM scored_keyword_hits
     ),
     keyword_hits AS (
@@ -85,9 +85,9 @@ _CANDIDATE_MENU_SEARCH_FUSED_QUERY = """
         SELECT
             menu.cafe_id,
             menu.menu_id,
-            ROW_NUMBER() OVER (
+            (ROW_NUMBER() OVER (
                 ORDER BY menu.menu_vector <=> $3::vector(64), menu.menu_id, menu.cafe_id
-            ) AS dense_rank
+            ))::integer AS dense_rank
         FROM cafe_menus AS menu
         JOIN candidate_cafes AS candidate
           ON candidate.cafe_id = menu.cafe_id
@@ -107,7 +107,11 @@ _CANDIDATE_MENU_SEARCH_FUSED_QUERY = """
             COALESCE(keyword_hits.menu_id, dense_hits.menu_id) AS menu_id,
             keyword_hits.keyword_rank,
             dense_hits.dense_rank,
-            calculate_rrf(keyword_hits.keyword_rank, dense_hits.dense_rank, $6) AS rrf_score
+            calculate_rrf(
+                keyword_hits.keyword_rank::integer,
+                dense_hits.dense_rank::integer,
+                $6::integer
+            ) AS rrf_score
         FROM keyword_hits
         FULL OUTER JOIN dense_hits
             ON keyword_hits.cafe_id = dense_hits.cafe_id
@@ -152,9 +156,9 @@ _CANDIDATE_MENU_SEARCH_KEYWORD_ONLY_QUERY = """
             cafe_id,
             menu_id,
             keyword_distance,
-            ROW_NUMBER() OVER (
+            (ROW_NUMBER() OVER (
                 ORDER BY keyword_distance ASC, menu_id, cafe_id
-            ) AS keyword_rank
+            ))::integer AS keyword_rank
         FROM scored_keyword_hits
     )
     SELECT
@@ -164,7 +168,11 @@ _CANDIDATE_MENU_SEARCH_KEYWORD_ONLY_QUERY = """
         menu.menu_description,
         ranked_keyword_hits.keyword_rank,
         NULL::integer AS dense_rank,
-        calculate_rrf(ranked_keyword_hits.keyword_rank, NULL, $5) AS rrf_score
+        calculate_rrf(
+            ranked_keyword_hits.keyword_rank::integer,
+            NULL::integer,
+            $5::integer
+        ) AS rrf_score
     FROM ranked_keyword_hits
     JOIN cafe_menus AS menu
       ON menu.cafe_id = ranked_keyword_hits.cafe_id

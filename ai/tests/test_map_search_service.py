@@ -73,6 +73,13 @@ class StubPreprocessService:
 
 
 class MapSearchServiceTest(unittest.IsolatedAsyncioTestCase):
+    def test_rrf_queries_cast_window_ranks_to_integer(self) -> None:
+        self.assertIn("))::integer AS keyword_rank", _CANDIDATE_MENU_SEARCH_FUSED_QUERY)
+        self.assertIn("))::integer AS dense_rank", _CANDIDATE_MENU_SEARCH_FUSED_QUERY)
+        self.assertIn("$6::integer", _CANDIDATE_MENU_SEARCH_FUSED_QUERY)
+        self.assertIn("))::integer AS keyword_rank", _CANDIDATE_MENU_SEARCH_KEYWORD_ONLY_QUERY)
+        self.assertIn("$5::integer", _CANDIDATE_MENU_SEARCH_KEYWORD_ONLY_QUERY)
+
     async def test_search_returns_empty_when_no_menu_phrases_are_extracted(self) -> None:
         preprocess_service = StubPreprocessService(
             PreprocessedQuery(normalized_query="americano", menu_phrases=[])
