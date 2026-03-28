@@ -37,7 +37,7 @@ CREATE TEMP TABLE temp_menu_vector_raw_lines (
 );
 
 \echo [load_cafe_menu_search_vectors] copying /tmp/menu_search_vectors.json
-\copy temp_menu_vector_raw_lines (line_text) FROM '/tmp/menu_search_vectors.json' WITH (FORMAT text)
+\copy temp_menu_vector_raw_lines (line_text) FROM '/tmp/menu_search_vectors.json' WITH (FORMAT csv, DELIMITER E'\x01', QUOTE E'\x02', ESCAPE E'\x03')
 
 DROP TABLE IF EXISTS pg_temp.temp_menu_vector_payload;
 CREATE TEMP TABLE temp_menu_vector_payload AS
