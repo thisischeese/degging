@@ -58,15 +58,21 @@ public class KafkaConfig {
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         config.put(ConsumerConfig.GROUP_ID_CONFIG, "ranking-group");
 
+        // 역직렬화 시 신뢰할 수 있는 패키지 설정 추가
+        config.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+
         // 역직렬화 설정 (받을 때도 같은 ObjectMapper 사용)
         ObjectMapper objectMapper = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
+        JsonDeserializer<Object> jsonDeserializer = new JsonDeserializer<>(Object.class, objectMapper);
+        jsonDeserializer.configure(config, false); // 이 줄이 있어야 config 맵의 설정을 읽어감
+
         return new DefaultKafkaConsumerFactory<>(
                 config,
                 new StringDeserializer(),
-                new JsonDeserializer<>(Object.class, objectMapper)
+                jsonDeserializer
         );
     }
 
