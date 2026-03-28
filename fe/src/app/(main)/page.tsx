@@ -176,7 +176,7 @@ export default function MainPage() {
       <header className="px-6 pt-5 mb-4">
         <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }}>
           <Input
-            placeholder="'카공하기 좋은 카페'를 검색해보세요."
+            placeholder="다양한 디저트를 검색해보세요."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             // !를 사용하여 공통 Input의 기본 높이를 42px로 강제 고정
