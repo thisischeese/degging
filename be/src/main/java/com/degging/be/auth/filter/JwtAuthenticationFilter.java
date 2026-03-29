@@ -22,6 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.UUID;
 
 /**
  * 모든 요청에서 JWT 토큰 추출하고 유효성을 검증하여 인증 정보를 설정하는 필터 클래스
@@ -98,10 +99,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (userId != null) {
             // Redis에 존재한다면 ROLE_TEMPORARY_USER 권한 부여
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userId,
+                    UUID.fromString(userId),
                     null,
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_TEMPORARY_USER"))
-            );
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_TEMPORARY_USER")));
             SecurityContextHolder.getContext().setAuthentication(authentication);
             log.info("온보딩 임시 권한이 부여되었습니다. UserID: {}", userId);
         } else {

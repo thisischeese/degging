@@ -50,20 +50,21 @@ public class UserOnboarding {
     /**
      * 유저 취향 정보 도큐먼트 생성을 위한 정적 팩토리 메서드
      *
-     * @param userId 유저 식별자
-     * @param tags 분석된 태그 맵
-     * @param cafeIds 선택한 카페 목록
+     * @param userId    유저 식별자
+     * @param tags      분석된 태그 맵
+     * @param cafeIds   선택한 카페 목록
      * @param menuNames 선택한 메뉴 목록
      * @return 생성된 유저 취향 도큐먼트 객체
      */
-    public static UserOnboarding of(UUID userId, Map<String, Integer> tags, List<UUID> cafeIds, List<String> menuNames) {
+    public static UserOnboarding of(UUID userId, Map<String, Integer> tags, List<UUID> cafeIds,
+            List<String> menuNames) {
         return UserOnboarding.builder()
                 .userId(userId)
                 .preferredTags(tags)
                 .selectedData(SelectedData.builder()
-                                      .cafeIds(cafeIds)
-                                      .menuNames(menuNames)
-                                      .build())
+                        .cafeIds(cafeIds)
+                        .menuNames(menuNames)
+                        .build())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
