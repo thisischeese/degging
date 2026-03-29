@@ -36,9 +36,9 @@ public class CurationService {
     static {
         // 카테고리별 카페 매핑
         CURATION_MAP.put("두쫀쿠", Arrays.asList("토끼네부엌", "커피스피릿", "카페 두댓", "낫배드커피 한남"));
-        CURATION_MAP.put("소금빵 카페", Arrays.asList("아티스트베이커리 안국", "오소리 베이커리 어린이대공원", "서울소금빵", "베통 성수"));
-        CURATION_MAP.put("망고빙수", Arrays.asList("로이즈 롯데월드몰점", "카페하인나", "달콤한거짓말", "고망고 건대1호점"));
-        CURATION_MAP.put("딸기케이크", Arrays.asList("1020룸", "미니마이즈", "위베이브베이크샵", "아삐뽀레 익선점"));
+        CURATION_MAP.put("소금빵 카페", Arrays.asList("아티스트베이커리 안국", "오소리베이커리", "서울소금빵", "베통 성수"));
+        CURATION_MAP.put("망고빙수", Arrays.asList("로이즈 롯데월드몰점", "카페하인나", "달콤한거짓말", "시즈니"));
+        CURATION_MAP.put("딸기케이크", Arrays.asList("1020룸", "미니마이즈 이태원점", "위베이브베이크샵", "아삐뽀레 익선점"));
     }
 
     /**
