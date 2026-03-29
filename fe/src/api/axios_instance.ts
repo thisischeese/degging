@@ -22,14 +22,9 @@ axios_instance.interceptors.request.use(
     const token = access_token || onboarding_token;
     
     if (token) {
-      // [중요] 특정 POST 엔드포인트(/api/users/onboarding)는 
-      // 헤더에 토큰이 있을 경우 백엔드 보안 필터와 충돌하여 500 에러를 유발하므로 제외합니다.
-      // 그 외의 GET(메뉴/카페 조회 등) 요청 시에는 토큰을 실어 보내야 정상 작동합니다.
-      const isPostOnboarding = config.url?.includes('/api/users/onboarding') && config.method === 'post';
-      
-      if (!isPostOnboarding) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      // 모든 요청(조회, 제출 등)에 대해 인증 헤더를 자동으로 주입합니다.
+      // 백엔드에서 온보딩 토큰도 Bearer 헤더로 처리 가능하도록 수정되었으므로 표준 방식을 유지합니다.
+      config.headers.Authorization = `Bearer ${token}`;
     }
     
     return config;
