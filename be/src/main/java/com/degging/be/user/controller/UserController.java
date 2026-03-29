@@ -43,16 +43,14 @@ public class UserController {
     /**
      * 임시 토큰을 가진 유저의 온보딩 선택 결과를 수집
      *
-     * @param userIdStr 온보딩 토큰에서 추출된 유저 ID 문자열
+     * @param userId 온보딩 토큰에서 추출된 유저 ID 객체 (타입: UUID)
      * @param request   선택한 카페 및 디저트 ID 리스트
      * @return 수집 성공 여부 응답
      */
     @PostMapping("/onboarding")
     public BaseResponse<String> collectOnboarding(
-            @AuthenticationPrincipal String userIdStr,
+            @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody UserOnboardingRequest request) {
-
-        UUID userId = UUID.fromString(userIdStr);
 
         // 온보딩 분석 및 MongoDB 적재 수행
         onboardingService.processOnboarding(userId, request);

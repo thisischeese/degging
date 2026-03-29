@@ -45,8 +45,7 @@ public class SecurityConfig {
                 "/swagger-ui/**",
                 "/swagger-ui.html",
                 "/swagger-resources/**",
-                "/webjars/**"
-        );
+                "/webjars/**");
     }
 
     /**
@@ -70,9 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 // 로그인, 회원가입 등 인증 관련 API 허용
                                 "/api/auth/**",
-                                "/api/users/password/find",
                                 "/api/manage/cafes/**",
-                                "/api/users/password-find",
 
                                 // WebSocket 핸드셰이크 허용
                                 "/wss",
@@ -81,16 +78,15 @@ public class SecurityConfig {
                                 "/v3/api-docs",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                                "/swagger-ui.html")
+                        .permitAll()
                         // 온보딩 관련 API는 임시 권한 소유자만 접근 허용
                         .requestMatchers(
                                 "/api/users/onboarding",
                                 "/api/ranks/desserts/onboarding",
-                                "/api/cafes/onboarding"
-                        ).hasRole("TEMPORARY_USER")
-                        .anyRequest().authenticated()
-                )
+                                "/api/cafes/onboarding")
+                        .hasRole("TEMPORARY_USER")
+                        .anyRequest().authenticated())
 
                 // JWT 인증 필터를 UsernamePasswordAuthenticationFilter 이전에 실행되도록 설정
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
