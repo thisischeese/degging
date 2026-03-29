@@ -59,7 +59,13 @@ export default function AllScrapsPage() {
 
     useEffect(() => {
         getAllScraps()
-            .then((data) => setCafes(data.cafes))
+            .then((data) => {
+                // cafeId 기준으로 중복 제거
+                const unique = Array.from(
+                    new Map(data.cafes.map((cafe) => [cafe.cafeId, cafe])).values()
+                );
+                setCafes(unique);
+            })
             .catch((err) => console.error("전체 스크랩 조회 실패:", err));
     }, []);
 
