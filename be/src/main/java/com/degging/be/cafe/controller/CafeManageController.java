@@ -1,16 +1,19 @@
 package com.degging.be.cafe.controller;
 
 import com.degging.be.cafe.dto.request.CafeSpecificCrawlRequest;
+import com.degging.be.cafe.dto.request.CafeSaveSpecificRequest;
 import com.degging.be.cafe.service.CafeCollectService;
 import com.degging.be.cafe.service.CafeFilterService;
 import com.degging.be.cafe.service.CafeFranchiseService;
 import com.degging.be.cafe.service.CafeStatusService;
 import com.degging.be.global.dto.BaseResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import com.degging.be.cafe.service.CafeCrawlingService;
+import com.degging.be.cafe.service.CafeDuplicateService;
 
 /**
  * 카페 데이터 관리 및 외부 수집 전용 컨트롤러
@@ -26,6 +29,7 @@ public class CafeManageController {
     private final CafeCrawlingService cafeCrawlingService;
     private final CafeFranchiseService cafeFranchiseService;
     private final CafeFilterService cafeFilterService;
+    private final CafeDuplicateService cafeDuplicateService;
 
     /**
      * 카페 데이터 통합 수집 (공공데이터 + 카카오 매칭)
@@ -114,5 +118,21 @@ public class CafeManageController {
         log.info("카카오 API 기반 비카페 시설 재검증 요청 수신 (limit: {})", limit);
         cafeFilterService.revalidateWithKakao(limit);
         return BaseResponse.success();
+    }
+
+    /**
+     * 카카오 API 기반 특정 카페 이름으로 직접 검색 및 저장
+     *
+     * @param name 검색할 카페 이름
+     * @return 저장된 카페 수 응답
+     */
+    @PostMapping("/save/specific")
+    public BaseResponse<Integer> saveSpecific(@Valid @RequestBody CafeSaveSpecificRequest request) {
+        String region = request.getRegion();
+        String name = request.getName();
+        String keyword = (region != null && !region.isBlank()) ? region + " " + name : name;
+        log.info("카카오 API 기반 특정 카페 추가 요청 - 검색어: {}", keyword);
+        int savedCount = cafeDuplicateService.saveByKeyword(keyword);
+        return BaseResponse.success(savedCount);
     }
 }

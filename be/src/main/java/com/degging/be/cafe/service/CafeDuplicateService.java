@@ -133,6 +133,57 @@ public class CafeDuplicateService {
     }
 
     /**
+     * 카카오 API 직접 검색 및 저장
+     * 공공데이터에 없는 카페를 이름으로 검색하여 저장할 때 사용
+     *
+     * @param name 검색할 카페 이름
+     * @return 저장된 카페 수
+     */
+    @Transactional
+    public int saveByKeyword(String keyword) {
+        log.info("카카오 API 키워드 검색 및 저장 시작 - 검색어: {}", keyword);
+        
+        // 검색 수행 (위치 제한 없이 키워드 기반 검색)
+        KakaoPlaceResponse response = kakaoLocalApiClient.searchPlaces(keyword, null, null, null, 1, 15);
+        
+        if (response == null || response.getDocuments() == null || response.getDocuments().isEmpty()) {
+            log.warn("검색 결과가 없습니다 - 검색어: {}", keyword);
+            return 0;
+        }
+        
+        int savedCount = 0;
+        for (KakaoPlaceItem item : response.getDocuments()) {
+            // 1. 카페 카테고리인지 확인
+            if (!isCafeCategory(item)) {
+                continue;
+            }
+            
+            // 2. 이미 존재하는지 확인 (KakaoPlaceId 기준)
+            if (cafeRepository.existsByKakaoPlaceId(item.getId())) {
+                log.info("이미 존재하는 카페 스킵: {} (ID: {})", item.getPlaceName(), item.getId());
+                continue;
+            }
+            
+            // 3. 엔티티 생성 및 저장
+            try {
+                Double lon = Double.parseDouble(item.getX());
+                Double lat = Double.parseDouble(item.getY());
+                Point location = createPoint(lon, lat);
+                CafeCategory category = cafeFilterService.determineCategory(item);
+                
+                CafeEntity cafe = CafeEntity.of(item, location, category);
+                cafeRepository.save(cafe);
+                savedCount++;
+                log.info("카페 추가 성공: {} (ID: {})", item.getPlaceName(), item.getId());
+            } catch (Exception e) {
+                log.error("카페 저장 중 오류 발생: {}, 사유: {}", item.getPlaceName(), e.getMessage());
+            }
+        }
+        
+        return savedCount;
+    }
+
+    /**
      * 상호명에서 검색에 불필요한 노이즈 제거
      */
     private String normalizeName(String name) {

@@ -55,7 +55,7 @@ public class CafeEntity extends BaseEntity {
     @Column(updatable = false, nullable = false)
     private UUID cafeId;
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     private String bizesId; // 소상공인시장진흥공단 상가업소번호
 
     @Column(unique = true)
@@ -183,6 +183,48 @@ public class CafeEntity extends BaseEntity {
                 .category(category)
                 .location(location)
                 .cafeIntro(null)
+                .franchise(isFranchise)
+                .isCafe(true)
+                .build();
+    }
+
+    /**
+     * 카카오 API 응답 데이터를 기반으로 직접 카페 엔티티 생성 (공공데이터에 없는 경우 대비)
+     */
+    public static CafeEntity of(KakaoPlaceItem kakaoItem, Point location, CafeCategory category) {
+        String originalName = kakaoItem.getPlaceName();
+        String brandName = originalName;
+        String branchName = null;
+        boolean isFranchise = false;
+
+        // 프랜차이즈 목록에 포함되어 있는지 확인
+        for (String fName : FRANCHISE_NAMES) {
+            if (originalName.contains(fName)) {
+                brandName = fName;
+                isFranchise = true;
+
+                if (!originalName.equals(fName)) {
+                    String extractedBranch = originalName.replace(fName, "").replaceAll("\\s+", " ").trim();
+                    if (!extractedBranch.isEmpty()) {
+                        branchName = extractedBranch;
+                    }
+                }
+                break;
+            }
+        }
+
+        return CafeEntity.builder()
+                .bizesId(null) // 공공데이터 ID 없음
+                .kakaoPlaceId(kakaoItem.getId())
+                .name(originalName)
+                .brandName(brandName)
+                .branchName(branchName)
+                .address(toNullIfBlank(kakaoItem.getAddressName()))
+                .roadAddress(toNullIfBlank(kakaoItem.getRoadAddressName()))
+                .phone(kakaoItem.getPhone())
+                .status(CafeStatus.OPEN)
+                .category(category)
+                .location(location)
                 .franchise(isFranchise)
                 .isCafe(true)
                 .build();
