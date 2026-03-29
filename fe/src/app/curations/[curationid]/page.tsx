@@ -9,6 +9,7 @@ import backIcon from "@/assets/icons/backIcon.png";
 import { getCurationCafeList, getCurationMinimap } from "@/features/curations/api/curationApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 import { CurationCafeListItem } from "@/features/curations/types";
+import { getImageUrl } from "@/common/utils/image";
 
 // =====================================================================
 // [정적 데이터 영역]
@@ -77,12 +78,12 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         description2: "코코넛의 달콤한 향과 크리미한 질감이 망고 과육의 쫀득함과 어우러지며 이색적인 미식 경험을 선사한다. 달달하지만 결코 무겁지 않아 더위에 지친 오후를 다시 환기시켜 줄 완벽한 한 그릇이다.",
       },
       {
-        name: "4. 고망고 건대1호점",
-        cafeName: "고망고 건대1호점",
-        shortDescription: "망고 소르베와 생과육이 공존하는 프리미엄 여름 디저트",
-        description1: "망고 빙수의 완성도를 한 단계 끌어올린 프리미엄 메뉴. 직접 만든 망고 소르베를 곱게 깎아 담고, 그 위로 생과육 조각을 풍성하게 얹어 두 가지 망고의 결을 동시에 즐길 수 있다.",
+        name: "4. 시즈니",
+        cafeName: "시즈니",
+        shortDescription: "부드러운 우유 얼음 위로 쏟아지는 싱싱한 생망고의 향연",
+        description1: "네 번째 맛집 '시즈니'는 비주얼부터 압도적인 '생망고빙수'로 발길을 멈추게 한다. 고운 우유 얼음 위에 잘 익은 생망고를 아끼지 않고 얹어내어, 첫 스푼부터 마지막까지 과육의 결이 살아있는 신선한 맛을 온전히 느낄 수 있다.",
         imageSrc: "/images/curation/mangoBingsu4.webp",
-        description2: "소르베의 차갑고 진한 과일향이 사르르 녹아내리는 순간, 탱글한 망고 과육이 씹히며 완성되는 이중의 식감이 특별한 여운을 남긴다. 망고를 향한 진심이 한 그릇 안에 고스란히 담겨 있다.",
+        description2: "무엇보다 빙수 속까지 꽉 찬 생망고의 넉넉함은 과일을 좋아하는 이들에게 기대 이상의 만족감을 선사한다. 우유 얼음 특유의 고소한 풍미가 망고의 새콤달콤함을 부드럽게 감싸 안으며, 여름철 지친 입맛을 다시 깨워줄 완벽한 디저트의 품격을 보여준다.",
       },
     ],
   },
@@ -140,37 +141,37 @@ const CURATION_DATA: Record<string, CurationTheme> = {
     date: "2026.03.25",
     cafes: [
       {
-        name: "1. 카페구움",
-        cafeName: "카페구움",
-        shortDescription: "묵직한 위로가 필요한 날, 두께감부터 남다른 정석의 맛",
-        description1: "스트레스가 턱끝까지 차오른 날, 매장 문을 열자마자 풍기는 진한 버터 향기가 마음을 어루만진다. 투박하지만 한 손에 꽉 차는 두툼한 두께는 보는 것만으로도 든든한 위로가 된다.",
+        name: "1. 토끼네부엌",
+        cafeName: "토끼네부엌",
+        shortDescription: "바삭함과 쫀득함의 완벽한 밸런스, 깊고 진한 헤이즐넛 풍미의 정석",
+        description1: "토끼네부엌의 야심작 '두쫀쿠로쉐(헤이즐넛)'는 바삭함과 쫀득함의 경계를 넘나드는 절묘한 식감을 자랑한다. 6,500원이라는 가격이 아깝지는 않을 만큼 압도적인 존재감을 뽐내며, 매장에 들어서는 순간 진한 헤이즐넛의 풍미가 기대감을 한껏 높여준다.",
         imageSrc: "/images/curation/duzzonku1.webp",
-        description2: "반으로 가르면 꾸덕하게 늘어나는 밀도 높은 반죽이 '두쫀쿠'의 정석을 보여준다. 큼지막하게 박힌 초콜릿 청크가 오독오독 씹히며, 진득한 쫀득함과 어우러져 완벽한 식감을 선사한다.",
+        description2: "입안 가득 퍼지는 헤이즐넛의 깊은 맛이 익숙하면서도 특별한 감동으로 다가온다. 기분 좋은 바삭함 뒤에 찾아오는 쫀득한 반죽의 조화는 '두쫀쿠'의 매력을 온전히 느끼게 해준다. 익숙해서 더 기대되는 그 맛을 이곳에서 직접 확인할 수 있다.",
       },
       {
         name: "2. 커피스피릿",
         cafeName: "커피스피릿",
         shortDescription: "다양한 크림치즈 필링이 들어간 쿠키",
-        description1: "두 번째 카페는 쿠키 안에 듬뿍 들어간 크림치즈 필링으로 유명한 곳입니다. 한 입 베어 물면 풍부한 치즈의 풍미가 입안 가득 퍼집니다.",
+        description1: "두 번째로 찾은 이곳은 쿠키 안에 듬뿍 들어간 크림치즈 필링으로 유명하다. 한 입 베어 물면 묵직한 크림치즈의 산미와 달콤함이 교차하며 입안 가득 즐거움을 선사한다.",
         imageSrc: "/images/curation/duzzonku2.webp",
-        description2: "황치즈, 로투스, 오레오 등 다채로운 라인업이 준비되어 있어 취향에 맞게 골라 먹는 재미가 쏠쏠합니다.",
+        description2: "황치즈, 로투스, 오레오 등 다채로운 라인업이 준비되어 있어 취향에 맞게 골라 먹는 재미가 쏠쏠하다. 두툼한 쿠키지와 부드러운 필링이 입안에서 한데 어우러지는 순간, 완벽한 디저트 타임이 완성된다.",
       },
       {
         name: "3. 카페 두댓",
         cafeName: "카페 두댓",
         shortDescription: "황치즈 매니아들의 성지 쿠키",
-        description1: "세 번째는 강남 두쫀쿠 강자입니다. 적절한 단맛과 쫀득함의 조화가 시그니처인 이곳의 쿠키는 늦게 가면 품절되기 일쑤죠.",
+        description1: "세 번째는 강남의 '두쫀쿠' 강자로 꼽히는 곳이다. 적절한 단맛과 쫀득함의 조화가 시그니처인 이곳의 쿠키는 늦게 가면 품절되기 일쑤일 정도로 인기가 높다.",
         imageSrc: "/images/curation/duzzonku3.webp",
-        description2: "진짜 두쫀쿠를 경험하고 싶은 분들에게 강력하게 추천하는 장소입니다.",
+        description2: "진짜 두쫀쿠를 경험하고 싶은 이들에게 강력하게 추천하는 장소다. 찰기 있는 식감 뒤로 밀려오는 진한 버터 향은 이곳이 왜 쿠키 성지인지를 명확하게 보여준다.",
         objectPosition: "center 38%",
       },
       {
         name: "4. 낫배드커피 한남",
         cafeName: "낫배드커피 한남",
         shortDescription: "견과류가 듬뿍 들어간 고소한 쿠키",
-        description1: "마지막으로 소개할 곳은 고소한 견과류와 마카다미아가 통째로 들어간 프리미엄 쿠키 전문점입니다.",
+        description1: "마지막으로 소개할 곳은 고소한 견과류와 마카다미아가 통째로 들어간 프리미엄 쿠키 전문점이다. 아끼지 않고 넣은 재료 덕분에 씹을수록 고소함이 배가되어 자꾸만 손이 간다.",
         imageSrc: "/images/curation/duzzonku4.webp",
-        description2: "아낌없이 재료를 넣어 식감이 뛰어나며, 너무 달지 않아 누구나 부담 없이 담백하게 즐길 수 있습니다.",
+        description2: "아낌없이 재료를 넣어 식감이 뛰어나며, 과하지 않은 단맛 덕분에 누구나 부담 없이 담백하게 즐길 수 있다. 한남동 골목의 한산한 분위기와 함께 즐기는 고소한 쿠키 한 입은 오후의 활력을 되찾아준다.",
       },
     ],
   },
@@ -208,8 +209,8 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         description2: "수플레 기법으로 구워낸 시트는 쫀득하면서도 촉촉한 질감을 지녔다. 포크로 푹 떠서 한입에 넣으면 부드러운 크림과 함께 압도적인 딸기 과즙이 터지며 상큼함을 한껏 끌어올린다.",
       },
       {
-        name: "4. 아삐뽀레",
-        cafeName: "아삐뽀레",
+        name: "4. 아삐뽀레 익선점",
+        cafeName: "아삐뽀레 익선점",
         shortDescription: "바삭한 타르트와 산뜻한 크림치즈 위로 쌓아 올린 생딸기",
         description1: "고소한 아몬드 크림을 채워 단단하게 구워낸 바삭한 타르트지. 그 위로 눅진한 크림치즈와 신선한 생딸기를 산처럼 수북하게 쌓아 올려 테이블 위를 화사하게 밝혀주는 딸기 타르트다.",
         imageSrc: "/images/curation/ddalgi4.webp",
@@ -221,7 +222,7 @@ const CURATION_DATA: Record<string, CurationTheme> = {
 
 // =====================================================================
 // [지도 클릭 핸들러]
-// 지도를 누르면 minimap API를 호출해 cafeId를 받아 /cafes/{cafeId}로 이동합니다.
+// 지도를 누르면 minimap API를 호출해 cafeId를 받아 /cafes/{cafeId}로 이동
 // =====================================================================
 function MapSection({
   category,
@@ -453,11 +454,12 @@ export default function CurationDetailPage() {
               >
                 <div className="w-[72px] h-[72px] relative shrink-0 rounded-md overflow-hidden bg-gray-200">
                   <Image
-                    src={cafe.thumbnailUrl}
+                    src={getImageUrl(cafe.thumbnailUrl)}
                     alt={cafe.name}
                     fill
                     className="object-cover"
                     sizes="72px"
+                    unoptimized
                   />
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 flex-1">

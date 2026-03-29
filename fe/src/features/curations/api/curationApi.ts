@@ -8,7 +8,7 @@ import {
  * 각 카페 미니맵 조회
  * GET /api/curation/minimap
  * @param category - 큐레이션 카테고리 (예: "두쫀쿠", "소금빵 카페", "망고빙수", "딸기 케이크")
- * @param cafeName - 카페 이름 (예: "카페구움")
+ * @param cafeName - 카페 이름 (예: "토끼네부엌")
  */
 export const getCurationMinimap = async (
   category: string,
