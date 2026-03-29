@@ -9,6 +9,7 @@ import backIcon from "@/assets/icons/backIcon.png";
 import { getCurationCafeList, getCurationMinimap } from "@/features/curations/api/curationApi";
 import { QUERY_OPTIONS } from "@/common/components/providers/QueryProvider";
 import { CurationCafeListItem } from "@/features/curations/types";
+import { getImageUrl } from "@/common/utils/image";
 
 // =====================================================================
 // [정적 데이터 영역]
@@ -77,12 +78,12 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         description2: "코코넛의 달콤한 향과 크리미한 질감이 망고 과육의 쫀득함과 어우러지며 이색적인 미식 경험을 선사한다. 달달하지만 결코 무겁지 않아 더위에 지친 오후를 다시 환기시켜 줄 완벽한 한 그릇이다.",
       },
       {
-        name: "4. 고망고 건대1호점",
-        cafeName: "고망고 건대1호점",
-        shortDescription: "망고 소르베와 생과육이 공존하는 프리미엄 여름 디저트",
-        description1: "망고 빙수의 완성도를 한 단계 끌어올린 프리미엄 메뉴. 직접 만든 망고 소르베를 곱게 깎아 담고, 그 위로 생과육 조각을 풍성하게 얹어 두 가지 망고의 결을 동시에 즐길 수 있다.",
+        name: "4. 시즈니",
+        cafeName: "시즈니",
+        shortDescription: "부드러운 우유 얼음 위로 쏟아지는 싱싱한 생망고의 향연",
+        description1: "네 번째 맛집 '시즈니'는 비주얼부터 압도적인 '생망고빙수'로 발길을 멈추게 한다. 고운 우유 얼음 위에 잘 익은 생망고를 아끼지 않고 얹어내어, 첫 스푼부터 마지막까지 과육의 결이 살아있는 신선한 맛을 온전히 느낄 수 있다.",
         imageSrc: "/images/curation/mangoBingsu4.webp",
-        description2: "소르베의 차갑고 진한 과일향이 사르르 녹아내리는 순간, 탱글한 망고 과육이 씹히며 완성되는 이중의 식감이 특별한 여운을 남긴다. 망고를 향한 진심이 한 그릇 안에 고스란히 담겨 있다.",
+        description2: "무엇보다 빙수 속까지 꽉 찬 생망고의 넉넉함은 과일을 좋아하는 이들에게 기대 이상의 만족감을 선사한다. 우유 얼음 특유의 고소한 풍미가 망고의 새콤달콤함을 부드럽게 감싸 안으며, 여름철 지친 입맛을 다시 깨워줄 완벽한 디저트의 품격을 보여준다.",
       },
     ],
   },
@@ -208,8 +209,8 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         description2: "수플레 기법으로 구워낸 시트는 쫀득하면서도 촉촉한 질감을 지녔다. 포크로 푹 떠서 한입에 넣으면 부드러운 크림과 함께 압도적인 딸기 과즙이 터지며 상큼함을 한껏 끌어올린다.",
       },
       {
-        name: "4. 아삐뽀레",
-        cafeName: "아삐뽀레",
+        name: "4. 아삐뽀레 익선점",
+        cafeName: "아삐뽀레 익선점",
         shortDescription: "바삭한 타르트와 산뜻한 크림치즈 위로 쌓아 올린 생딸기",
         description1: "고소한 아몬드 크림을 채워 단단하게 구워낸 바삭한 타르트지. 그 위로 눅진한 크림치즈와 신선한 생딸기를 산처럼 수북하게 쌓아 올려 테이블 위를 화사하게 밝혀주는 딸기 타르트다.",
         imageSrc: "/images/curation/ddalgi4.webp",
@@ -453,11 +454,12 @@ export default function CurationDetailPage() {
               >
                 <div className="w-[72px] h-[72px] relative shrink-0 rounded-md overflow-hidden bg-gray-200">
                   <Image
-                    src={cafe.thumbnailUrl}
+                    src={getImageUrl(cafe.thumbnailUrl)}
                     alt={cafe.name}
                     fill
                     className="object-cover"
                     sizes="72px"
+                    unoptimized
                   />
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 flex-1">
