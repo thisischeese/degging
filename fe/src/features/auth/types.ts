@@ -4,6 +4,7 @@ export type Gender = 'MALE' | 'FEMALE';
 export interface SignupRequest {
   email: string;
   password: string;
+  name: string; // API 명세서에 따라 추가
   nickname: string;
   gender: Gender;
   birthDate: string; // "1111-11-11"

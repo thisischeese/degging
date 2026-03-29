@@ -13,12 +13,13 @@ export const axios_instance = axios.create({
 // 2. 요청 인터셉터 (토큰 자동 주입)
 axios_instance.interceptors.request.use(
   (config) => {
+    // 엑세스 토큰만 Authorization 헤더에 자동으로 주입합니다.
+    // 온보딩 토큰은 백엔드의 보안 필터(Spring Security 등)에서 '권한 없는 세션'으로 오인하여 
+    // 500 에러를 유발할 수 있으므로, 전역 헤더에서 제외하고 필요한 API에서만 Body 등에 담아 보냅니다.
     const access_token = Cookies.get('access_token') || null;
-    const onboarding_token = typeof window !== 'undefined' ? sessionStorage.getItem('ONBOARDING_TOKEN') : null;
     
-    const token = access_token || onboarding_token;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (access_token) {
+      config.headers.Authorization = `Bearer ${access_token}`;
     }
     
     return config;
