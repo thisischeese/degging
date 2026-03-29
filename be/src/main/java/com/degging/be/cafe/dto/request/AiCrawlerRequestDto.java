@@ -29,9 +29,18 @@ public class AiCrawlerRequestDto {
      * @return AI 크롤러 요청 DTO
      */
     public static AiCrawlerRequestDto from(CafeEntity cafe) {
+        String requestName = cafe.getName();
+
+        // 크롤링 서버 요청 시 명칭 매핑 (검색 성능 향상을 위해)
+        if ("미니마이즈".equals(requestName)) {
+            requestName = "미니마이즈 이태원점";
+        } else if ("아삐뽀레 익선점".equals(requestName)) {
+            requestName = "아삐뽀레";
+        }
+
         return AiCrawlerRequestDto.builder()
                 .cafeId(cafe.getCafeId())
-                .name(cafe.getName())
+                .name(requestName)
                 .build();
     }
 }
