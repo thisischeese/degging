@@ -61,7 +61,7 @@ export default function SignupPage() {
       
       // 숫자 200과 문자열 "200" 모두 처리
       if (String(result.code) === "200") {
-        console.log("회원가입 성공:", result.message);
+        // console.log("회원가입 성공:", result.message);
         
         // 1. 회원가입 응답에서 onboardingToken 추출 (타입 안전성 확보)
         // result.data가 null인 경우를 대비한 Optional Chaining 사용
@@ -70,18 +70,18 @@ export default function SignupPage() {
         if (token && token !== "null" && token !== "undefined") {
           // 백엔드 레퍼런스 코드에 맞춰 sessionStorage에 저장
           sessionStorage.setItem("ONBOARDING_TOKEN", token);
-          console.log("Onboarding Token 세션 저장 완료!");
+          // console.log("Onboarding Token 세션 저장 완료!");
         } else {
-          console.warn("⚠️ 회원가입 성공했으나 onboardingToken이 누락되었거나 null입니다.");
+          // console.warn("⚠️ 회원가입 성공했으나 onboardingToken이 누락되었거나 null입니다.");
           // 2. 만약 onboardingToken이 명세와 달리 안 들어왔다면 기존 자동 로그인(폴백) 시도
           try {
             await postLogin({
               email: currentData.email,
               password: currentData.password,
             });
-            console.log("회원가입 후 자동 로그인 성공 (대체 토큰 발급 완료)");
+            // console.log("회원가입 후 자동 로그인 성공 (대체 토큰 발급 완료)");
           } catch (loginError) {
-            console.error("자동 로그인 실패:", loginError);
+            // console.error("자동 로그인 실패:", loginError);
           }
         }
 
@@ -91,7 +91,7 @@ export default function SignupPage() {
         return false;
       }
     } catch (error) {
-      console.error("회원가입 실패:", error);
+      // console.error("회원가입 실패:", error);
       showAlert("회원가입 중 오류가 발생했습니다.");
       return false;
     }
@@ -104,7 +104,7 @@ export default function SignupPage() {
       const token = sessionStorage.getItem("ONBOARDING_TOKEN") || "";
 
       if (!token || token === "undefined" || token === "null") {
-        console.error("❌ 온보딩 토큰이 없습니다.");
+        // console.error("❌ 온보딩 토큰이 없습니다.");
         return false;
       }
 
@@ -126,10 +126,10 @@ export default function SignupPage() {
 
       // 1. 온보딩 결과 전송
       await postOnboardingResults(onboardingData);
-      console.log("온보딩 데이터 제출 성공");
+      // console.log("온보딩 데이터 제출 성공");
       
       // 2. 온보딩 성공 후 자동 로그인 (onboardingToken -> access_token 전환)
-      console.log("🔑 온보딩 성공! 자동 로그인 시도 중...");
+      // console.log("🔑 온보딩 성공! 자동 로그인 시도 중...");
       await postLogin({
         email: formData.email,
         password: formData.password
@@ -140,7 +140,7 @@ export default function SignupPage() {
       
       return true;
     } catch (error) {
-      console.error("온보딩 또는 자동 로그인 실패:", error);
+      // console.error("온보딩 또는 자동 로그인 실패:", error);
       return false;
     }
   };
