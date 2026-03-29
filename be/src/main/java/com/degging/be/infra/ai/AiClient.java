@@ -8,6 +8,8 @@ import com.degging.be.discovery.dto.request.AIDiscoveryRequest;
 import com.degging.be.discovery.dto.response.AIDiscoveryResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.CommonErrorCode;
+import com.degging.be.user.dto.request.AiOnboardingRequest;
+import com.degging.be.user.dto.response.AiOnboardingResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -109,5 +111,29 @@ public class AiClient {
         }
 
         return Collections.emptyMap();
+    }
+
+    /**
+     * 온보딩 결과 전송 (Onboarding)
+     *
+     * @param request 온보딩 요청 DTO (user_id, cafe_id_list, menu_id_list)
+     * @return AiOnboardingResponse AI 서버 처리 결과, 실패 시 null
+     */
+    public AiOnboardingResponse sendOnboarding(AiOnboardingRequest request) {
+        log.info("AI 서버 온보딩 요청 전송 (user_id: {})", request.getUser_id());
+
+        try {
+            return webClient.post()
+                    .uri(aiServerUrl + "/ai/onboarding")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(AiOnboardingResponse.class)
+                    .block();
+        } catch (Exception e) {
+            log.error("AI 온보딩 API 호출 중 오류 발생: {}", e.getMessage());
+            return null;
+        }
     }
 }
