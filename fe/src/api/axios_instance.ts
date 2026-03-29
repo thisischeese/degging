@@ -118,9 +118,17 @@ axios_instance.interceptors.response.use(
 
     // 403: 권한 없음 (예: 일반 유저가 관리자 페이지 접근)
     if (error.response?.status === 403) {
+      console.error("🚫 403 Forbidden 에러 발생:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+        responseData: error.response?.data
+      });
+      /* 잠시 디버깅을 위해 리다이렉트를 막습니다.
       if (typeof window !== 'undefined') {
         window.location.href = '/'; 
       }
+      */
     }
 
     return Promise.reject(error);
