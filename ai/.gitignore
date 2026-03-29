@@ -34,6 +34,11 @@ data/
 checkpoints/
 food_ner_model/
 !models/user_embeddings.npy
+!models/cafe_embeddings.npy
+!models/feature_bundle.pt
+!models/two_tower_model.pt
+
+
 
 .venv-codex/
 .venv-verify/
