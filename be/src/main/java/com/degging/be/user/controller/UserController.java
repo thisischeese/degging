@@ -43,14 +43,16 @@ public class UserController {
     /**
      * 임시 토큰을 가진 유저의 온보딩 선택 결과를 수집
      *
-     * @param userId 인증 객체로 부터 추출된 유저
-     * @param request 선택한 카페 및 디저트 ID 리스트
+     * @param userIdStr 온보딩 토큰에서 추출된 유저 ID 문자열
+     * @param request   선택한 카페 및 디저트 ID 리스트
      * @return 수집 성공 여부 응답
      */
     @PostMapping("/onboarding")
     public BaseResponse<String> collectOnboarding(
-            @AuthenticationPrincipal UUID userId,
+            @AuthenticationPrincipal String userIdStr,
             @Valid @RequestBody UserOnboardingRequest request) {
+
+        UUID userId = UUID.fromString(userIdStr);
 
         // 온보딩 분석 및 MongoDB 적재 수행
         onboardingService.processOnboarding(userId, request);
@@ -78,7 +80,7 @@ public class UserController {
      * 사용자가 추가적으로 더 사용하고 싶은 임시 취향 태그 수집 (+ 버튼)
      * 24시간 동안 유지됨
      *
-     * @param user 인증 객체로 부터 추출된 유저
+     * @param user    인증 객체로 부터 추출된 유저
      * @param request 선택한 임시 태그 리스트
      * @return 수집 성공 여부 응답
      */
@@ -101,7 +103,7 @@ public class UserController {
      */
     @GetMapping
     public BaseResponse<UserDetailResponse> getUserDetail(
-            @AuthenticationPrincipal UserDetails user){
+            @AuthenticationPrincipal UserDetails user) {
         UUID userId = getUserId(user);
         UserDetailResponse result = memberService.getUserDetail(userId);
         return BaseResponse.success(result);
@@ -111,13 +113,13 @@ public class UserController {
      * 특정 회원 정보를 수정하는 메서드
      *
      * @param request 프로필 이미지, 닉네임
-     * @param user 인증 객체로 부터 추출된 유저
+     * @param user    인증 객체로 부터 추출된 유저
      * @return 200
      */
     @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<?> updateUser(
             @ModelAttribute @Valid UserUpdateRequest request,
-            @AuthenticationPrincipal UserDetails user){
+            @AuthenticationPrincipal UserDetails user) {
         UUID userId = getUserId(user);
         memberService.updateUser(userId, request);
         return BaseResponse.success();
@@ -131,7 +133,7 @@ public class UserController {
      */
     @DeleteMapping
     public BaseResponse<?> removeUser(
-            @AuthenticationPrincipal UserDetails user){
+            @AuthenticationPrincipal UserDetails user) {
         UUID userId = getUserId(user);
         memberService.removeUser(userId);
         return BaseResponse.success();
