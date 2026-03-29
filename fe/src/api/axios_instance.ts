@@ -13,13 +13,23 @@ export const axios_instance = axios.create({
 // 2. 요청 인터셉터 (토큰 자동 주입)
 axios_instance.interceptors.request.use(
   (config) => {
-    // 엑세스 토큰만 Authorization 헤더에 자동으로 주입합니다.
-    // 온보딩 토큰은 백엔드의 보안 필터(Spring Security 등)에서 '권한 없는 세션'으로 오인하여 
-    // 500 에러를 유발할 수 있으므로, 전역 헤더에서 제외하고 필요한 API에서만 Body 등에 담아 보냅니다.
+    // 1. 쿠키에서 액세스 토큰 확인
     const access_token = Cookies.get('access_token') || null;
+    // 2. 세션 스토리지에서 온보딩 토큰 확인 (로그인 전 가입 단계용)
+    const onboarding_token = typeof window !== 'undefined' ? sessionStorage.getItem('ONBOARDING_TOKEN') : null;
     
-    if (access_token) {
-      config.headers.Authorization = `Bearer ${access_token}`;
+    // 우선순위: 액세스 토큰 > 온보딩 토큰
+    const token = access_token || onboarding_token;
+    
+    if (token) {
+      // [중요] 특정 POST 엔드포인트(/api/users/onboarding)는 
+      // 헤더에 토큰이 있을 경우 백엔드 보안 필터와 충돌하여 500 에러를 유발하므로 제외합니다.
+      // 그 외의 GET(메뉴/카페 조회 등) 요청 시에는 토큰을 실어 보내야 정상 작동합니다.
+      const isPostOnboarding = config.url?.includes('/api/users/onboarding') && config.method === 'post';
+      
+      if (!isPostOnboarding) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     
     return config;
