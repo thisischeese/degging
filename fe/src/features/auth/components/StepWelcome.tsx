@@ -12,8 +12,8 @@ interface StepWelcomeProps {
 export default function StepWelcome({ formData }: StepWelcomeProps) {
   const router = useRouter();
 
-  const handleGoLogin = () => {
-    router.push("/login");
+  const handleGoMain = () => {
+    router.push("/");
   };
 
   return (
@@ -42,7 +42,7 @@ export default function StepWelcome({ formData }: StepWelcomeProps) {
             회원가입을 축하합니다
           </div>
           <p className="text-sm text-gray-500 font-medium font-pretendard leading-relaxed px-8 pt-1">
-            로그인하고 내 주변에 숨어있는<br />
+            내 주변에 숨어있는<br />
             더 많은 디저트를 추천 받아보세요!
           </p>
         </div>
@@ -53,10 +53,10 @@ export default function StepWelcome({ formData }: StepWelcomeProps) {
         <Button
           variant="primary"
           size="full"
-          onClick={handleGoLogin}
+          onClick={handleGoMain}
           className="bg-[#C3304F]! text-white!"
         >
-          로그인하기
+          시작하기
         </Button>
       </div>
     </div>

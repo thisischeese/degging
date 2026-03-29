@@ -118,17 +118,19 @@ axios_instance.interceptors.response.use(
 
     // 403: 권한 없음 (예: 일반 유저가 관리자 페이지 접근)
     if (error.response?.status === 403) {
-      console.error("🚫 403 Forbidden 에러 발생:", {
-        url: error.config?.url,
-        method: error.config?.method,
-        headers: error.config?.headers,
-        responseData: error.response?.data
-      });
-      /* 잠시 디버깅을 위해 리다이렉트를 막습니다.
-      if (typeof window !== 'undefined') {
-        window.location.href = '/'; 
+      // 회원가입(/signup) 또는 온보딩(/onboarding) 진행 중일 때는 
+      // 일시적 권한 지연이나 토큰 교체 시점 이슈로 가입 절차가 중단되지 않게 리다이렉트를 방지합니다.
+      const isAuthFlow = 
+        typeof window !== 'undefined' && 
+        (window.location.pathname.includes('/signup') || window.location.pathname.includes('/onboarding'));
+
+      if (!isAuthFlow) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/'; 
+        }
+      } else {
+        console.warn("⚠️ 인증/가입 흐름 중 403 발생 (리다이렉트 무시함)");
       }
-      */
     }
 
     return Promise.reject(error);
