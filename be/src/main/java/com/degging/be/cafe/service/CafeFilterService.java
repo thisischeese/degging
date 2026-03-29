@@ -147,6 +147,36 @@ public class CafeFilterService {
     }
 
     /**
+     * 카카오 API 데이터를 기반으로 카페 카테고리 판별
+     *
+     * @param item 카카오 장소 데이터
+     * @return 판별된 CafeCategory (기본값: COFFEE)
+     */
+    public CafeCategory determineCategory(KakaoPlaceItem item) {
+        String categoryName = item.getCategoryName();
+
+        if (categoryName == null) {
+            return CafeCategory.COFFEE;
+        }
+
+        // 1. 제과/베이커리 판별
+        if (categoryName.contains("제과") || categoryName.contains("빵") ||
+                categoryName.contains("베이커리")) {
+            return CafeCategory.BAKERY;
+        }
+
+        // 2. 디저트/기타 판별
+        if (categoryName.contains("디저트") || categoryName.contains("아이스크림") ||
+                categoryName.contains("빙수") || categoryName.contains("도넛") ||
+                categoryName.contains("샌드위치") || categoryName.contains("토스트")) {
+            return CafeCategory.DESSERT;
+        }
+
+        // 3. 기본 및 카페 판별
+        return CafeCategory.COFFEE;
+    }
+
+    /**
      * 기존 DB에 저장된 데이터 중 제외 키워드가 포함된 비카페 시설 식별 (isCafe = false)
      *
      * @return 식별된 비카페 시설 수

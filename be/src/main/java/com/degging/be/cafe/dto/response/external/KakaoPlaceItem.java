@@ -28,6 +28,10 @@ public class KakaoPlaceItem {
     private String roadAddressName; // 도로명주소
 
     private String phone;   // 전화번호
+    
+    private String x;       // 경도 (longitude)
+    
+    private String y;       // 위도 (latitude)
 
     private String placeUrl;    // 카카오맵 url
 }
