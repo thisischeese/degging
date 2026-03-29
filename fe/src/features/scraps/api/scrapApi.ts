@@ -43,6 +43,12 @@ export const deleteScrap = async (scrapId: string) => {
     return response.data;
 };
 
+/** (추가) 모든 스크랩 카페 목록 조회 */
+export const getAllScraps = async (): Promise<ScrapDetail> => {
+    const response = await axios_instance.get('/api/scraps/all');
+    return response.data;
+};
+
 /** (완료) 카테고리 추천 (공유 링크 생성) */
 export const postShareLink = async (scrapId: string): Promise<{ shareLink: string }> => {
     const response = await axios_instance.post(`/api/scraps/${scrapId}/share-links`);
