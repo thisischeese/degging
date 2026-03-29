@@ -105,8 +105,8 @@ const CURATION_DATA: Record<string, CurationTheme> = {
         description2: "팬에 눌어붙어 구워진 밑면의 바삭함과 결대로 찢어지는 부드러운 속살이 입안에서 완벽한 조화를 이룬다. 기본기에 얼마나 충실했는지 한 입만으로도 고스란히 전해진다.",
       },
       {
-        name: "2. 오소리 베이커리 어린이대공원",
-        cafeName: "오소리 베이커리 어린이대공원",
+        name: "2. 오소리베이커리",
+        cafeName: "오소리베이커리",
         shortDescription: "부드러운 빵결 사이로 스며든 프랑스 버터의 깊은 풍미",
         description1: "최고급 프랑스 버터를 아낌없이 넣어, 빵을 굽는 시간마다 골목 전체에 농밀한 향기가 피어오른다. 첫입부터 마지막 입까지 버터의 짙은 풍미가 입안을 가득 채우는 소금빵이다.",
         imageSrc: "/images/curation/soguem2.webp",
