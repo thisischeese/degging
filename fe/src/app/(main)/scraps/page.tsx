@@ -410,11 +410,14 @@ export default function ScrapsPage() {
                     </button>
 
                     {/* 2. 모든 스크랩 카드 */}
-                    <div className={`flex flex-col items-center gap-2 cursor-pointer transition-opacity ${mode === 'default' ? 'active:opacity-80' : 'pointer-events-none'}`}>
+                    <div
+                        onClick={() => { if (mode === 'default') router.push('/scraps/all'); }}
+                        className={`flex flex-col items-center gap-2 cursor-pointer transition-opacity ${mode === 'default' ? 'active:opacity-80' : 'pointer-events-none'}`}
+                    >
                         <div className="relative w-full">
                             <ThumbnailGrid thumbnails={allThumbnails} />
                         </div>
-                        <span className="text-[13px] font-medium text-gray-700">모든 스크랩</span>
+                        <span className="text-[13px] font-medium text-gray-700">기본 스크랩</span>
                     </div>
 
                     {/* 3. 개별 카테고리 카드들 */}
