@@ -222,7 +222,7 @@ const CURATION_DATA: Record<string, CurationTheme> = {
 
 // =====================================================================
 // [지도 클릭 핸들러]
-// 지도를 누르면 minimap API를 호출해 cafeId를 받아 /cafes/{cafeId}로 이동합니다.
+// 지도를 누르면 minimap API를 호출해 cafeId를 받아 /cafes/{cafeId}로 이동
 // =====================================================================
 function MapSection({
   category,
