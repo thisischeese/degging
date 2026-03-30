@@ -59,7 +59,7 @@ public class DiscoveryService {
             // AI 응답이 있으면 해당 카페들 정렬하여 반환
             if (!recommendations.isEmpty()) {
                 List<UUID> cafeIds = new ArrayList<>(recommendations.keySet());
-                List<CafeEntity> cafes = cafeRepository.findAllById(cafeIds);
+                List<CafeEntity> cafes = cafeRepository.findAllByCafeIdIn(cafeIds);
                 return getSortedSlice(cafes, recommendations, page, size);
             }
         }

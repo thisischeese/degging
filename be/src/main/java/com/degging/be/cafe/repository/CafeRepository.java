@@ -6,6 +6,7 @@ import com.degging.be.cafe.entity.CafeVibeTagEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -111,7 +112,14 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * 탐색(Discovery) 탭에서 상위 500개 조회 (실제 카페만)
      */
+    @EntityGraph(attributePaths = {"images"})
     List<CafeEntity> findTop500ByThumbnailUrlIsNotNullAndStatusAndIsCafeTrue(CafeStatus status);
+
+    /**
+     * ID 목록을 기반으로 상세 이미지를 포함하여 조회 (N+1 방지)
+     */
+    @EntityGraph(attributePaths = {"images"})
+    List<CafeEntity> findAllByCafeIdIn(@Param("cafeIds") List<UUID> cafeIds);
 
     /**
      * 온보딩 분석을 위해 필요한 분위기 태그 정보만 선별적으로 조회합니다.
@@ -267,4 +275,10 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             "AND (c.address LIKE %:region% OR c.roadAddress LIKE %:region%) " +
             "AND c.isCafe = true")
     List<CafeEntity> findAllByNameInAndRegion(@Param("names") List<String> names, @Param("region") String region);
+
+    /**
+     * 재검증을 위해 ID 순으로 다음 배치를 조회합니다. (커서 기반 페이징)
+     */
+    @Query("SELECT c FROM CafeEntity c WHERE c.isCafe = true AND (:lastId IS NULL OR c.cafeId > :lastId) ORDER BY c.cafeId ASC")
+    List<CafeEntity> findNextBatchForRevalidate(@Param("lastId") UUID lastId, Pageable pageable);
 }

@@ -11,8 +11,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 상가업소 데이터에서 실제 카페만 선별하기 위한 필터 서비스
@@ -29,6 +32,7 @@ public class CafeFilterService {
 
     private final CafeRepository cafeRepository;
     private final KakaoLocalApiClient kakaoLocalApiClient;
+    private final TransactionTemplate transactionTemplate;
 
     // 제외할 키워드 목록
     private static final List<String> EXCLUDE_KEYWORDS = List.of(
@@ -206,19 +210,48 @@ public class CafeFilterService {
 
     /**
      * 카카오 API를 다시 호출하여 카테고리 정보 기반으로 비카페 시설 재검증 (메소드 B)
-     * 안전을 위해 삭제하지 않고 isCafe = false 처리만 수행함
+     * 1000건씩 끊어서 DB 전체를 순회하며 처리함
      *
-     * @param limit 최대 처리 건수 (API 할당량 고려)
-     * @return 식별된 비카페 시설 수
+     * @param limit 최대 처리 건수 (전체 순회를 원하면 큰 값 입력)
+     * @return 식별된 비카페 시설 총 수
      */
-    @Transactional
     public int revalidateWithKakao(int limit) {
-        log.info("카카오 API 카테고리 기반 기존 데이터 재검증 시작 (제한: {}건)", limit);
-        List<CafeEntity> cafes = cafeRepository.findAll().stream()
-                .filter(CafeEntity::isCafe)
-                .limit(limit)
-                .toList();
+        log.info("카카오 API 카테고리 기반 기존 데이터 재검증 시작 (최대: {}건)", limit);
+        
+        int totalProcessed = 0;
+        int totalIdentifiedCount = 0;
+        UUID lastId = null;
+        int batchSize = 100; // API 호출 안정성을 위해 100건 단위로 페이징 조회
 
+        while (totalProcessed < limit) {
+            int currentRequestSize = Math.min(batchSize, limit - totalProcessed);
+            List<CafeEntity> batch = cafeRepository.findNextBatchForRevalidate(
+                    lastId, PageRequest.of(0, currentRequestSize));
+
+            if (batch.isEmpty()) {
+                break;
+            }
+
+            // 배치 단위로 처리 (별도 트랜잭션)
+            int identifiedInBatch = transactionTemplate.execute(status -> processRevalidateBatch(batch));
+            totalIdentifiedCount += identifiedInBatch;
+            totalProcessed += batch.size();
+
+            // 마지막 처리 ID 갱신
+            lastId = batch.get(batch.size() - 1).getCafeId();
+            
+            log.info("재검증 진행 중: {}/{} 건 완료 (현재까지 비카페 식별: {}건)", 
+                    totalProcessed, limit, totalIdentifiedCount);
+        }
+
+        log.info("카카오 재검증 최종 완료 - 총 처리: {}건, 비카페 식별: {}건", totalProcessed, totalIdentifiedCount);
+        return totalIdentifiedCount;
+    }
+
+    /**
+     * 배치 단위 재검증 처리 로직 (TransactionTemplate 내에서 실행됨)
+     */
+    public int processRevalidateBatch(List<CafeEntity> cafes) {
         int identifiedCount = 0;
         for (CafeEntity cafe : cafes) {
             try {
@@ -246,17 +279,13 @@ public class CafeFilterService {
                     if (!isValid) {
                         cafe.markAsNonCafe();
                         identifiedCount++;
-                        log.info("비카페 식별(카카오): {} (현재 카테고리: {})", cafe.getName(), 
-                                 response.getDocuments().stream().filter(i -> i.getId().equals(cafe.getKakaoPlaceId()))
-                                         .findFirst().map(KakaoPlaceItem::getCategoryName).orElse("N/A"));
+                        log.info("[Revalidate] 비카페 식별(카카오): {} (ID: {})", cafe.getName(), cafe.getCafeId());
                     }
                 }
             } catch (Exception e) {
                 log.error("카페 재검증 중 오류 발생: {}, 사유: {}", cafe.getName(), e.getMessage());
             }
         }
-
-        log.info("카카오 재검증 완료 - 식별 건수: {}건", identifiedCount);
         return identifiedCount;
     }
 
