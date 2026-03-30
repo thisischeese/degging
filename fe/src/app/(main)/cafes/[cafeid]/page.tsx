@@ -331,8 +331,12 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
     try {
       // 1. 처음 스크랩하는 경우에만 기본 스크랩 API 전송 (중복 전송 방지)
       if (!isScrapped) {
-        await postScrapCafeToAll(cafeid);
-        setIsScrapped(true);
+        try {
+          await postScrapCafeToAll(cafeid);
+        } catch (e) {
+          console.warn('기본 스크랩 담기 건너뜀 (API 미구현 혹은 에러):', e);
+        }
+        setIsScrapped(true); // 에러가 나더라도 UI상 스크랩 된 것으로 처리하고 아래 폴더 작업 진행
       }
 
       // 2. 새로 추가된 폴더 찾기 (selectedIds에는 있는데 기존 savedCategoryIds에는 없는 것)
