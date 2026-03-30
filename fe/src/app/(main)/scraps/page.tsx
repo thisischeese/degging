@@ -41,7 +41,8 @@ const STAR_COLORS: { value: StarColor; hex: string }[] = [
 // 썸네일 그리드 컴포넌트 (카테고리 카드 내부)
 // ─────────────────────────────────────────────────────────
 function ThumbnailGrid({ thumbnails = [] }: { thumbnails?: string[] }) {
-    const slots = (thumbnails || []).slice(0, 4);
+    // [버그2 수정] 최신 4개를 우선 사용 (slice(-4) = 마지막 4개)
+    const slots = (thumbnails || []).slice(-4);
 
     return (
         <div className="w-full aspect-square rounded-[20px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-[5px]">
@@ -290,8 +291,9 @@ export default function ScrapsPage() {
             .catch((err) => console.error('스크랩 목록 조회 실패', err));
     }, []);
 
-    // 모든 스크랩 썸네일 모아서 표시
-    const allThumbnails = categories.flatMap((cat) => cat.thumbnailUrls || []);
+    // [버그2 수정] 기본 스크랩(scrapId===null) 항목의 thumbnailUrls만 사용 (flatMap 제거 → 중복 방지)
+    const defaultScrap = categories.find(cat => cat.scrapId === null);
+    const allThumbnails = defaultScrap?.thumbnailUrls || [];
 
     // 카테고리 생성
     const handleAddCategory = async (name: string, color: StarColor) => {
