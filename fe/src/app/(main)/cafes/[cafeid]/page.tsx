@@ -9,7 +9,7 @@ import Modal from '@/common/components/Modal';
 import Button from '@/common/components/Button';
 import { Input } from '@/common/components/Input';
 import { StarColor, ScrapList } from '@/features/scraps/types';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { getCafeDetail } from '@/features/cafes/api/cafeApi';
 import { getScraps, postCreateScrap, postScrapCafe, postScrapCafeToAll, deleteScrapCafe, getScrapDetail } from '@/features/scraps/api/scrapApi';
 import { Chip } from '@/common/components/Chip';
@@ -278,6 +278,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   const router = useRouter();
   const resolvedParams = params instanceof Promise ? use(params) : params;
   const cafeid = resolvedParams.cafeid;
+  const queryClient = useQueryClient();
 
   // [수정] 실제 API 연동 쿼리
   const { data: cafe } = useSuspenseQuery({
@@ -353,6 +354,9 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
 
       // 프론트엔드 상태 동기화
       setSavedCategoryIds(selectedIds);
+      
+      // [동기화 핵심] 이 카페 정보를 최신으로 갱신하여 별 색깔 유지 보장
+      queryClient.invalidateQueries({ queryKey: ['cafeDetail', cafeid] });
 
       setShowSavedToast(true);
       setTimeout(() => setShowSavedToast(false), 3000);
