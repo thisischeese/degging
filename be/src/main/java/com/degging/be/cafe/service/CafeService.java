@@ -40,6 +40,7 @@ public class CafeService {
     private final UserRepository userRepository;
     private final CafeRepository cafeRepository;
     private final ScrapRepository scrapRepository;
+    private final com.degging.be.user.repository.UserPreferenceRepository userPreferenceRepository;
 
     /**
      * 카페 상세 정보 조회
@@ -94,8 +95,48 @@ public class CafeService {
             }
         }
 
+        // 사용자 취향 반영 (상세 조회 시 태그 업데이트)
+        if (userId != null) {
+            updateUserPreferenceOnView(userId, cafe);
+        }
+
         // 가공된 데이터와 엔티티를 DTO 정적 팩토리 메서드에 전달
         return CafeDetailResponse.of(cafe, averageRating, totalReviews, isScrapped, scrapColor, businessHours);
+    }
+
+    /**
+     * 사용자가 카페 상세 조회 시 해당 카페의 태그를 사용자 취향에 반영합니다.
+     */
+    private void updateUserPreferenceOnView(UUID userId, CafeEntity cafe) {
+        try {
+            userPreferenceRepository.findById(userId).ifPresent(preference -> {
+                List<String> currentTags = preference.getPreferenceTags();
+                if (currentTags == null) currentTags = new ArrayList<>();
+                else currentTags = new ArrayList<>(currentTags); // 변동 가능한 리스트로 복사
+
+                // 카페의 분위기 태그 가져오기
+                List<String> cafeTags = cafe.getVibeTags().stream()
+                        .map(v -> v.getVibe().getTagName())
+                        .toList();
+
+                // 신규 태그 추가 (중복 최소화 및 최신순 유지)
+                for (String tag : cafeTags) {
+                    currentTags.remove(tag); // 기존에 있으면 제거하고 앞에 추가 (최신화)
+                    currentTags.add(0, tag);
+                }
+
+                // 최대 20개까지만 유지
+                if (currentTags.size() > 20) {
+                    currentTags = currentTags.subList(0, 20);
+                }
+
+                preference.updatePreference(preference.getPreferenceVector(), currentTags);
+                userPreferenceRepository.save(preference);
+                log.info("[Preference] 사용자 취향 업데이트 완료 (userId: {}, addedTags: {})", userId, cafeTags);
+            });
+        } catch (Exception e) {
+            log.error("사용자 취향 업데이트 중 오류 발생: {}", e.getMessage());
+        }
     }
 
     /**

@@ -32,6 +32,7 @@ public class UserOnboardingService {
     private final UserOnboardingRepository onboardingRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final com.degging.be.user.repository.UserPreferenceRepository userPreferenceRepository;
     private final AiClient aiClient;
 
     /**
@@ -65,8 +66,30 @@ public class UserOnboardingService {
         // userEntity 온보딩 컬럼 업데이트
         profile.updateIsOnboarding();
 
+        // PostgreSQL 취향 데이터 초기화/동기화 (Discovery 탭에서 인식 가능하도록)
+        updatePostgresPreference(user, moodTagNames);
+
         // AI 서버에 온보딩 결과 전송
         notifyAiServer(user, profile, request, cafes);
+    }
+
+    /**
+     * PostgreSQL의 UserPreferenceEntity를 생성하거나 업데이트합니다.
+     */
+    private void updatePostgresPreference(UserEntity user, List<String> tagNames) {
+        try {
+            com.degging.be.user.entity.UserPreferenceEntity preference = userPreferenceRepository.findById(user.getUserId())
+                    .orElseGet(() -> com.degging.be.user.entity.UserPreferenceEntity.builder()
+                            .userId(user.getUserId())
+                            .user(user)
+                            .build());
+            
+            preference.updatePreference(preference.getPreferenceVector(), tagNames);
+            userPreferenceRepository.save(preference);
+            log.info("PostgreSQL 취향 데이터 동기화 완료 (user_id: {}, tags: {})", user.getUserId(), tagNames);
+        } catch (Exception e) {
+            log.error("PostgreSQL 취향 데이터 업데이트 중 오류 발생: {}", e.getMessage());
+        }
     }
 
     /**
