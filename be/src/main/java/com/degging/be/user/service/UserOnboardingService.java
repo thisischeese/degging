@@ -66,11 +66,18 @@ public class UserOnboardingService {
         // userEntity 온보딩 컬럼 업데이트
         profile.updateIsOnboarding();
 
+        // 선택된 카페들의 분위기 태그 이름 수집 (중복 제거)
+        List<String> moodTagNames = cafes.stream()
+                .flatMap(cafe -> cafe.getVibeTags().stream())
+                .map(cafeVibeTag -> cafeVibeTag.getVibe().getTagName())
+                .distinct()
+                .toList();
+
         // PostgreSQL 취향 데이터 초기화/동기화 (Discovery 탭에서 인식 가능하도록)
         updatePostgresPreference(user, moodTagNames);
 
         // AI 서버에 온보딩 결과 전송
-        notifyAiServer(user, profile, request, cafes);
+        notifyAiServer(user, profile, request, cafes, moodTagNames);
     }
 
     /**
@@ -100,15 +107,8 @@ public class UserOnboardingService {
      * @param request 온보딩 요청 데이터
      */
     private void notifyAiServer(UserEntity user, UserProfileEntity profile,
-                               UserOnboardingRequest request, List<CafeEntity> cafes) {
+                               UserOnboardingRequest request, List<CafeEntity> cafes, List<String> moodTagNames) {
         try {
-            // 선택된 카페들의 분위기 태그 이름 수집 (중복 제거)
-            List<String> moodTagNames = cafes.stream()
-                    .flatMap(cafe -> cafe.getVibeTags().stream())
-                    .map(cafeVibeTag -> cafeVibeTag.getVibe().getTagName())
-                    .distinct()
-                    .toList();
-
             AiOnboardingRequest aiRequest = AiOnboardingRequest.of(
                     user.getUserId(),
                     profile.getNickname(),
