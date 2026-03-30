@@ -210,22 +210,27 @@ public class CafeFilterService {
 
     /**
      * 카카오 API를 다시 호출하여 카테고리 정보 기반으로 비카페 시설 재검증 (메소드 B)
-     * 1000건씩 끊어서 DB 전체를 순회하며 처리함
+     * 이미 비카페로 처리된(isCafe=false) 건들도 다시 검사하여 복구함
      *
-     * @param limit 최대 처리 건수 (전체 순회를 원하면 큰 값 입력)
+     * @param limit 최대 처리 건수 (0 이하일 경우 전체 처리)
      * @return 식별된 비카페 시설 총 수
      */
     public int revalidateWithKakao(int limit) {
-        log.info("카카오 API 카테고리 기반 기존 데이터 재검증 시작 (최대: {}건)", limit);
+        long totalCount = cafeRepository.count(); // 전체 데이터 개수 (isCafe 관계 없이)
+        int finalLimit = (limit <= 0) ? (int) totalCount : limit;
+
+        log.info("카카오 API 기반 전체 데이터(isCafe T/F 포함) 재검증 및 복구 시작 (대상: {}건 / 전체: {}건)", 
+                finalLimit, totalCount);
         
         int totalProcessed = 0;
         int totalIdentifiedCount = 0;
         UUID lastId = null;
-        int batchSize = 100; // API 호출 안정성을 위해 100건 단위로 페이징 조회
+        int batchSize = 100;
 
-        while (totalProcessed < limit) {
-            int currentRequestSize = Math.min(batchSize, limit - totalProcessed);
-            List<CafeEntity> batch = cafeRepository.findNextBatchForRevalidate(
+        while (totalProcessed < finalLimit) {
+            int currentRequestSize = Math.min(batchSize, finalLimit - totalProcessed);
+            // isCafe 값과 상관 없이 모든 데이터를 ID 순으로 가져옴
+            List<CafeEntity> batch = cafeRepository.findNextBatchForAll(
                     lastId, PageRequest.of(0, currentRequestSize));
 
             if (batch.isEmpty()) {
@@ -241,7 +246,7 @@ public class CafeFilterService {
             lastId = batch.get(batch.size() - 1).getCafeId();
             
             log.info("재검증 진행 중: {}/{} 건 완료 (현재까지 비카페 식별: {}건)", 
-                    totalProcessed, limit, totalIdentifiedCount);
+                    totalProcessed, finalLimit, totalIdentifiedCount);
         }
 
         log.info("카카오 재검증 최종 완료 - 총 처리: {}건, 비카페 식별: {}건", totalProcessed, totalIdentifiedCount);
@@ -249,13 +254,12 @@ public class CafeFilterService {
     }
 
     /**
-     * 배치 단위 재검증 처리 로직 (TransactionTemplate 내에서 실행됨)
+     * 배치 단위 재검증 및 복구 처리 (TransactionTemplate 내에서 실행됨)
      */
     public int processRevalidateBatch(List<CafeEntity> cafes) {
-        int identifiedCount = 0;
+        int nonCafeCount = 0;
         for (CafeEntity cafe : cafes) {
             try {
-                // 좌표 기반으로 해당 장소 재검색
                 KakaoPlaceResponse response = kakaoLocalApiClient.searchPlaces(
                         cafe.getName(),
                         cafe.getLocation().getX(),
@@ -265,51 +269,60 @@ public class CafeFilterService {
                 );
 
                 if (response != null && response.getDocuments() != null) {
-                    boolean isValid = false;
+                    boolean foundExactMatch = false;
+                    KakaoPlaceItem matchedItem = null;
+                    
                     for (KakaoPlaceItem item : response.getDocuments()) {
-                        // ID가 일치하는 항목을 찾아서 카테고리 확인
                         if (item.getId().equals(cafe.getKakaoPlaceId())) {
-                            if (isCafeCategory(item)) {
-                                isValid = true;
-                            }
+                            foundExactMatch = true;
+                            matchedItem = item;
                             break;
                         }
                     }
 
-                    if (!isValid) {
-                        cafe.markAsNonCafe();
-                        identifiedCount++;
-                        log.info("[Revalidate] 비카페 식별(카카오): {} (ID: {})", cafe.getName(), cafe.getCafeId());
+                    if (foundExactMatch) {
+                        // 명확한 비카페(블랙리스트)에 해당하는 경우에만 false 처리
+                        if (isDefinitiveNonCafe(matchedItem)) {
+                            if (cafe.isCafe()) {
+                                cafe.markAsNonCafe();
+                                log.info("[Revalidate] 비카페 식별(ID매치): {} (ID: {})", cafe.getName(), cafe.getCafeId());
+                            }
+                            nonCafeCount++;
+                        } else {
+                            // 카페이거나, 음식점, N/A 등 모호한 경우에는 모두 카페로 유지/복구
+                            if (!cafe.isCafe()) {
+                                cafe.markAsCafe();
+                                log.info("[Revalidate] 카페로 복구: {} (ID: {})", cafe.getName(), cafe.getCafeId());
+                            }
+                        }
+                    } else {
+                        // ID 매칭 실패 시 -> 안전하게 카페로 간주 (기존 잘못 처리된 건 복구 포함)
+                        if (!cafe.isCafe()) {
+                            cafe.markAsCafe();
+                            log.info("[Revalidate] 카페로 복구(ID불일치/안전): {} (ID: {})", cafe.getName(), cafe.getCafeId());
+                        }
                     }
                 }
             } catch (Exception e) {
                 log.error("카페 재검증 중 오류 발생: {}, 사유: {}", cafe.getName(), e.getMessage());
             }
         }
-        return identifiedCount;
+        return nonCafeCount;
     }
 
     /**
-     * 카카오 카테고리가 카페 계열인지 확인 (CafeDuplicateService의 로직 공유)
+     * 명백하게 카페가 아닌 블랙리스트 업종인지 확인
      */
-    private boolean isCafeCategory(KakaoPlaceItem document) {
+    private boolean isDefinitiveNonCafe(KakaoPlaceItem document) {
         String category = document.getCategoryName();
-        String groupCode = document.getCategoryGroupCode();
+        if (category == null) return false;
 
-        if ("CE7".equals(groupCode)) return true;
-        
-        if (category != null) {
-            boolean isCafePath = category.contains("카페") || category.contains("커피") || 
-                                 category.contains("제과") || category.contains("베이커리") || 
-                                 category.contains("디저트") || category.contains("아이스크림") || 
-                                 category.contains("도넛");
+        // 명백한 비카페 카테고리 (블랙리스트)
+        List<String> blackList = List.of(
+            "의료", "병원", "금융", "은행", "공공기관", "행정기관", "학교", "유치원", "어린이집", 
+            "기업", "사무실", "학원"
+        );
 
-            boolean isExcludedPath = category.contains("술집") || category.contains("호프") || 
-                                     category.contains("포차") || category.contains("이자카야") || 
-                                     category.contains("주점");
-
-            return isCafePath && !isExcludedPath;
-        }
-        return false;
+        return blackList.stream().anyMatch(category::contains);
     }
 }

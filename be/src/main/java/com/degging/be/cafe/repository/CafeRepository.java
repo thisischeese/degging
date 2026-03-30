@@ -281,4 +281,15 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
      */
     @Query("SELECT c FROM CafeEntity c WHERE c.isCafe = true AND (:lastId IS NULL OR c.cafeId > :lastId) ORDER BY c.cafeId ASC")
     List<CafeEntity> findNextBatchForRevalidate(@Param("lastId") UUID lastId, Pageable pageable);
+
+    /**
+     * 재검증을 위해 모든 카페 정보를 가져옵니다 (isCafe 값에 관계 없이).
+     */
+    @Query("SELECT c FROM CafeEntity c WHERE (:lastId IS NULL OR c.cafeId > :lastId) ORDER BY c.cafeId ASC")
+    List<CafeEntity> findNextBatchForAll(@Param("lastId") UUID lastId, Pageable pageable);
+
+    /**
+     * 전체 카페(isCafe=true/false 포함)의 개수를 조회합니다.
+     */
+    long count();
 }
