@@ -286,7 +286,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   });
 
   const [isScrapOpen, setIsScrapOpen] = useState(false);
-  const [isScrapped, setIsScrapped] = useState(cafe.isScrapped);
+  const [isScrapped, setIsScrapped] = useState(cafe.scrapped ?? cafe.isScrapped ?? false);
   const [savedCategoryIds, setSavedCategoryIds] = useState<string[]>([]);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [scrapCategories, setScrapCategories] = useState<ScrapList[]>([]);
