@@ -40,6 +40,7 @@ public class CafeService {
     private final UserRepository userRepository;
     private final CafeRepository cafeRepository;
     private final ScrapRepository scrapRepository;
+    private final com.degging.be.user.repository.UserPreferenceRepository userPreferenceRepository;
 
     /**
      * 카페 상세 정보 조회
@@ -94,9 +95,11 @@ public class CafeService {
             }
         }
 
+
         // 가공된 데이터와 엔티티를 DTO 정적 팩토리 메서드에 전달
         return CafeDetailResponse.of(cafe, averageRating, totalReviews, isScrapped, scrapColor, businessHours);
     }
+
 
     /**
      * 사용자 현재 위치를 기준으로 반경 2km 내의 카페 마커 목록을 조회합니다.

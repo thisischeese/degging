@@ -51,13 +51,13 @@ public class DiscoveryService {
         userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
 
-        // 취향 벡터가 존재하면 AI 추천 요청
+        // 취향 정보(벡터 또는 태그)가 존재하면 AI 추천 요청
         Optional<UserPreferenceEntity> preference = userPreferenceRepository.findById(userId);
-        if (preference.isPresent() && preference.get().getPreferenceVector() != null) {
+        if (preference.isPresent()) {
             Map<UUID, Integer> recommendations = aiClient.getDiscoveryRecommendations(userId);
             
             // AI 응답이 있으면 해당 카페들 정렬하여 반환
-            if (!recommendations.isEmpty()) {
+            if (recommendations != null && !recommendations.isEmpty()) {
                 List<UUID> cafeIds = new ArrayList<>(recommendations.keySet());
                 List<CafeEntity> cafes = cafeRepository.findAllByCafeIdIn(cafeIds);
                 return getSortedSlice(cafes, recommendations, page, size);
