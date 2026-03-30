@@ -274,7 +274,14 @@ public class CafeEntity extends BaseEntity {
     }
 
     /**
-     * 비카페성 시설로 판별된 경우 상태 변경
+     * 실제 카페로 판별된 경우 상태 변경 (복구용)
+     */
+    public void markAsCafe() {
+        this.isCafe = true;
+    }
+
+    /**
+     * 비카페성 시설로 판별된 경우 상태 변경 (필터링용)
      */
     public void markAsNonCafe() {
         this.isCafe = false;
