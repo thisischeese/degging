@@ -11,7 +11,7 @@ import { Input } from '@/common/components/Input';
 import { StarColor, ScrapList } from '@/features/scraps/types';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { getCafeDetail } from '@/features/cafes/api/cafeApi';
-import { getScraps, postCreateScrap, postScrapCafe, getScrapDetail } from '@/features/scraps/api/scrapApi';
+import { getScraps, postCreateScrap, postScrapCafe, postScrapCafeToAll, deleteScrapCafe, getScrapDetail } from '@/features/scraps/api/scrapApi';
 import { Chip } from '@/common/components/Chip';
 
 
@@ -171,15 +171,10 @@ function ScrapCategoryOverlay({
   onSave: (selectedIds: string[]) => void;
   onCreateCategory: (name: string, color: StarColor) => void;
 }) {
+  // key={`${isScrapOpen}-${savedCategoryIds.join(',')}`} prop이 변경될 때마다 컴포넌트가 리마운트되므로
+  // initialSelectedIds를 그대로 초기값으로 사용 (useEffect 내 setState 불필요 → lint 수정)
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-
-  // 모달이 열릴 때마다 이전에 저장된 상태로 초기화 (저장 안 하고 닫았을 때 대비)
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedIds(initialSelectedIds);
-    }
-  }, [isOpen, initialSelectedIds]);
 
   const toggleCategory = (id: string) => {
     setSelectedIds((prev) =>
@@ -291,9 +286,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   });
 
   const [isScrapOpen, setIsScrapOpen] = useState(false);
-  // [수정] API에서 받아온 초기 스크랩 상태 반영
   const [isScrapped, setIsScrapped] = useState(cafe.isScrapped);
-  const [scrapColor, setScrapColor] = useState(cafe.scrapColor);
   const [savedCategoryIds, setSavedCategoryIds] = useState<string[]>([]);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [scrapCategories, setScrapCategories] = useState<ScrapList[]>([]);
@@ -335,23 +328,32 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
   }, [isScrapOpen, scrapCategories.length, cafeid]);
 
   const handleScrapSave = async (selectedIds: string[]) => {
-    setSavedCategoryIds(selectedIds);
-    if (selectedIds.length > 0) {
-      try {
-        await Promise.all(selectedIds.map(id => postScrapCafe(id, cafeid)));
+    try {
+      // 1. 처음 스크랩하는 경우에만 기본 스크랩 API 전송 (중복 전송 방지)
+      if (!isScrapped) {
+        await postScrapCafeToAll(cafeid);
         setIsScrapped(true);
-        
-        // Update color
-        const firstCat = scrapCategories.find(c => c.scrapId === selectedIds[0]);
-        if (firstCat && firstCat.color) setScrapColor(firstCat.color);
-        
-        setShowSavedToast(true);
-        setTimeout(() => setShowSavedToast(false), 3000);
-      } catch (err) {
-        console.error('스크랩 저장 실패', err);
       }
-    } else {
-      setIsScrapped(false);
+
+      // 2. 새로 추가된 폴더 찾기 (selectedIds에는 있는데 기존 savedCategoryIds에는 없는 것)
+      const addedIds = selectedIds.filter(id => !savedCategoryIds.includes(id));
+      
+      // 3. 체크 해제된 폴더 찾기 (기존 savedCategoryIds에는 있는데 selectedIds에는 없는 것)
+      const removedIds = savedCategoryIds.filter(id => !selectedIds.includes(id));
+
+      // 추가와 삭제를 동시에 병렬로 백엔드 전송
+      await Promise.all([
+        ...addedIds.map(id => postScrapCafe(id, cafeid)),
+        ...removedIds.map(id => deleteScrapCafe(id, cafeid))
+      ]);
+
+      // 프론트엔드 상태 동기화
+      setSavedCategoryIds(selectedIds);
+
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 3000);
+    } catch (err) {
+      console.error('스크랩 저장 실패', err);
     }
   };
 
@@ -462,9 +464,10 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
           onClick={() => setIsScrapOpen(true)}
           className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity pointer-events-auto"
         >
-          {isScrapped && scrapColor ? (
+          {isScrapped ? (
+            // 스크랩 시 항상 RED(#E54B4B) 고정 - 여러 폴더에 담아도 통일감 있게 표시
             <div className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill={STAR_COLORS.find(c => c.value === scrapColor)?.hex || '#E54B4B'} stroke="none" className="drop-shadow-md">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#E54B4B" stroke="none" className="drop-shadow-md">
                 <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
               </svg>
             </div>
@@ -522,7 +525,7 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
         </div>
 
         {/* 기본 정보 */}
-        <div className="px-5 py-6 border-b border-gray-100 border-b-[8px]">
+        <div className="px-5 py-6 border-b-8 border-gray-100">
           <h2 className="text-[16px] font-bold text-gray-900 mb-4">기본 정보</h2>
           <div className="space-y-3.5">
             <div className="flex items-center gap-2.5">
@@ -554,10 +557,12 @@ export default function CafeDetailPage({ params }: { params: Promise<{ cafeid: s
                   </div>
                   */}
                   <div className="w-24 h-24 relative shrink-0 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={menu.image || '/images/common/logo.png'} 
-                      alt={menu.menuName || menu.name || '메뉴 이미지'} 
-                      className={`w-full h-full ${menu.image ? 'object-cover' : 'object-contain p-4'}`}
+                    <Image
+                      src={menu.image || '/images/common/logo.png'}
+                      alt={menu.menuName || menu.name || '메뉴 이미지'}
+                      fill
+                      className={`${menu.image ? 'object-cover' : 'object-contain p-4'}`}
+                      unoptimized
                     />
                   </div>
                   <div className="flex flex-col justify-center">

@@ -1,9 +1,15 @@
 import { axios_instance } from "@/api/axios_instance";
 import { ScrapList, ScrapDetail, StarColor } from "../types";
 
-/** (완료) 카페 스크랩 추가 */
+/** (완료) 카페 스크랩 추가 - 커스텀 폴더에 추가 */
 export const postScrapCafe = async (scrapId: string, cafeId: string) => {
     const response = await axios_instance.post(`/api/scraps/${scrapId}/cafes/${cafeId}`);
+    return response.data;
+};
+
+/** 기본 스크랩에 카페 추가 (POST /api/scraps/all/cafes/{cafeId}) */
+export const postScrapCafeToAll = async (cafeId: string) => {
+    const response = await axios_instance.post(`/api/scraps/all/cafes/${cafeId}`);
     return response.data;
 };
 
