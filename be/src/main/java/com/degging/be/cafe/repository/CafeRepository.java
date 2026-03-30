@@ -6,6 +6,7 @@ import com.degging.be.cafe.entity.CafeVibeTagEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -111,7 +112,14 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
     /**
      * 탐색(Discovery) 탭에서 상위 500개 조회 (실제 카페만)
      */
+    @EntityGraph(attributePaths = {"images"})
     List<CafeEntity> findTop500ByThumbnailUrlIsNotNullAndStatusAndIsCafeTrue(CafeStatus status);
+
+    /**
+     * ID 목록을 기반으로 상세 이미지를 포함하여 조회 (N+1 방지)
+     */
+    @EntityGraph(attributePaths = {"images"})
+    List<CafeEntity> findAllByCafeIdIn(@Param("cafeIds") List<UUID> cafeIds);
 
     /**
      * 온보딩 분석을 위해 필요한 분위기 태그 정보만 선별적으로 조회합니다.
