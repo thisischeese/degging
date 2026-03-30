@@ -147,14 +147,18 @@ public class MemberService {
 
         // 2. Redis에서 일회성(임시) 취향 태그 조회
         List<String> temporaryTags = redisService.getListValues("user:preference:temp:" + userId);
+        // 임시 태그를 먼저 담아서 우선순위를 높임
+        Set<String> mergedTags = new LinkedHashSet<>();
 
-        // 3. 두 리스트 병합 (중복 제거 및 순서 유지)
-        Set<String> mergedTags = new LinkedHashSet<>(permanentTags);
         if (temporaryTags != null) {
             mergedTags.addAll(temporaryTags);
         }
+        // 그 다음 영구 태그를 담음 (중복은 무시됨)
+        mergedTags.addAll(permanentTags);
 
-        return new ArrayList<>(mergedTags);
+        return mergedTags.stream()
+                .limit(3)
+                .toList();
     }
 
     /**
