@@ -16,7 +16,8 @@ export interface CafeDetailData {
   cafeIntro?: string;
   rating: number;
   reviewCount: number;
-  isScrapped: boolean;
+  isScrapped?: boolean;
+  scrapped?: boolean;
   scrapColor: string | null;
   images: string[];
   vibeTags: string[];
