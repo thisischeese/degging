@@ -43,7 +43,7 @@ export interface SearchCafesRequest {
   keyword: string;
   latitude: number;
   longitude: number;
-  mood?: string[]; // 복합 검색일 경우 추가됨
+  mood?: string[]; // 복합 검색일 경우 추가
 }
 
 // 통합 카페 검색 응답 아이템 (마커 및 리스트 공통)
