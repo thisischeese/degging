@@ -267,4 +267,10 @@ public interface CafeRepository extends JpaRepository<CafeEntity, UUID> {
             "AND (c.address LIKE %:region% OR c.roadAddress LIKE %:region%) " +
             "AND c.isCafe = true")
     List<CafeEntity> findAllByNameInAndRegion(@Param("names") List<String> names, @Param("region") String region);
+
+    /**
+     * 재검증을 위해 ID 순으로 다음 배치를 조회합니다. (커서 기반 페이징)
+     */
+    @Query("SELECT c FROM CafeEntity c WHERE c.isCafe = true AND (:lastId IS NULL OR c.cafeId > :lastId) ORDER BY c.cafeId ASC")
+    List<CafeEntity> findNextBatchForRevalidate(@Param("lastId") UUID lastId, Pageable pageable);
 }
