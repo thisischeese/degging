@@ -10,6 +10,7 @@ import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.global.util.ImageUtils;
 import com.degging.be.infra.storage.s3.ImageService;
 import com.degging.be.infra.storage.s3.ImageUploadResult;
+import com.degging.be.scrap.service.ScrapService;
 import com.degging.be.user.dto.request.UserUpdateRequest;
 import com.degging.be.user.dto.response.UserDetailResponse;
 import com.degging.be.user.entity.UserEntity;
@@ -49,6 +50,7 @@ public class MemberService {
     private final UserProfileRepository userProfileRepository;
     private final ImageService imageService;
     private final RedisService redisService;
+    private final ScrapService scrapService;
 
     // 랜덤 생성기
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -88,6 +90,9 @@ public class MemberService {
         user.setProfile(userProfile);
 
         userRepository.save(user);
+
+        // 스크랩 기본 폴더 생성
+        scrapService.createDefaultFolder(user);
 
         // 가입 완료 후 Redis의 인증 성공 플래그 제거
         verificationService.removeVerifiedFlag(request.getEmail());

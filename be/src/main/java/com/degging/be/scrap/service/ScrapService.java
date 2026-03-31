@@ -112,25 +112,39 @@ public class ScrapService {
     }
 
     /**
+     * 스크랩 기본 폴더를 생성하는 메서드 (회원가입 시 기본 생성)
+     */
+    @Transactional
+    public void createDefaultFolder(UserEntity user) {
+        ScrapEntity defaultFolder = ScrapEntity.builder()
+                .user(user)
+                .name("기본 폴더")
+                .color("RED") // 기본 색상 지정
+                .isDefault(true)  // 이 폴더가 기본임을 명시
+                .build();
+
+        scrapRepository.save(defaultFolder);
+    }
+
+    /**
      * 모든 스크랩 모아보기 상세조회 메서드
      */
     public ScrapDetailResponse getAllScrapDetail(UUID userId) {
         getValidUser(userId);
 
-        // 해당 유저의 모든 스크랩 폴더 리스트 조회 (결과가 없으면 빈 리스트 반환)
-        List<ScrapEntity> scrapFolders = scrapRepository.findAllWithCafesByUserId(userId);
+        // 폴더를 거치지 않고 아이템부터 조회
+        List<ScrapItemEntity> allItems = scrapItemRepository.findAllByScrapUserUserId(userId)
+                .orElse(Collections.emptyList());
 
-        // 여러 폴더에 흩어진 카페 아이템들을 하나로 합치기
-        List<ScrapCafeResponse> cafes = scrapFolders.stream()
-                .flatMap(folder -> folder.getScrapItems().stream()) // 각 폴더의 아이템 리스트를 하나의 스트림으로 합침
-                .map(ScrapCafeResponse::toDto)                      // DTO 변환
+        List<ScrapCafeResponse> cafes = allItems.stream()
+                .distinct() // 중복 제거
+                .map(ScrapCafeResponse::toDto)
                 .toList();
 
-        // 전체 보기용 가상 폴더 데이터 반환
         return ScrapDetailResponse.builder()
-                .scrapId(null)          // 전체보기는 특정 ID가 없으므로 null
-                .name("모든 스크랩")     // 화면에 표시될 이름
-                .cafes(cafes)           // 합쳐진 카페 리스트
+                .scrapId(null)
+                .name("모든 스크랩")
+                .cafes(cafes)
                 .build();
     }
 

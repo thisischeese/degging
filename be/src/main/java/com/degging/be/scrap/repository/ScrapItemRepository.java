@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -36,4 +37,7 @@ public interface ScrapItemRepository extends JpaRepository<ScrapItemEntity, UUID
 
     // 중복 확인
     boolean existsByScrapAndCafe(ScrapEntity scrap, CafeEntity cafe);
+
+    // 특정 유저의 스크랩 전체 조회
+    Optional<List<ScrapItemEntity>> findAllByScrapUserUserId(UUID userId);
 }
