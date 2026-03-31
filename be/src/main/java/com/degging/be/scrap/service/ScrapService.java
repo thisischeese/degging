@@ -112,25 +112,39 @@ public class ScrapService {
     }
 
     /**
+     * 스크랩 기본 폴더를 생성하는 메서드 (회원가입 시 기본 생성)
+     */
+    @Transactional
+    public ScrapEntity createDefaultFolder(UserEntity user) {
+        ScrapEntity defaultFolder = ScrapEntity.builder()
+                .user(user)
+                .name("기본 폴더")
+                .color("RED") // 기본 색상 지정
+                .isDefault(true)  // 이 폴더가 기본임을 명시
+                .build();
+
+        return scrapRepository.save(defaultFolder);
+    }
+
+    /**
      * 모든 스크랩 모아보기 상세조회 메서드
      */
     public ScrapDetailResponse getAllScrapDetail(UUID userId) {
         getValidUser(userId);
 
-        // 해당 유저의 모든 스크랩 폴더 리스트 조회 (결과가 없으면 빈 리스트 반환)
-        List<ScrapEntity> scrapFolders = scrapRepository.findAllWithCafesByUserId(userId);
+        // 폴더를 거치지 않고 아이템부터 조회
+        List<ScrapItemEntity> allItems = scrapItemRepository.findAllByScrapUserUserId(userId)
+                .orElse(Collections.emptyList());
 
-        // 여러 폴더에 흩어진 카페 아이템들을 하나로 합치기
-        List<ScrapCafeResponse> cafes = scrapFolders.stream()
-                .flatMap(folder -> folder.getScrapItems().stream()) // 각 폴더의 아이템 리스트를 하나의 스트림으로 합침
-                .map(ScrapCafeResponse::toDto)                      // DTO 변환
+        List<ScrapCafeResponse> cafes = allItems.stream()
+                .distinct() // 중복 제거
+                .map(ScrapCafeResponse::toDto)
                 .toList();
 
-        // 전체 보기용 가상 폴더 데이터 반환
         return ScrapDetailResponse.builder()
-                .scrapId(null)          // 전체보기는 특정 ID가 없으므로 null
-                .name("모든 스크랩")     // 화면에 표시될 이름
-                .cafes(cafes)           // 합쳐진 카페 리스트
+                .scrapId(null)
+                .name("모든 스크랩")
+                .cafes(cafes)
                 .build();
     }
 
@@ -235,6 +249,63 @@ public class ScrapService {
     }
 
     /**
+     * 기본 스크랩 폴더에 카페를 추가하는 메서드
+     */
+    @Transactional
+    public void addCafeToDefaultScrap(UUID userId, UUID cafeId){
+        // 카페, 유저, 스크랩 유효성 검사
+        UserEntity user = getValidUser(userId);
+        ScrapEntity scrap = scrapRepository.findByUserUserIdAndIsDefaultTrue(userId)
+                .orElseGet(() -> createDefaultFolder(user));
+
+        CafeEntity cafe = cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        // 스크랩에 존재하는 카페인지 중복확인
+        if (scrapItemRepository.existsByScrapAndCafe(scrap, cafe)) {
+            throw new BaseException(ScrapErrorCode.CAFE_ALREADY_SCRAPPED);
+        }
+
+        // ScrapItemEntity 생성
+        ScrapItemEntity entity = ScrapItemEntity.builder()
+                .scrap(scrap)
+                .cafe(cafe)
+                .build();
+        // 스크랩에 카페 추가
+        scrap.addScrapItem(entity);
+        scrapItemRepository.save(entity);
+
+        // 썸네일 동기화 (최신 4장 가져옴)
+        syncScrapThumbnails(scrap);
+    }
+
+    // 기본 스크랩에서 카페를 삭제하는 메서드
+    @Transactional
+    public void removeCafeFromDefaultScrap(UUID userId, UUID cafeId) {
+        // 유효성 검사
+        getValidUser(userId);
+        cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        ScrapEntity scrap = scrapRepository.findByUserUserIdAndIsDefaultTrue(userId)
+                .orElseThrow(()-> new BaseException(ScrapErrorCode.DEFAULT_SCRAP_NOT_FOUND));
+
+        // 스크랩에 카페가 있는지 확인
+        if (!scrapItemRepository.existsByScrap_User_UserIdAndScrap_IsDefaultTrueAndCafe_CafeId(userId, cafeId)){
+            throw new BaseException(ScrapErrorCode.CAFE_NOT_IN_SCRAP);
+        };
+
+        // 기본 스크랩에서 해당 카페를 삭제
+        scrapItemRepository.deleteDefaultScrapItem(userId, cafeId);
+
+        // 변경된 scrapEntity 를 조회
+        ScrapEntity freshScrap = scrapRepository.findByUserUserIdAndIsDefaultTrue(userId)
+                .orElseThrow(() -> new BaseException(ScrapErrorCode.DEFAULT_SCRAP_NOT_FOUND));
+
+        // 썸네일 동기화 (해당 카페가 삭제된 후 남은 최신 4장으로 갱신)
+        syncScrapThumbnails(freshScrap);
+    }
+    /**
      * 스크랩에서 카페를 삭제하는 메서드 (스크랩 취소)
      */
     @Transactional
@@ -243,15 +314,22 @@ public class ScrapService {
         UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
         validateUser(user, scrap);
+        CafeEntity cafe = cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        // 스크랩에 카페가 있는지 확인
+        if (!scrapItemRepository.existsByScrapAndCafe(scrap, cafe)){
+            throw new BaseException(ScrapErrorCode.CAFE_NOT_IN_SCRAP);
+        };
 
         // scrap 에서 cafe 삭제
         scrapItemRepository.deleteByScrap_ScrapIdAndCafe_CafeId(scrapId, cafeId);
 
-        // 영속성 컨텍스트 플러시 (DB에 삭제 쿼리 즉시 반영)
-        scrapItemRepository.flush();
+        // 변경 사항이 반영된 scrapEntity 조회
+        ScrapEntity freshScrap = getValidScrap(scrapId);
 
         // 썸네일 동기화 (해당 카페가 삭제된 후 남은 최신 4장으로 갱신)
-        syncScrapThumbnails(scrap);
+        syncScrapThumbnails(freshScrap);
     }
 
     /**
@@ -321,4 +399,5 @@ public class ScrapService {
         return scrapRepository.findById(scrapId)
                 .orElseThrow(()-> new BaseException(ScrapErrorCode.SCRAP_NOT_FOUND));
     }
+
 }

@@ -44,6 +44,11 @@ public class ScrapEntity extends BaseEntity {
 
     @Column(nullable = false, length = 20)
     private String color;
+
+    // 기본폴더 여부
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean isDefault = false;
     
     // 스크랩에 포함된 항목(카페) 리스트
     @Builder.Default

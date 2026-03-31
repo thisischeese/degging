@@ -21,13 +21,6 @@ public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
     // 특정 사용자의 스크랩 리스트 조회
     List<ScrapEntity> findAllByUserUserId(UUID user_userId);
 
-    // 특정 사용자의 스크랩 전체 상세 조회
-    @Query("SELECT DISTINCT s FROM ScrapEntity s " +
-            "LEFT JOIN FETCH s.scrapItems si " + // 스크랩 아이템(중간 테이블) 조인
-            "LEFT JOIN FETCH si.cafe c " +       // 실제 카페 정보 조인
-            "WHERE s.user.userId = :userId " +   // 로그인한 사용자의 것만
-            "ORDER BY s.createdAt DESC")         // 최신순 정렬
-    List<ScrapEntity> findAllWithCafesByUserId(@Param("userId") UUID userId);
 
     // 스크랩 상세 조회 (카페 정보 포함)
     @Query("SELECT s FROM ScrapEntity s " +
@@ -61,4 +54,6 @@ public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
             "AND si.cafe.cafeId = :cafeId")
     String findScrapColorByUserIdAndCafeId(@Param("userId") UUID userId, @Param("cafeId") UUID cafeId);
 
+    // 기본 폴더 조회
+    Optional<ScrapEntity> findByUserUserIdAndIsDefaultTrue(UUID userId);
 }

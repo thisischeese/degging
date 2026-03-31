@@ -16,6 +16,7 @@ public enum ScrapErrorCode implements ErrorCode{
     SCRAP_ACCESS_DENIED(HttpStatus.FORBIDDEN, "S002", "해당 스크랩에 대한 접근 권한이 없습니다."),
     SCRAP_NAME_DUPLICATED(HttpStatus.CONFLICT, "S003", "이미 동일한 이름의 스크랩 폴더가 존재합니다."),
     SCRAP_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "S004", "생성 가능한 스크랩 폴더 개수를 초과했습니다."),
+    DEFAULT_SCRAP_NOT_FOUND(HttpStatus.NOT_FOUND, "S005", "기본 스크랩 폴더를 찾을 수 없습니다."),
 
     // --- 스크랩 내 카페 관련 ---
     CAFE_ALREADY_SCRAPPED(HttpStatus.CONFLICT, "S101", "이미 이 스크랩 폴더에 추가된 카페입니다."),
