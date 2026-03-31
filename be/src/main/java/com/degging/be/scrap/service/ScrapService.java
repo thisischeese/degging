@@ -279,6 +279,32 @@ public class ScrapService {
         syncScrapThumbnails(scrap);
     }
 
+    // 기본 스크랩에서 카페를 삭제하는 메서드
+    @Transactional
+    public void removeCafeFromDefaultScrap(UUID userId, UUID cafeId) {
+        // 유효성 검사
+        getValidUser(userId);
+        cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        ScrapEntity scrap = scrapRepository.findByUserUserIdAndIsDefaultTrue(userId)
+                .orElseThrow(()-> new BaseException(ScrapErrorCode.DEFAULT_SCRAP_NOT_FOUND));
+
+        // 스크랩에 카페가 있는지 확인
+        if (!scrapItemRepository.existsByScrap_User_UserIdAndScrap_IsDefaultTrueAndCafe_CafeId(userId, cafeId)){
+            throw new BaseException(ScrapErrorCode.CAFE_NOT_IN_SCRAP);
+        };
+
+        // 기본 스크랩에서 해당 카페를 삭제
+        scrapItemRepository.deleteDefaultScrapItem(userId, cafeId);
+
+        // 변경된 scrapEntity 를 조회
+        ScrapEntity freshScrap = scrapRepository.findByUserUserIdAndIsDefaultTrue(userId)
+                .orElseThrow(() -> new BaseException(ScrapErrorCode.DEFAULT_SCRAP_NOT_FOUND));
+
+        // 썸네일 동기화 (해당 카페가 삭제된 후 남은 최신 4장으로 갱신)
+        syncScrapThumbnails(freshScrap);
+    }
     /**
      * 스크랩에서 카페를 삭제하는 메서드 (스크랩 취소)
      */
@@ -288,15 +314,22 @@ public class ScrapService {
         UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
         validateUser(user, scrap);
+        CafeEntity cafe = cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        // 스크랩에 카페가 있는지 확인
+        if (!scrapItemRepository.existsByScrapAndCafe(scrap, cafe)){
+            throw new BaseException(ScrapErrorCode.CAFE_NOT_IN_SCRAP);
+        };
 
         // scrap 에서 cafe 삭제
         scrapItemRepository.deleteByScrap_ScrapIdAndCafe_CafeId(scrapId, cafeId);
 
-        // 영속성 컨텍스트 플러시 (DB에 삭제 쿼리 즉시 반영)
-        scrapItemRepository.flush();
+        // 변경 사항이 반영된 scrapEntity 조회
+        ScrapEntity freshScrap = getValidScrap(scrapId);
 
         // 썸네일 동기화 (해당 카페가 삭제된 후 남은 최신 4장으로 갱신)
-        syncScrapThumbnails(scrap);
+        syncScrapThumbnails(freshScrap);
     }
 
     /**
@@ -366,4 +399,5 @@ public class ScrapService {
         return scrapRepository.findById(scrapId)
                 .orElseThrow(()-> new BaseException(ScrapErrorCode.SCRAP_NOT_FOUND));
     }
+
 }
