@@ -1,6 +1,6 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
+import com.degging.be.infra.ai.dto.response.AiCrawlerItemResponse;
 import com.degging.be.cafe.entity.*;
 import com.degging.be.cafe.repository.*;
 import com.degging.be.review.entity.ReviewEntity;

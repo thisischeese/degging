@@ -1,7 +1,7 @@
 package com.degging.be.cafe.entity;
 
-import com.degging.be.cafe.dto.response.external.KakaoPlaceItem;
-import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
+import com.degging.be.infra.external.dto.response.KakaoPlaceItem;
+import com.degging.be.infra.external.dto.response.StoreListInUpjongItem;
 import com.degging.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;

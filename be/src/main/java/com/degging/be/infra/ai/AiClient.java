@@ -1,9 +1,9 @@
 package com.degging.be.infra.ai;
 
-import com.degging.be.cafe.dto.request.AiCrawlerRequestDto;
-import com.degging.be.cafe.dto.request.AiSearchRequest;
-import com.degging.be.cafe.dto.response.external.AiCrawlerResponse;
-import com.degging.be.cafe.dto.response.external.AiSearchResponse;
+import com.degging.be.infra.ai.dto.request.AiCrawlerRequestDto;
+import com.degging.be.infra.ai.dto.request.AiSearchRequest;
+import com.degging.be.infra.ai.dto.response.AiCrawlerResponse;
+import com.degging.be.infra.ai.dto.response.AiSearchResponse;
 import com.degging.be.discovery.dto.request.AIDiscoveryRequest;
 import com.degging.be.discovery.dto.response.AIDiscoveryResponse;
 import com.degging.be.global.exception.BaseException;

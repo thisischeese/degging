@@ -1,9 +1,9 @@
 package com.degging.be.cafe.service;
 
 import com.degging.be.infra.ai.AiClient;
-import com.degging.be.cafe.dto.request.AiCrawlerRequestDto;
-import com.degging.be.cafe.dto.response.external.AiCrawlerItemResponse;
-import com.degging.be.cafe.dto.response.external.AiCrawlerResponse;
+import com.degging.be.infra.ai.dto.request.AiCrawlerRequestDto;
+import com.degging.be.infra.ai.dto.response.AiCrawlerItemResponse;
+import com.degging.be.infra.ai.dto.response.AiCrawlerResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;
 import lombok.RequiredArgsConstructor;
