@@ -54,4 +54,6 @@ public interface ScrapRepository extends JpaRepository<ScrapEntity, UUID> {
             "AND si.cafe.cafeId = :cafeId")
     String findScrapColorByUserIdAndCafeId(@Param("userId") UUID userId, @Param("cafeId") UUID cafeId);
 
+    // 기본 폴더 조회
+    Optional<ScrapEntity> findByUserUserIdAndIsDefaultTrue(UUID userId);
 }

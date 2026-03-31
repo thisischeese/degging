@@ -122,6 +122,24 @@ public class ScrapController {
     }
 
     /**
+     * 기본 스크랩에 특정 카페를 추가하는 메서드
+     * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
+     * @param cafeId 추가하려는 카페 ID
+     * @return 200
+     */
+    @PostMapping("/all/{cafeId}")
+    public BaseResponse<?> addCafeToDefaultScrap(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable(value = "cafeId") UUID cafeId) {
+
+        UUID userId = getUserId(user);
+        // Service 단계에서 해당 유저의 'isDefault'가 true인 스크랩을 찾아 처리하도록 넘김
+        scrapService.addCafeToDefaultScrap(userId, cafeId);
+
+        return BaseResponse.success();
+    }
+
+    /**
      * 특점 스크랩에 특정 카페를 추가하는 메서드
      * @param user JWT 에서 꺼낸 로그인 정보 (인증된 사용자)
      * @param scrapId 카페를 추가하려는 스크랩 ID

@@ -115,7 +115,7 @@ public class ScrapService {
      * 스크랩 기본 폴더를 생성하는 메서드 (회원가입 시 기본 생성)
      */
     @Transactional
-    public void createDefaultFolder(UserEntity user) {
+    public ScrapEntity createDefaultFolder(UserEntity user) {
         ScrapEntity defaultFolder = ScrapEntity.builder()
                 .user(user)
                 .name("기본 폴더")
@@ -123,7 +123,7 @@ public class ScrapService {
                 .isDefault(true)  // 이 폴더가 기본임을 명시
                 .build();
 
-        scrapRepository.save(defaultFolder);
+        return scrapRepository.save(defaultFolder);
     }
 
     /**
@@ -240,6 +240,37 @@ public class ScrapService {
                         .scrap(scrap)
                         .cafe(cafe)
                         .build();
+        // 스크랩에 카페 추가
+        scrap.addScrapItem(entity);
+        scrapItemRepository.save(entity);
+
+        // 썸네일 동기화 (최신 4장 가져옴)
+        syncScrapThumbnails(scrap);
+    }
+
+    /**
+     * 기본 스크랩 폴더에 카페를 추가하는 메서드
+     */
+    @Transactional
+    public void addCafeToDefaultScrap(UUID userId, UUID cafeId){
+        // 카페, 유저, 스크랩 유효성 검사
+        UserEntity user = getValidUser(userId);
+        ScrapEntity scrap = scrapRepository.findByUserUserIdAndIsDefaultTrue(userId)
+                .orElseGet(() -> createDefaultFolder(user));
+
+        CafeEntity cafe = cafeRepository.findById(cafeId)
+                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
+
+        // 스크랩에 존재하는 카페인지 중복확인
+        if (scrapItemRepository.existsByScrapAndCafe(scrap, cafe)) {
+            throw new BaseException(ScrapErrorCode.CAFE_ALREADY_SCRAPPED);
+        }
+
+        // ScrapItemEntity 생성
+        ScrapItemEntity entity = ScrapItemEntity.builder()
+                .scrap(scrap)
+                .cafe(cafe)
+                .build();
         // 스크랩에 카페 추가
         scrap.addScrapItem(entity);
         scrapItemRepository.save(entity);
