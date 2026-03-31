@@ -1,4 +1,4 @@
-package com.degging.be.cafe.dto.response.external;
+package com.degging.be.infra.ai.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;

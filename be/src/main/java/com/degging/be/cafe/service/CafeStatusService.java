@@ -1,8 +1,8 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.client.SeoulFoodApiClient;
-import com.degging.be.cafe.dto.response.external.SeoulFoodItem;
-import com.degging.be.cafe.dto.response.external.SeoulFoodResponse;
+import com.degging.be.infra.external.client.SeoulFoodApiClient;
+import com.degging.be.infra.external.dto.response.SeoulFoodItem;
+import com.degging.be.infra.external.dto.response.SeoulFoodResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.entity.CafeStatus;
 import com.degging.be.cafe.repository.CafeRepository;

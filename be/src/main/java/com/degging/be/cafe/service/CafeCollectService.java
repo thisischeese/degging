@@ -1,8 +1,8 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.client.CommercialStoreApiClient;
-import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
-import com.degging.be.cafe.dto.response.external.StoreListInUpjongResponse;
+import com.degging.be.infra.external.client.CommercialStoreApiClient;
+import com.degging.be.infra.external.dto.response.StoreListInUpjongItem;
+import com.degging.be.infra.external.dto.response.StoreListInUpjongResponse;
 import com.degging.be.cafe.repository.CafeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

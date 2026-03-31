@@ -1,5 +1,6 @@
-package com.degging.be.cafe.dto.request;
+package com.degging.be.infra.ai.dto.request;
 
+import com.degging.be.cafe.dto.request.CafeSearchRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

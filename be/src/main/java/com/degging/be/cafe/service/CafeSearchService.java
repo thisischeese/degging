@@ -1,8 +1,8 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.dto.request.AiSearchRequest;
+import com.degging.be.infra.ai.dto.request.AiSearchRequest;
 import com.degging.be.cafe.dto.request.CafeSearchRequest;
-import com.degging.be.cafe.dto.response.external.AiSearchResponse;
+import com.degging.be.infra.ai.dto.response.AiSearchResponse;
 import com.degging.be.cafe.dto.response.internal.CafeSearchResponse;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;

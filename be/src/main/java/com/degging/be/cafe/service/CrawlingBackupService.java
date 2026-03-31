@@ -1,6 +1,6 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.dto.response.external.AiCrawlerResponse;
+import com.degging.be.infra.ai.dto.response.AiCrawlerResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;

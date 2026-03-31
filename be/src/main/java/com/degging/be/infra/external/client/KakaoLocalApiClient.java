@@ -1,6 +1,6 @@
-package com.degging.be.cafe.client;
+package com.degging.be.infra.external.client;
 
-import com.degging.be.cafe.dto.response.external.KakaoPlaceResponse;
+import com.degging.be.infra.external.dto.response.KakaoPlaceResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;

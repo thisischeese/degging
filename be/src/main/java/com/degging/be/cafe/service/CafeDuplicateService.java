@@ -1,9 +1,9 @@
 package com.degging.be.cafe.service;
 
-import com.degging.be.cafe.client.KakaoLocalApiClient;
-import com.degging.be.cafe.dto.response.external.KakaoPlaceItem;
-import com.degging.be.cafe.dto.response.external.KakaoPlaceResponse;
-import com.degging.be.cafe.dto.response.external.StoreListInUpjongItem;
+import com.degging.be.infra.external.client.KakaoLocalApiClient;
+import com.degging.be.infra.external.dto.response.KakaoPlaceItem;
+import com.degging.be.infra.external.dto.response.KakaoPlaceResponse;
+import com.degging.be.infra.external.dto.response.StoreListInUpjongItem;
 import com.degging.be.cafe.entity.CafeCategory;
 import com.degging.be.cafe.entity.CafeEntity;
 import com.degging.be.cafe.repository.CafeRepository;

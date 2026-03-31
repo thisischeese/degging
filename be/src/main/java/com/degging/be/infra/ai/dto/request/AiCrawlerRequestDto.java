@@ -1,4 +1,4 @@
-package com.degging.be.cafe.dto.request;
+package com.degging.be.infra.ai.dto.request;
 
 import com.degging.be.cafe.entity.CafeEntity;
 import com.fasterxml.jackson.annotation.JsonProperty;
