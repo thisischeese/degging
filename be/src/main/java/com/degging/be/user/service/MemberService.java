@@ -72,7 +72,7 @@ public class MemberService {
         validateSignupRequest(request);
 
         // A/B 테스트 그룹 배정
-        Character group = getLesserGroup();
+        Character group = generateAbGroup();
 
         // 비밀번호 암호화 후 엔티티 생성
         UserEntity user = UserEntity.builder()
@@ -101,21 +101,10 @@ public class MemberService {
     }
 
     /**
-     * A/B 중 더 적은 그룹을 반환하는 메서드
+     * A/B 중 하나로 배정하는 메서드 (대수의 법칙에 따라 1:1 비율로 수렴)
      */
-    public Character getLesserGroup(){
-        // 현재 회원의 비율을 조회하여 1:1 에 가깝도록 A/B 테스트 그룹 랜덤 배정
-        long countA = userRepository.countByAbGroup('A');
-        long countB = userRepository.countByAbGroup('B');
-        long total = countA + countB;
-
-        if (total == 0) return Math.random() < 0.5 ? 'A' : 'B';
-
-        // A의 비율이 높을수록 B가 선택될 확률이 커짐
-        // 예: A가 60명, B가 40명이면 B가 선택될 확률은 60%
-        double probabilityA = 1.0 - ((double) countA / total);
-
-        return Math.random() < probabilityA ? 'A' : 'B';
+    public Character generateAbGroup(){
+        return Math.random() < 0.5 ? 'A' : 'B';
     }
 
     /**
