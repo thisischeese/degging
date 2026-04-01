@@ -5,6 +5,7 @@ import com.degging.be.review.entity.ReviewImageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,4 +21,6 @@ public interface ReviewImageRepository extends JpaRepository<ReviewImageEntity, 
     // 특정 이미지
     // Review 의 이미지 개수 조회
     int countByReview(ReviewEntity review);
+
+    List<ReviewImageEntity> findByReviewReviewIdIn(Collection<UUID> reviewReviewIds);
 }
