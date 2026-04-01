@@ -3,7 +3,7 @@
 import { useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { pushGtmEvent } from "@/lib/abTest";
+import { pushGtmEvent, getAbGroup } from "@/lib/abTest";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getDiscoveryCafes } from "@/features/discovery/api/discoveryApi";
 import { getImageUrl } from "@/common/utils/image";
@@ -53,16 +53,24 @@ export default function DiscoveryPage() {
   // 머무른 시간 측정 (GTM)
   useEffect(() => {
     const startTime = Date.now();
+    const group = getAbGroup();
     return () => {
       const dwellTime = Math.round((Date.now() - startTime) / 1000);
       if (dwellTime > 1) {
-        pushGtmEvent('discovery_dwell_time', { duration_seconds: dwellTime });
+        pushGtmEvent('discovery_dwell_time', { 
+          duration_seconds: dwellTime,
+          ab_group: group
+        });
       }
     };
   }, []);
 
   const handleImageClick = (cafeId: string) => {
-    pushGtmEvent('discovery_item_click', { cafe_id: cafeId });
+    const group = getAbGroup();
+    pushGtmEvent('discovery_item_click', { 
+      cafe_id: cafeId,
+      ab_group: group
+    });
     router.push(`/cafes/${cafeId}`);
   };
 
