@@ -74,3 +74,8 @@ export const getUserPreferences = async (): Promise<string[]> => {
     const response = await axios_instance.get<BaseResponse<string[]>>('/api/users/preferences') as unknown as BaseResponse<string[]>;
     return response.data;
 };
+
+/** 9. 임시 취향 태그 추가 */
+export const addTemporaryTag = async (data: { tags: string[] }): Promise<BaseResponse<null>> => {
+    return axios_instance.post<BaseResponse<null>>('/api/users/tags/temporary', data) as unknown as Promise<BaseResponse<null>>;
+};

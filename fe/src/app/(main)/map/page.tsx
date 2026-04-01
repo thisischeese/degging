@@ -7,7 +7,8 @@ import { StaticImageData } from 'next/image';
 import { Search, LocateFixed } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
 // 기존 코드 유지: import { useSuspenseQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+// import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Chip } from '@/common/components/Chip';
 import { Dropdown } from '@/common/components/Dropdown';
 import { CafeCard } from '@/common/components/CafeCard';
@@ -15,7 +16,8 @@ import BottomNav from '@/common/components/BottomNav';
 import { useMapStore } from '@/store/useMapStore';
 import { getCafeMarkers, getCafeBottomSheetList } from '@/features/map/api/mapApi';
 import { searchCafes } from '@/features/cafes/api/cafeApi';
-import { getUserPreferences } from '@/features/users/api/userApi';
+// import { getUserPreferences } from '@/features/users/api/userApi';
+import { getUserPreferences, addTemporaryTag } from '@/features/users/api/userApi';
 import { CafeMarker, CafeBottomSheetItem } from '@/features/map/types';
 import { SearchCafeItem } from '@/features/cafes/types';
 
@@ -26,6 +28,15 @@ const SORT_OPTIONS = [
   { value: 'RATING', label: '별점순' },
   { value: 'REVIEW_COUNT', label: '리뷰많은순' },
   { value: 'DISTANCE', label: '거리순' },
+];
+
+// [추가] 임시 취향 태그 옵션
+const TAG_OPTIONS = [
+  { value: '우드톤/따뜻함', label: '우드톤/따뜻함' },
+  { value: '식물원/플랜테리어', label: '식물원/플랜테리어' },
+  { value: '힙한', label: '힙한' },
+  { value: '조용한/차분한', label: '조용한/차분한' },
+  { value: '탁트인/뷰 좋은', label: '탁트인/뷰 좋은' },
 ];
 
 const formatDistance = (meters: number) => {
@@ -91,6 +102,19 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
     queryKey: ['userPreferences'],
     queryFn: getUserPreferences,
   });
+
+  // [추가] 임시 취향 태그 추가 뮤테이션
+  const queryClient = useQueryClient();
+  const { mutate: addTag } = useMutation({
+    mutationFn: addTemporaryTag,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userPreferences'] });
+    }
+  });
+
+  const handleAddTag = (tag: string) => {
+    addTag({ tags: [tag] });
+  };
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -587,9 +611,21 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
 
         <div className="px-4 pb-2 flex items-center gap-2">
           {/* 가로 스크롤 고정 필터 추가 버튼 */}
+          {/* 기존 코드 보존:
           <button className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-[#DBC9AD] shadow-sm">
             <Image src="/images/map/tagPlusIcon.png" alt="태그 추가" width={20} height={20} className="w-5 h-5 object-contain" />
           </button>
+          */}
+          <Dropdown
+            options={TAG_OPTIONS}
+            value="" // 초기 선택값 없음
+            onChange={handleAddTag}
+            triggerNode={
+              <button className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-[#DBC9AD] shadow-sm">
+                <Image src="/images/map/tagPlusIcon.png" alt="태그 추가" width={20} height={20} className="w-5 h-5 object-contain" />
+              </button>
+            }
+          />
 
           {/* 스크롤 가능한 칩 리스트 */}
           <div className="flex-1 overflow-x-auto no-scrollbar">
