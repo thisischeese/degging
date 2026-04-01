@@ -50,7 +50,10 @@ export default function MainPage() {
       clearTimeout(timer);
       const dwellTime = Math.round((Date.now() - startTime) / 1000);
       if (dwellTime > 1) {
-        pushGtmEvent('main_page_dwell_time', { duration_seconds: dwellTime });
+        pushGtmEvent('main_page_dwell_time', { 
+          duration_seconds: dwellTime,
+          ab_group: getAbGroup() 
+        });
       }
     };
   }, []);
@@ -137,7 +140,10 @@ export default function MainPage() {
       e.preventDefault();
       return;
     }
-    pushGtmEvent('curation_click', { curation_id: itemId });
+    pushGtmEvent('curation_click', { 
+      curation_id: itemId,
+      ab_group: activeGroup
+    });
     router.push(path);
   };
 
@@ -387,7 +393,11 @@ export default function MainPage() {
               <div 
                 key={index}
                 onClick={() => {
-                  pushGtmEvent('ranking_click', { keyword: item.keyword, rank: item.rank });
+                  pushGtmEvent('ranking_click', { 
+                    keyword: item.keyword, 
+                    rank: item.rank,
+                    ab_group: activeGroup
+                  });
                   handleSearch(item.keyword);
                 }}
                 className="flex items-center gap-4 px-4 py-3.5 border-b border-gray-50 last:border-none active:bg-gray-50 transition-colors cursor-pointer group"
