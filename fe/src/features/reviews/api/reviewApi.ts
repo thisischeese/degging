@@ -252,7 +252,14 @@ export const postCafeReview = async (
 ): Promise<PostReviewResponse> => {
   // 파일 전송을 위해 FormData 객체를 생성합니다.
   const formData = new FormData();
+  
+  /* 기존 코드 보존
   formData.append('rating', payload.rating.toString());
+  */
+  // [수정] 백엔드 short 타입(정수)에 맞추기 위해 별점을 소수점 반올림 처리
+  const roundedRating = Math.round(payload.rating);
+  formData.append('rating', roundedRating.toString());
+  
   formData.append('content', payload.content);
   formData.append('cafeId', payload.cafeId);
 
