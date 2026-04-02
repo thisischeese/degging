@@ -137,14 +137,14 @@ export const getMyReviews = async (
     // [수정] 내 리뷰 목록 썸네일 경로에 BaseURL 결합 처리
     const responseData = response.data;
     const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
-    
+
     const transformedContent = responseData.content.map((review: Review) => {
       const rawPath = review.thumbnailImage;
       // 주소가 이미 http로 시작하면 그대로 두고, 아니면 baseUrl을 강제로 결합
-      const fullUrl = (rawPath && !rawPath.startsWith('http') && !rawPath.startsWith('blob:')) 
+      const fullUrl = (rawPath && !rawPath.startsWith('http') && !rawPath.startsWith('blob:'))
         ? `${baseUrl}/${rawPath.startsWith('/') ? rawPath.slice(1) : rawPath}`
         : rawPath || '/images/common/logo.png';
-      
+
       return { ...review, thumbnailImage: fullUrl };
     });
 
@@ -235,16 +235,6 @@ export const postCafeReview = async (
 };
 
 // 리뷰 상세 데이터를 조회하는 함수입니다.
-/* 기존 코드 보존:
-export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailResponse> => {
-  const response = (await axios_instance.get<BaseResponse<ReviewDetailResponse>>(
-    `/api/reviews/${reviewId}`
-  )) as unknown as BaseResponse<ReviewDetailResponse>;
-
-  return response.data;
-};
-*/
-
 export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailResponse> => {
   const response = (await axios_instance.get<BaseResponse<ReviewDetailResponse>>(
     `/api/reviews/${reviewId}`
@@ -273,4 +263,13 @@ export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailRes
   }
 
   return data;
+};
+
+// [추가] 선택한 리뷰를 영구 삭제하는 API 함수입니다.
+export const deleteReview = async (reviewId: string): Promise<BaseResponse<null>> => {
+  const response = (await axios_instance.delete<BaseResponse<null>>(
+    `/api/reviews/${reviewId}`
+  )) as unknown as BaseResponse<null>;
+
+  return response;
 };
