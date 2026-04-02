@@ -108,25 +108,30 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   const { mutate: addTag } = useMutation({
     mutationFn: addTemporaryTag,
     onSuccess: () => {
-      // API 호출 성공 후 즉시 무효화하여 화면 갱신
-      queryClient.invalidateQueries({ queryKey: ["userPreferences"] });
+      // [수정] 서버 반영 시간(Race Condition)을 고려하여 300ms 지연 후 쿼리 무효화
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["userPreferences"] });
+      }, 300);
     },
   });
 
   /* 기존 코드 보존
   const handleAddTag = (tag: string) => {
-    addTag({ tags: [tag] });
+    if (userTags.includes(tag)) {
+      return; // 중복 추가 방지
+    }
+    const accumulatedTags = [...userTags, tag];
+    addTag({ tags: accumulatedTags });
   };
   */
 
-  // [수정] 태그 누적(다중 태그) 로직 및 중복 체크
+  // [수정] 신규 태그 하나만 전송하도록 복구 및 중복 체크 유지
   const handleAddTag = (tag: string) => {
     if (userTags.includes(tag)) {
       return; // 중복 추가 방지
     }
-    // 기존 태그 유지하며 새로 선택된 태그 배열 생성
-    const accumulatedTags = [...userTags, tag];
-    addTag({ tags: accumulatedTags });
+    // 방금 드롭다운에서 선택한 '신규 태그' 하나만 배열에 담아 전송
+    addTag({ tags: [tag] });
   };
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
