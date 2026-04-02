@@ -108,12 +108,25 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
   const { mutate: addTag } = useMutation({
     mutationFn: addTemporaryTag,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userPreferences'] });
-    }
+      // API 호출 성공 후 즉시 무효화하여 화면 갱신
+      queryClient.invalidateQueries({ queryKey: ["userPreferences"] });
+    },
   });
 
+  /* 기존 코드 보존
   const handleAddTag = (tag: string) => {
     addTag({ tags: [tag] });
+  };
+  */
+
+  // [수정] 태그 누적(다중 태그) 로직 및 중복 체크
+  const handleAddTag = (tag: string) => {
+    if (userTags.includes(tag)) {
+      return; // 중복 추가 방지
+    }
+    // 기존 태그 유지하며 새로 선택된 태그 배열 생성
+    const accumulatedTags = [...userTags, tag];
+    addTag({ tags: accumulatedTags });
   };
 
   // 1. 지도 인스턴스와 마커들을 관리할 Ref
@@ -616,6 +629,7 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
             <Image src="/images/map/tagPlusIcon.png" alt="태그 추가" width={20} height={20} className="w-5 h-5 object-contain" />
           </button>
           */}
+          {/* 기존 코드 보존:
           <Dropdown
             options={TAG_OPTIONS}
             value="" // 초기 선택값 없음
@@ -626,6 +640,21 @@ function MapContent({ initialCenter }: { initialCenter: { lat: number; lng: numb
               </button>
             }
           />
+          */}
+          {/* [수정] 컨테이너에 relative와 z-index 부여, 드롭다운은 left-0, top-[110%]로 정확히 안착 */}
+          <div className="relative z-[100]">
+            <Dropdown
+              options={TAG_OPTIONS}
+              value="" // 초기 선택값 없음
+              onChange={handleAddTag}
+              className="[&_.absolute]:!left-0 [&_.absolute]:!right-auto [&_.absolute]:!top-[110%]"
+              triggerNode={
+                <button className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-[#DBC9AD] shadow-sm">
+                  <Image src="/images/map/tagPlusIcon.png" alt="태그 추가" width={20} height={20} className="w-5 h-5 object-contain" />
+                </button>
+              }
+            />
+          </div>
 
           {/* 스크롤 가능한 칩 리스트 */}
           <div className="flex-1 overflow-x-auto no-scrollbar">
