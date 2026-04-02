@@ -148,6 +148,25 @@ export const getMyReviews = async (
       return { ...review, thumbnailImage: fullUrl };
     });
 
+    // [추가/수정] 서버 데이터 조회 성공 시 로컬 중복(유령) 데이터 완전 제거 방어 로직
+    if (typeof window !== 'undefined' && responseData && Array.isArray(responseData.content)) {
+      const serverIds = responseData.content.map((r: Review) => r.reviewId);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cafeReviews-')) {
+          try {
+            const raw = localStorage.getItem(key);
+            const localReviews = raw ? JSON.parse(raw) : [];
+            const filtered = localReviews.filter((r: any) => !serverIds.includes(r.id));
+            if (filtered.length !== localReviews.length) {
+              if (filtered.length === 0) localStorage.removeItem(key);
+              else localStorage.setItem(key, JSON.stringify(filtered));
+            }
+          } catch(e) {}
+        }
+      }
+    }
+
     return { ...responseData, content: transformedContent };
   } catch (error) {
     console.warn("Falling back to mock my-reviews data:", error);
@@ -192,6 +211,26 @@ export const getCafeReviews = async (
       }
       return review;
     });
+
+    // [추가/수정] 카페의 서버 리뷰 목록을 성공적으로 받아왔다면, 이 카페의 로컬 리뷰 중복 데이터 제거
+    if (typeof window !== 'undefined') {
+      const serverIds = data.content.map(r => r.reviewId);
+      const key = `cafeReviews-${cafeId}`;
+      try {
+        const rawData = localStorage.getItem(key);
+        if (rawData) {
+          const localReviews = JSON.parse(rawData);
+          const filteredReviews = localReviews.filter((r: any) => !serverIds.includes(r.id));
+          if (filteredReviews.length !== localReviews.length) {
+            if (filteredReviews.length === 0) {
+              localStorage.removeItem(key);
+            } else {
+              localStorage.setItem(key, JSON.stringify(filteredReviews));
+            }
+          }
+        }
+      } catch(e) {}
+    }
   }
 
   return data; // 서버 응답에서 실제 데이터(content, hasNext, page)만 추출하여 반환
@@ -231,6 +270,12 @@ export const postCafeReview = async (
     }
   )) as unknown as BaseResponse<PostReviewResponse>;
 
+  // [추가/수정] 리뷰 작성 서버 API 등록 성공 시, 작성 중이던 모든 로컬 임시 데이터 즉시 무조건 소거
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(`cafeReviews-${cafeId}`);
+    localStorage.removeItem('cafeReviews-mock');
+  }
+
   return response.data; // 등록된 리뷰 상세 데이터(reviewId 포함)를 반환
 };
 
@@ -262,6 +307,27 @@ export const getReviewDetail = async (reviewId: string): Promise<ReviewDetailRes
     }
   }
 
+  // [추가/수정] 상세 데이터를 서버에서 정상적으로 불러왔다면, 로컬의 유령 데이터 즉시 소거
+  if (typeof window !== 'undefined' && data && data.reviewId) {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && key.startsWith('cafeReviews-')) {
+        try {
+          const rawData = localStorage.getItem(key);
+          const localReviews = rawData ? JSON.parse(rawData) : [];
+          const filteredReviews = localReviews.filter((r: any) => r.id !== data.reviewId);
+          if (filteredReviews.length !== localReviews.length) {
+            if (filteredReviews.length === 0) {
+              localStorage.removeItem(key);
+            } else {
+              localStorage.setItem(key, JSON.stringify(filteredReviews));
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
   return data;
 };
 
@@ -270,6 +336,27 @@ export const deleteReview = async (reviewId: string): Promise<BaseResponse<null>
   const response = (await axios_instance.delete<BaseResponse<null>>(
     `/api/reviews/${reviewId}`
   )) as unknown as BaseResponse<null>;
+
+  // [추가/수정] 리뷰 삭제 서버 API 성공 시, 전역적으로 로컬 스토리지 데이터 완전 소거
+  if (typeof window !== 'undefined') {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && key.startsWith('cafeReviews-')) {
+        try {
+          const rawData = localStorage.getItem(key);
+          const localReviews = rawData ? JSON.parse(rawData) : [];
+          const filteredReviews = localReviews.filter((r: any) => r.id !== reviewId);
+          if (filteredReviews.length !== localReviews.length) {
+            if (filteredReviews.length === 0) {
+              localStorage.removeItem(key);
+            } else {
+              localStorage.setItem(key, JSON.stringify(filteredReviews));
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  }
 
   return response;
 };

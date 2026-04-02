@@ -253,6 +253,10 @@ export default function MyReviewDetailPage({
       // [수정] 서버 연동: 실제 리뷰 삭제 API 호출 및 무효화 처리
       try {
         await deleteReview(resolvedParams.reviewId);
+        
+        // [추가] 서버 API 성공 = 관련 로컬 데이터 완전 삭제 공식을 적용하여 유령 데이터 혼입 원천 차단
+        deleteLocalReview();
+
         window.alert('리뷰가 성공적으로 삭제되었습니다.');
         queryClient.invalidateQueries({ queryKey: ['myReviews'] }); // 내 리뷰 목록 갱신
         router.replace('/users/reviews'); // 목록 화면으로 즉시 전환 (뒤로가기 방지)
