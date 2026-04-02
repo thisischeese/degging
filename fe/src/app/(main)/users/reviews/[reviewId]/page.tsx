@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, MoreVertical, Star } from 'lucide-react';
 import { CafeCard } from '@/common/components/CafeCard';
 import { Dropdown } from '@/common/components/Dropdown';
-import { getReviewDetail } from '@/features/reviews/api/reviewApi';
+import { useQueryClient } from '@tanstack/react-query';
+import { getReviewDetail, deleteReview } from '@/features/reviews/api/reviewApi';
 import {
   ensureReviewDetailImages,
   getLocalReviewDetail,
@@ -62,6 +63,7 @@ export default function MyReviewDetailPage({
 }) {
   const router = useRouter();
   const resolvedParams = params instanceof Promise ? use(params) : params;
+  const queryClient = useQueryClient();
 
   // 리뷰 조회 상태를 관리합니다.
   const [reviewData, setReviewData] = useState<ReviewDetailResponse>(() =>
@@ -161,7 +163,7 @@ export default function MyReviewDetailPage({
   */
 
   const baseUrl = (process.env.NEXT_PUBLIC_CLOUDFRONT_URL || '').replace(/\/$/, '');
-  
+
   const formatUrl = (path: string | undefined | null) => {
     if (!path) return null;
     if (path.startsWith('http') || path.startsWith('/')) return path;
@@ -231,7 +233,7 @@ export default function MyReviewDetailPage({
   };
 
   // 드롭다운 액션을 처리합니다.
-  const handleDropdown = (value: string) => {
+  const handleDropdown = async (value: string) => {
     if (value === 'edit') {
       router.push(`/users/reviews/${resolvedParams.reviewId}/edit`);
       return;
@@ -248,7 +250,16 @@ export default function MyReviewDetailPage({
         return;
       }
 
-      window.alert('서버 삭제 API 연동 전이라 상세 조회만 지원합니다.');
+      // [수정] 서버 연동: 실제 리뷰 삭제 API 호출 및 무효화 처리
+      try {
+        await deleteReview(resolvedParams.reviewId);
+        window.alert('리뷰가 성공적으로 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: ['myReviews'] }); // 내 리뷰 목록 갱신
+        router.replace('/users/reviews'); // 목록 화면으로 즉시 전환 (뒤로가기 방지)
+      } catch (err) {
+        console.error('Failed to delete review on server:', err);
+        window.alert('리뷰 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      }
     }
   };
 
@@ -384,9 +395,8 @@ export default function MyReviewDetailPage({
                   {imageUrls.map((_, index) => (
                     <div
                       key={`${reviewData.reviewId}-${index}`}
-                      className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${
-                        index === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'
-                      }`}
+                      className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${index === currentIndex ? 'w-4 bg-white opacity-100' : 'w-1.5 bg-white opacity-50'
+                        }`}
                     />
                   ))}
                 </div>
