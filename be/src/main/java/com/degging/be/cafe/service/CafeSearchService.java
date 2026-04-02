@@ -13,7 +13,6 @@ import com.degging.be.user.entity.mongodb.UserOnboarding;
 import com.degging.be.user.repository.mongodb.UserOnboardingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Update;
@@ -52,69 +51,53 @@ public class CafeSearchService {
      */
     public CafeSearchResponse processSearch(UUID userId, CafeSearchRequest request) {
         // request 속 mood 를 tag_name (자연어) -> tag_id (UUID) 로 맵핑
-        log.info("[검색 request] tagString : {}", request.getMood());
-        List<UUID> tagIds = (request.getMood() != null && !request.getMood().isEmpty())
-                ? vibeRepository.findTagIdByTagNames(request.getMood())
-                : Collections.emptyList(); // mood가 null로 들어올 경우 (keyword만)
-
-        if (!tagIds.isEmpty()){
-            log.info("[검색 request Ids] tagString : {}", tagIds.getFirst());
-        }
-
-        AiSearchRequest aiSearchRequest = AiSearchRequest.of(userId, request, tagIds);
-        log.info("[AI검색 mood] aiSearchRequest = {}", aiSearchRequest.getMood());
+        List<UUID> tagIds = extractTagIds(request.getMood());
 
         // 검색된 분위기 태그를 유저 취향에 반영 (MongoDB)
-        for (int i = 0; i < tagIds.size(); i++){
-            // String 으로 변환해 MongoDB 에 넣어줌
-            String tagId = tagIds.get(i).toString();
-            String stringUserId = userId.toString();
-            incrementTagScore(stringUserId, tagId);
-        }
+        updateUserPreferencesAsync(userId, tagIds);
 
         // AI 서버 호출
+        AiSearchRequest aiSearchRequest = AiSearchRequest.of(userId, request, tagIds);
         AiSearchResponse res = aiClient.search(aiSearchRequest);
 
         // AI가 대답을 했다면, 결과가 0개여도 사용자의 의도는 기록으로 남김
-        if (res != null){
-            // 검색 이벤트 발행 -> 랭크 도메인에서 받아 실시간 트랜드 반영
-            if (res.getExtractedMenus() != null && !res.getExtractedMenus().isEmpty()) {
-                kafkaProducer.send(TOPIC_NAME, SearchEvent.of(res.getExtractedMenus(), userId));
-            }
+        publishSearchEventsAndLogs(userId, request.getKeyword(), res);
 
-            // 개인 검색 로그 저장 호출
-            saveSearchLog(userId, request.getKeyword());
+        // 결과 검증 및 카페 목록 조회/정렬
+        List<CafeSearchResponse.CafeSearchItem> items = fetchAndSortCafes(request, res);
+
+        // DTO 반환 및 결과 캐싱
+        if (!items.isEmpty()) {
+            saveRecommendCache(userId, items);
         }
 
-        // AI 응답 검증
-        if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()){
-            log.warn("AI 응답이 비어있습니다. 빈 결과를 반환합니다. User: {}", userId);
-            return CafeSearchResponse.builder().cafes(Collections.emptyList()).build();
-        }
-
-        List<UUID> recommendedIds = res.getCafeIds();
-        List<CafeEntity> cafeList = cafeRepository.findAllById(recommendedIds);
-
-        if (cafeList.isEmpty()) {
-            return CafeSearchResponse.builder().cafes(Collections.emptyList()).build();
-        }
-
-        // DTO 변환 및 정렬
-        List<CafeSearchResponse.CafeSearchItem> items = cafeList.stream()
-                .map(cafe -> CafeSearchResponse.CafeSearchItem.from(
-                        cafe,
-                        request.getLatitude(),
-                        request.getLongitude()
-                ))
-                // DTO 내부의 getCafeRank(Integer 반환)를 사용하여 정렬
-                .sorted(Comparator.comparingInt(item ->
-                        res.getCafeRank(item.getCafeId().toString())
-                ))
-                .toList();
-
-        // 캐싱 및 반환
-        saveRecommendCache(userId, items);
         return CafeSearchResponse.builder().cafes(items).build();
+    }
+
+    /**
+     * 자연어 Mood에서 태그 UUID 추출
+     */
+    private List<UUID> extractTagIds(List<String> mood) {
+        if (mood == null || mood.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> tagIds = vibeRepository.findTagIdByTagNames(mood);
+        log.info("[검색 request Ids] 추출된 태그 개수: {}", tagIds.size());
+        return tagIds;
+    }
+
+    /**
+     * MongoDB 유저 취향 점수 업데이트 (비동기 처리)
+     */
+    @Async("threadPoolTaskExecutor") // 이미 존재하는 스레드풀 활용
+    public void updateUserPreferencesAsync(UUID userId, List<UUID> tagIds) {
+        if (tagIds.isEmpty()) return;
+
+        String stringUserId = userId.toString();
+        for (UUID tagId : tagIds) {
+            incrementTagScore(stringUserId, tagId.toString());
+        }
     }
 
     // AI 추천 결과를 Redis 에 저장
@@ -127,6 +110,21 @@ public class CafeSearchService {
         } catch (Exception e) {
             log.error("추천 결과 캐싱 중 오류 발생: {}", e.getMessage());
         }
+    }
+
+    /**
+     * 검색 관련 이벤트(Kafka) 및 로그(Redis) 처리
+     */
+    private void publishSearchEventsAndLogs(UUID userId, String keyword, AiSearchResponse res) {
+        if (res == null) return;
+
+        // 검색 이벤트 발행 (메뉴가 추출된 경우만)
+        if (res.getExtractedMenus() != null && !res.getExtractedMenus().isEmpty()) {
+            kafkaProducer.send(TOPIC_NAME, SearchEvent.of(res.getExtractedMenus(), userId));
+        }
+
+        // 검색 로그 저장
+        saveSearchLog(userId, keyword);
     }
     
     // Redis 에 검색 로그를 저장하는 메서드
@@ -153,6 +151,7 @@ public class CafeSearchService {
     /**
      * 유저의 특정 태그 점수를 1점 올림
      */
+    @Async
     public void incrementTagScore(String userId, String tagId) {
         // 필드명을 엔티티의 @Field 값인 "user_id"와 "preferred_tags"로 맞춰주세요.
         Query query = new Query(Criteria.where("user_id").is(userId));
@@ -160,6 +159,33 @@ public class CafeSearchService {
 
         mongoTemplate.upsert(query, update, UserOnboarding.class);
         log.info("[MongoDB] 취향 점수 반영 완료 - User: {}, Tag: {}", userId, tagId);
+    }
+
+    /**
+     * 4. AI 응답 기반으로 카페 DB 조회 후 DTO 변환 및 정렬
+     */
+    private List<CafeSearchResponse.CafeSearchItem> fetchAndSortCafes(CafeSearchRequest request, AiSearchResponse res) {
+        if (res == null || res.getCafeIds() == null || res.getCafeIds().isEmpty()) {
+            log.warn("AI 응답이 비어있습니다. 빈 결과를 반환합니다.");
+            return Collections.emptyList();
+        }
+
+        List<CafeEntity> cafeList = cafeRepository.findAllById(res.getCafeIds());
+        if (cafeList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return cafeList.stream()
+                .map(cafe -> CafeSearchResponse.CafeSearchItem.from(
+                        cafe,
+                        request.getLatitude(),
+                        request.getLongitude()
+                ))
+                // DTO 내부의 getCafeRank를 사용하여 AI 순위대로 정렬
+                .sorted(Comparator.comparingInt(item ->
+                        res.getCafeRank(item.getCafeId().toString())
+                ))
+                .toList();
     }
 
 }

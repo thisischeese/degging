@@ -227,25 +227,9 @@ public class ScrapService {
         UserEntity user = getValidUser(userId);
         ScrapEntity scrap = getValidScrap(scrapId);
         validateUser(user,scrap);
-        CafeEntity cafe = cafeRepository.findById(cafeId)
-                .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
 
-        // 스크랩에 존재하는 카페인지 중복확인
-        if (scrapItemRepository.existsByScrapAndCafe(scrap, cafe)) {
-            throw new BaseException(ScrapErrorCode.CAFE_ALREADY_SCRAPPED);
-        }
-
-        // ScrapItemEntity 생성
-        ScrapItemEntity entity = ScrapItemEntity.builder()
-                        .scrap(scrap)
-                        .cafe(cafe)
-                        .build();
-        // 스크랩에 카페 추가
-        scrap.addScrapItem(entity);
-        scrapItemRepository.save(entity);
-
-        // 썸네일 동기화 (최신 4장 가져옴)
-        syncScrapThumbnails(scrap);
+        // 카페 추가
+        processAddCafe(scrap, cafeId);
     }
 
     /**
@@ -258,6 +242,12 @@ public class ScrapService {
         ScrapEntity scrap = scrapRepository.findByUserUserIdAndIsDefaultTrue(userId)
                 .orElseGet(() -> createDefaultFolder(user));
 
+        // 카페 추가
+        processAddCafe(scrap, cafeId);
+    }
+
+    // 스크랩에 카페 추가 메서드 로직 공통화
+    private void processAddCafe(ScrapEntity scrap, UUID cafeId){
         CafeEntity cafe = cafeRepository.findById(cafeId)
                 .orElseThrow(() -> new BaseException(CafeErrorCode.CAFE_NOT_FOUND));
 
@@ -271,6 +261,7 @@ public class ScrapService {
                 .scrap(scrap)
                 .cafe(cafe)
                 .build();
+
         // 스크랩에 카페 추가
         scrap.addScrapItem(entity);
         scrapItemRepository.save(entity);

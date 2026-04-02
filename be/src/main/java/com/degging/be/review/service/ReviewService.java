@@ -32,9 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 카페 리뷰를 관리하는 클래스
@@ -100,13 +99,25 @@ public class ReviewService {
 
         // 카페 ID로 리뷰와 리뷰, 작성자 조회하여 반환
         Slice<ReviewResponse> reviewSlice = reviewRepository.findReviewResponseByCafeId(cafeId, pageable);
-        log.info("[리뷰] reviewSlice = {}", reviewSlice );
 
-        // 이미지 조회 후 채우기
+        // 리뷰 ID 추출
+        List<UUID> reviewIds = reviewSlice.getContent().stream()
+                .map(ReviewResponse::getReviewId)
+                .toList();
+
+        // IN 쿼리로 이미지 한 번에 조회
+        List<ReviewImageEntity> allImages = reviewImageRepository.findByReviewReviewIdIn(reviewIds);
+
+        // ReviewId 별로 그룹핑하여 이미지 모아 담기
+        Map<UUID, List<ReviewImageEntity>> imageMap = allImages.stream()
+                .collect(Collectors.groupingBy(img -> img.getReview().getReviewId()));
+
+        // 매핑
         reviewSlice.forEach(response -> {
-            List<ReviewImageEntity> images = reviewImageRepository.findByReviewReviewId(response.getReviewId());
+            List<ReviewImageEntity> images = imageMap.getOrDefault(response.getReviewId(), Collections.emptyList());
             response.updateImages(images, cafe);
         });
+
         return reviewSlice;
     }
 

@@ -56,8 +56,7 @@ public class ScrapController {
     @GetMapping
     public BaseResponse<List<ScrapResponse>> getScraps(
             @AuthenticationPrincipal UserDetails user){
-        UUID userId = getUserId(user);
-        List<ScrapResponse> scraps = scrapService.getScrapsByUserId(userId);
+        List<ScrapResponse> scraps = scrapService.getScrapsByUserId(getUserId(user));
         return BaseResponse.success(scraps);
     }
 
