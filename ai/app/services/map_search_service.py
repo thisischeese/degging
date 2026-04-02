@@ -5,6 +5,7 @@ import logging
 from uuid import UUID
 
 from app.core.config import settings
+from app.core.metrics import track_map_search_stage
 from app.db.postgresql import get_pg_pool
 from app.models.map_search import MapSearchRequest, MapSearchResponse
 from app.services.preference_vector import to_vector_literal as to_shared_vector_literal
@@ -217,82 +218,88 @@ class MapSearchService:
         self._query_preprocess_service = query_preprocess_service or QueryPreprocessService()
 
     async def search(self, request: MapSearchRequest) -> MapSearchResponse:
-        logger.info(
-            "map_search_started: user_id=%s keyword=%s mood_count=%s latitude=%.4f longitude=%.4f",
-            request.user_id,
-            request.keyword[:100],
-            len(request.mood),
-            request.latitude,
-            request.longitude,
-        )
-        processed_query = await self._query_preprocess_service.preprocess(request.keyword)
-        extracted_menus = list(processed_query.menu_phrases)
-        logger.info(
-            "map_search_menu_list_completed: menu_phrase_count=%s extracted_menus=%s",
-            len(extracted_menus),
-            extracted_menus[:_MENU_LOG_LIMIT],
-        )
-        if not extracted_menus:
+        with track_map_search_stage("map_search_total"):
             logger.info(
-                "map_search_no_menu_phrases: user_id=%s keyword=%s",
+                "map_search_started: user_id=%s keyword=%s mood_count=%s latitude=%.4f longitude=%.4f",
                 request.user_id,
                 request.keyword[:100],
-            )
-            return MapSearchResponse()
-
-        candidates = await self.get_candidates_within_radius(
-            latitude=request.latitude,
-            longitude=request.longitude,
-            mood_ids=request.mood,
-        )
-        logger.info(
-            "map_search_candidates_filtered: candidate_count=%s cafe_names=%s",
-            len(candidates),
-            [candidate.name[:_MENU_NAME_LOG_LIMIT] for candidate in candidates[:20]],
-        )
-        if not candidates:
-            logger.info(
-                "map_search_no_candidates: latitude=%.4f longitude=%.4f radius_meters=%s mood_count=%s",
+                len(request.mood),
                 request.latitude,
                 request.longitude,
-                _RADIUS_METERS,
-                len(request.mood),
             )
-            return MapSearchResponse(extracted_menus=extracted_menus)
-
-        sparse_query = self.build_sparse_query(extracted_menus)
-        query_vector = await self._query_preprocess_service.encode_query(processed_query.normalized_query)
-        logger.info(
-            "map_search_query_encoding_completed: sparse_query=%s query_vector_dim=%s",
-            sparse_query[:100],
-            len(query_vector),
-        )
-        menu_hits = await self.search_menu_hits(
-            candidate_cafe_ids=[candidate.cafe_id for candidate in candidates],
-            sparse_query=sparse_query,
-            query_vector=query_vector,
-        )
-        if not menu_hits:
+            with track_map_search_stage("preprocess_total"):
+                processed_query = await self._query_preprocess_service.preprocess(request.keyword)
+            extracted_menus = list(processed_query.menu_phrases)
             logger.info(
-                "map_search_no_menu_hits: candidate_count=%s sparse_query=%s",
-                len(candidates),
-                sparse_query[:100],
+                "map_search_menu_list_completed: menu_phrase_count=%s extracted_menus=%s",
+                len(extracted_menus),
+                extracted_menus[:_MENU_LOG_LIMIT],
             )
-            return MapSearchResponse(extracted_menus=extracted_menus)
+            if not extracted_menus:
+                logger.info(
+                    "map_search_no_menu_phrases: user_id=%s keyword=%s",
+                    request.user_id,
+                    request.keyword[:100],
+                )
+                return MapSearchResponse()
 
-        ranked_cafe_ids = self.rank_cafes(menu_hits)
-        cafes = {
-            str(cafe_id): rank
-            for rank, cafe_id in enumerate(ranked_cafe_ids[:_MAX_RESULTS], start=1)
-        }
-        logger.info(
-            "map_search_ranking_completed: ranked_cafe_count=%s returned_cafe_count=%s top_cafe_ids=%s top_rrf_scores=%s",
-            len(ranked_cafe_ids),
-            len(cafes),
-            [str(cafe_id) for cafe_id in ranked_cafe_ids[:_MENU_LOG_LIMIT]],
-            self.summarize_top_cafe_scores(menu_hits, ranked_cafe_ids),
-        )
-        return MapSearchResponse(cafes=cafes, extracted_menus=extracted_menus)
+            with track_map_search_stage("candidate_lookup"):
+                candidates = await self.get_candidates_within_radius(
+                    latitude=request.latitude,
+                    longitude=request.longitude,
+                    mood_ids=request.mood,
+                )
+            logger.info(
+                "map_search_candidates_filtered: candidate_count=%s cafe_names=%s",
+                len(candidates),
+                [candidate.name[:_MENU_NAME_LOG_LIMIT] for candidate in candidates[:20]],
+            )
+            if not candidates:
+                logger.info(
+                    "map_search_no_candidates: latitude=%.4f longitude=%.4f radius_meters=%s mood_count=%s",
+                    request.latitude,
+                    request.longitude,
+                    _RADIUS_METERS,
+                    len(request.mood),
+                )
+                return MapSearchResponse(extracted_menus=extracted_menus)
+
+            sparse_query = self.build_sparse_query(extracted_menus)
+            query_vector = await self._query_preprocess_service.encode_query(
+                processed_query.normalized_query
+            )
+            logger.info(
+                "map_search_query_encoding_completed: sparse_query=%s query_vector_dim=%s",
+                sparse_query[:100],
+                len(query_vector),
+            )
+            with track_map_search_stage("menu_lookup"):
+                menu_hits = await self.search_menu_hits(
+                    candidate_cafe_ids=[candidate.cafe_id for candidate in candidates],
+                    sparse_query=sparse_query,
+                    query_vector=query_vector,
+                )
+            if not menu_hits:
+                logger.info(
+                    "map_search_no_menu_hits: candidate_count=%s sparse_query=%s",
+                    len(candidates),
+                    sparse_query[:100],
+                )
+                return MapSearchResponse(extracted_menus=extracted_menus)
+
+            ranked_cafe_ids = self.rank_cafes(menu_hits)
+            cafes = {
+                str(cafe_id): rank
+                for rank, cafe_id in enumerate(ranked_cafe_ids[:_MAX_RESULTS], start=1)
+            }
+            logger.info(
+                "map_search_ranking_completed: ranked_cafe_count=%s returned_cafe_count=%s top_cafe_ids=%s top_rrf_scores=%s",
+                len(ranked_cafe_ids),
+                len(cafes),
+                [str(cafe_id) for cafe_id in ranked_cafe_ids[:_MENU_LOG_LIMIT]],
+                self.summarize_top_cafe_scores(menu_hits, ranked_cafe_ids),
+            )
+            return MapSearchResponse(cafes=cafes, extracted_menus=extracted_menus)
 
     async def get_candidates_within_radius(
         self,

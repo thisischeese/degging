@@ -217,4 +217,8 @@ class CafeCrawlingAPITest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/plain", dict(response.headers)["content-type"])
-        self.assertIn("cafe_crawling_stage_seconds", response.body.decode("utf-8"))
+        metrics_payload = response.body.decode("utf-8")
+        self.assertIn("cafe_crawling_stage_seconds", metrics_payload)
+        self.assertIn("query_preprocess_stage_seconds", metrics_payload)
+        self.assertIn("query_preprocess_inflight", metrics_payload)
+        self.assertIn("map_search_stage_seconds", metrics_payload)

@@ -65,6 +65,7 @@ class Settings(BaseSettings):
 
     # Discovery
     discovery_top_k: int = 100
+    discovery_log_level: str = "DEBUG"
 
     # Cafe crawling
     cafe_batch_concurrency: PositiveInt = 3
