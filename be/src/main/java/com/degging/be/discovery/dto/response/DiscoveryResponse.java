@@ -20,8 +20,9 @@ public class DiscoveryResponse {
 
     private UUID cafeId;
     private String thumbnailUrl;
+    private String abGroup;
 
-    public static DiscoveryResponse from(CafeEntity cafe) {
+    public static DiscoveryResponse from(CafeEntity cafe, String abGroup) {
         String finalThumbnail = cafe.getThumbnailUrl();
 
         // 상세 이미지 중 01.jpg 또는 001.jpg 우선 선택
@@ -39,6 +40,7 @@ public class DiscoveryResponse {
         return DiscoveryResponse.builder()
                 .cafeId(cafe.getCafeId())
                 .thumbnailUrl(finalThumbnail)
+                .abGroup(abGroup)
                 .build();
     }
 }
