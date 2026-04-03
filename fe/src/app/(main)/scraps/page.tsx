@@ -291,8 +291,8 @@ export default function ScrapsPage() {
             .catch((err) => console.error('스크랩 목록 조회 실패', err));
     }, []);
 
-    // [버그2 수정] 기본 스크랩(scrapId===null) 항목의 thumbnailUrls만 사용 (flatMap 제거 → 중복 방지)
-    const defaultScrap = categories.find(cat => cat.scrapId === null);
+    // 기본 스크랩(scrapId가 null 또는 undefined) 항목의 thumbnailUrls 사용
+    const defaultScrap = categories.find(cat => cat.scrapId == null);
     const allThumbnails = defaultScrap?.thumbnailUrls || [];
 
     // 카테고리 생성
@@ -422,8 +422,8 @@ export default function ScrapsPage() {
                         <span className="text-[13px] font-medium text-gray-700">기본 스크랩</span>
                     </div>
 
-                    {/* 3. 개별 카테고리 카드들 */}
-                    {categories.filter(c => c.scrapId !== null).map((category) => (
+                    {/* 3. 개별 카테고리 카드들 (scrapId가 null/undefined인 기본 스크랩 제외) */}
+                    {categories.filter(c => c.scrapId != null).map((category) => (
                         <div
                             key={category.scrapId!}
                             onClick={() => {
