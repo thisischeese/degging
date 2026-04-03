@@ -7,9 +7,9 @@ export const postScrapCafe = async (scrapId: string, cafeId: string) => {
     return response.data;
 };
 
-/** 기본 스크랩에 카페 추가 (POST /api/scraps/all/cafes/{cafeId}) */
+/** 기본 스크랩에 카페 추가 (POST /api/scraps/all/{cafeId}) */
 export const postScrapCafeToAll = async (cafeId: string) => {
-    const response = await axios_instance.post(`/api/scraps/all/cafes/${cafeId}`);
+    const response = await axios_instance.post(`/api/scraps/all/${cafeId}`);
     return response.data;
 };
 
