@@ -7,24 +7,21 @@ import com.degging.be.discovery.dto.response.DiscoveryResponse;
 import com.degging.be.global.exception.BaseException;
 import com.degging.be.global.exception.errorcode.UserErrorCode;
 import com.degging.be.infra.ai.AiClient;
+import com.degging.be.user.entity.UserEntity;
 import com.degging.be.user.entity.UserPreferenceEntity;
 import com.degging.be.user.repository.UserPreferenceRepository;
 import com.degging.be.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-import java.util.stream.Collectors;
 import java.util.*;
-import java.util.stream.IntStream;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Slice;
-import org.springframework.data.domain.SliceImpl;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,9 +44,16 @@ public class DiscoveryService {
      */
     public Slice<DiscoveryResponse> getDailyDiscoveryCafes(int page, int size, UUID userId) {
         
-        // 사용자 유효성 체크
-        userRepository.findById(userId)
+        // 사용자 유효성 체크 및 그룹 확인
+        UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(UserErrorCode.USER_NOT_FOUND));
+        
+        String abGroup = user.getAbGroup() != null ? String.valueOf(user.getAbGroup()) : "A";
+
+        // 그룹 B인 경우 AI 호출을 건너뛰고 바로 랜덤 추천 반환
+        if ("B".equals(abGroup)) {
+            return getRandomDiscoveryCafes(page, size, abGroup);
+        }
 
         // 취향 정보(벡터 또는 태그)가 존재하면 AI 추천 요청
         Optional<UserPreferenceEntity> preference = userPreferenceRepository.findById(userId);
@@ -60,12 +64,12 @@ public class DiscoveryService {
             if (recommendations != null && !recommendations.isEmpty()) {
                 List<UUID> cafeIds = new ArrayList<>(recommendations.keySet());
                 List<CafeEntity> cafes = cafeRepository.findAllByCafeIdIn(cafeIds);
-                return getSortedSlice(cafes, recommendations, page, size);
+                return getSortedSlice(cafes, recommendations, page, size, abGroup);
             }
         }
 
         // 취향 벡터가 없거나 AI 서버 오류 시 일일 랜덤 추천으로 폴백
-        return getRandomDiscoveryCafes(page, size);
+        return getRandomDiscoveryCafes(page, size, abGroup);
     }
 
     /**
@@ -75,12 +79,13 @@ public class DiscoveryService {
      * @param rankMap 카페 ID와 순위를 담은 맵
      * @param page 페이지 번호
      * @param size 페이지 당 썸네일 수
+     * @param abGroup A/B 테스트 그룹
      * @return 정렬된 카페 썸네일 무한스크롤 데이터(Slice)
      */
-    private Slice<DiscoveryResponse> getSortedSlice(List<CafeEntity> cafes, Map<UUID, Integer> rankMap, int page, int size) {
+    private Slice<DiscoveryResponse> getSortedSlice(List<CafeEntity> cafes, Map<UUID, Integer> rankMap, int page, int size, String abGroup) {
         List<DiscoveryResponse> sortedContent = cafes.stream()
                 .sorted(Comparator.comparingInt(c -> rankMap.getOrDefault(c.getCafeId(), 999)))
-                .map(DiscoveryResponse::from)
+                .map(cafe -> DiscoveryResponse.from(cafe, abGroup))
                 .collect(Collectors.toList());
 
         return getSliceFromList(sortedContent, page, size);
@@ -91,9 +96,10 @@ public class DiscoveryService {
      * 
      * @param page 페이지 번호
      * @param size 페이지 당 썸네일 수
+     * @param abGroup A/B 테스트 그룹
      * @return 랜덤 카페 썸네일 무한스크롤 데이터(Slice)
      */
-    private Slice<DiscoveryResponse> getRandomDiscoveryCafes(int page, int size) {
+    private Slice<DiscoveryResponse> getRandomDiscoveryCafes(int page, int size, String abGroup) {
         List<CafeEntity> cafes = cafeRepository.findTop500ByThumbnailUrlIsNotNullAndStatusAndIsCafeTrue(CafeStatus.OPEN);
 
         // 오늘 날짜 기준 시드 고정
@@ -101,7 +107,7 @@ public class DiscoveryService {
         Collections.shuffle(cafes, new Random(seed));
 
         List<DiscoveryResponse> randomContent = cafes.stream()
-                .map(DiscoveryResponse::from)
+                .map(cafe -> DiscoveryResponse.from(cafe, abGroup))
                 .collect(Collectors.toList());
 
         return getSliceFromList(randomContent, page, size);
