@@ -1,0 +1,192 @@
+{
+  "profile_name": "production-like",
+  "environment": {
+    "TOKENIZERS_PARALLELISM": null,
+    "OMP_NUM_THREADS": null,
+    "MKL_NUM_THREADS": null
+  },
+  "corpus_path": "C:\\Users\\SSAFY\\S14P21A501\\ai\\perf\\fixtures\\query-preprocess-corpus.json",
+  "corpus_size": 10,
+  "cold_load": {
+    "load_seconds": 20.813,
+    "process_snapshot_before": null,
+    "process_snapshot_after": null
+  },
+  "benchmarks": [
+    {
+      "concurrency": 1,
+      "warmup_requests": 30,
+      "measured_requests": 300,
+      "completed_requests": 300,
+      "error_count": 0,
+      "errors": [],
+      "throughput_rps": 49.873,
+      "queue_delay": {
+        "count": 300,
+        "min_ms": 0.016,
+        "p50_ms": 0.02,
+        "p95_ms": 0.027,
+        "p99_ms": 0.054,
+        "max_ms": 0.242
+      },
+      "service_time": {
+        "count": 300,
+        "min_ms": 12.465,
+        "p50_ms": 16.891,
+        "p95_ms": 40.977,
+        "p99_ms": 57.792,
+        "max_ms": 85.88
+      },
+      "total_latency": {
+        "count": 300,
+        "min_ms": 12.483,
+        "p50_ms": 16.917,
+        "p95_ms": 41.002,
+        "p99_ms": 57.814,
+        "max_ms": 85.898
+      },
+      "process_snapshot_before": null,
+      "process_snapshot_after": null
+    },
+    {
+      "concurrency": 2,
+      "warmup_requests": 30,
+      "measured_requests": 300,
+      "completed_requests": 300,
+      "error_count": 0,
+      "errors": [],
+      "throughput_rps": 53.112,
+      "queue_delay": {
+        "count": 300,
+        "min_ms": 0.018,
+        "p50_ms": 6.623,
+        "p95_ms": 21.827,
+        "p99_ms": 40.36,
+        "max_ms": 81.471
+      },
+      "service_time": {
+        "count": 300,
+        "min_ms": 12.869,
+        "p50_ms": 16.714,
+        "p95_ms": 27.647,
+        "p99_ms": 71.23,
+        "max_ms": 90.459
+      },
+      "total_latency": {
+        "count": 300,
+        "min_ms": 13.129,
+        "p50_ms": 27.364,
+        "p95_ms": 47.067,
+        "p99_ms": 93.611,
+        "max_ms": 161.643
+      },
+      "process_snapshot_before": null,
+      "process_snapshot_after": null
+    },
+    {
+      "concurrency": 4,
+      "warmup_requests": 30,
+      "measured_requests": 300,
+      "completed_requests": 300,
+      "error_count": 0,
+      "errors": [],
+      "throughput_rps": 12.427,
+      "queue_delay": {
+        "count": 300,
+        "min_ms": 0.023,
+        "p50_ms": 112.516,
+        "p95_ms": 390.046,
+        "p99_ms": 459.038,
+        "max_ms": 534.016
+      },
+      "service_time": {
+        "count": 300,
+        "min_ms": 18.314,
+        "p50_ms": 65.646,
+        "p95_ms": 203.969,
+        "p99_ms": 259.299,
+        "max_ms": 305.366
+      },
+      "total_latency": {
+        "count": 300,
+        "min_ms": 18.338,
+        "p50_ms": 182.237,
+        "p95_ms": 477.068,
+        "p99_ms": 548.382,
+        "max_ms": 745.572
+      },
+      "process_snapshot_before": null,
+      "process_snapshot_after": null
+    },
+    {
+      "concurrency": 8,
+      "warmup_requests": 30,
+      "measured_requests": 300,
+      "completed_requests": 300,
+      "error_count": 0,
+      "errors": [],
+      "throughput_rps": 17.554,
+      "queue_delay": {
+        "count": 300,
+        "min_ms": 0.025,
+        "p50_ms": 116.631,
+        "p95_ms": 625.132,
+        "p99_ms": 739.841,
+        "max_ms": 850.752
+      },
+      "service_time": {
+        "count": 300,
+        "min_ms": 13.053,
+        "p50_ms": 59.824,
+        "p95_ms": 140.307,
+        "p99_ms": 251.805,
+        "max_ms": 290.231
+      },
+      "total_latency": {
+        "count": 300,
+        "min_ms": 13.078,
+        "p50_ms": 147.234,
+        "p95_ms": 725.97,
+        "p99_ms": 808.796,
+        "max_ms": 916.62
+      },
+      "process_snapshot_before": null,
+      "process_snapshot_after": null
+    },
+    {
+      "concurrency": 16,
+      "warmup_requests": 30,
+      "measured_requests": 300,
+      "completed_requests": 300,
+      "error_count": 0,
+      "errors": [],
+      "throughput_rps": 35.531,
+      "queue_delay": {
+        "count": 300,
+        "min_ms": 0.035,
+        "p50_ms": 162.303,
+        "p95_ms": 700.721,
+        "p99_ms": 981.078,
+        "max_ms": 1107.226
+      },
+      "service_time": {
+        "count": 300,
+        "min_ms": 13.555,
+        "p50_ms": 20.101,
+        "p95_ms": 80.303,
+        "p99_ms": 102.942,
+        "max_ms": 119.945
+      },
+      "total_latency": {
+        "count": 300,
+        "min_ms": 13.71,
+        "p50_ms": 184.956,
+        "p95_ms": 754.241,
+        "p99_ms": 1050.93,
+        "max_ms": 1170.426
+      },
+      "process_snapshot_before": null,
+      "process_snapshot_after": null
+    }
+  ]
+}

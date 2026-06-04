@@ -9,6 +9,10 @@ import re
 from typing import Any
 from uuid import UUID
 
+from app.core.metrics import (
+    track_query_preprocess_inflight,
+    track_query_preprocess_stage,
+)
 from app.db.postgresql import get_pg_pool
 from app.models.query_preprocess import QueryPreprocessData
 from app.services.menu_query_encoder import encode_menu_query
@@ -438,6 +442,66 @@ class PreprocessedQuery:
     used_query_fallback: bool = False
 
 
+@dataclass(slots=True)
+class MenuNerInferenceResult:
+    phrases: list[str] = field(default_factory=list)
+    debug_rows: list[dict[str, object]] = field(default_factory=list)
+
+
+def run_menu_ner_inference(query: str) -> MenuNerInferenceResult:
+    normalized_query = query.strip()
+    if not normalized_query:
+        return MenuNerInferenceResult()
+
+    tokenizer, model, torch = _load_menu_ner_components()
+    food_label_ids, _ = _resolve_food_label_ids(model)
+    id2label = _resolve_id2label_map(model)
+    encoded_inputs = tokenizer(
+        normalized_query,
+        return_tensors="pt",
+        return_offsets_mapping=True,
+        return_special_tokens_mask=True,
+        truncation=True,
+        max_length=512,
+    )
+    input_ids = _to_list(encoded_inputs["input_ids"][0])
+    offset_mapping = _to_list(encoded_inputs.pop("offset_mapping")[0])
+    special_tokens_mask = _to_list(encoded_inputs.pop("special_tokens_mask")[0])
+
+    with torch.no_grad():
+        outputs = model(**encoded_inputs)
+
+    logits = outputs.logits if hasattr(outputs, "logits") else outputs[0]
+    predicted_ids = _to_list(logits.argmax(dim=-1)[0])
+    normalized_predicted_ids = [int(label_id) for label_id in predicted_ids]
+    ner_phrases = _collect_food_phrases(
+        normalized_query,
+        normalized_predicted_ids,
+        offset_mapping,
+        special_tokens_mask,
+        food_label_ids,
+    )
+    ner_debug_rows = _build_ner_debug_rows(
+        tokenizer=tokenizer,
+        input_ids=input_ids,
+        predicted_ids=normalized_predicted_ids,
+        offset_mapping=offset_mapping,
+        special_tokens_mask=special_tokens_mask,
+        id2label=id2label,
+    )
+    logger.info(
+        "menu_ner_inference_completed: query=%s token_count=%s tokens=%s extracted_phrases=%s",
+        normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
+        len(ner_debug_rows),
+        ner_debug_rows[:_MENU_NER_LOG_LIMIT],
+        ner_phrases[:_MENU_PHRASE_LOG_LIMIT],
+    )
+    return MenuNerInferenceResult(
+        phrases=ner_phrases,
+        debug_rows=ner_debug_rows,
+    )
+
+
 class QueryPreprocessService:
     async def log_mecab_analysis(self, query: str) -> list[dict[str, object]]:
         normalized_query = query.strip()
@@ -488,98 +552,69 @@ class QueryPreprocessService:
         return debug_rows
 
     async def encode_query(self, query: str) -> list[float]:
-        try:
-            return encode_menu_query(query)
-        except RuntimeError:
-            return []
+        with track_query_preprocess_stage("query_encoding"):
+            try:
+                return encode_menu_query(query)
+            except RuntimeError:
+                return []
 
     async def extract_menu_phrases(self, query: str) -> list[str]:
         normalized_query = query.strip()
         if not normalized_query:
             return []
 
-        mecab_debug_rows = await self.log_mecab_analysis(normalized_query)
-        ner_phrases: list[str] = []
+        with track_query_preprocess_stage("mecab_analysis"):
+            mecab_debug_rows = await self.log_mecab_analysis(normalized_query)
+
+        inference_result = MenuNerInferenceResult()
         try:
-            tokenizer, model, torch = _load_menu_ner_components()
-            food_label_ids, _ = _resolve_food_label_ids(model)
-            id2label = _resolve_id2label_map(model)
-            encoded_inputs = tokenizer(
-                normalized_query,
-                return_tensors="pt",
-                return_offsets_mapping=True,
-                return_special_tokens_mask=True,
-                truncation=True,
-                max_length=512,
-            )
-            input_ids = _to_list(encoded_inputs["input_ids"][0])
-            offset_mapping = _to_list(encoded_inputs.pop("offset_mapping")[0])
-            special_tokens_mask = _to_list(encoded_inputs.pop("special_tokens_mask")[0])
-
-            with torch.no_grad():
-                outputs = model(**encoded_inputs)
-
-            logits = outputs.logits if hasattr(outputs, "logits") else outputs[0]
-            predicted_ids = _to_list(logits.argmax(dim=-1)[0])
-            normalized_predicted_ids = [int(label_id) for label_id in predicted_ids]
-            ner_phrases = _collect_food_phrases(
-                normalized_query,
-                normalized_predicted_ids,
-                offset_mapping,
-                special_tokens_mask,
-                food_label_ids,
-            )
-            ner_debug_rows = _build_ner_debug_rows(
-                tokenizer=tokenizer,
-                input_ids=input_ids,
-                predicted_ids=normalized_predicted_ids,
-                offset_mapping=offset_mapping,
-                special_tokens_mask=special_tokens_mask,
-                id2label=id2label,
-            )
-            logger.info(
-                "menu_ner_inference_completed: query=%s token_count=%s tokens=%s extracted_phrases=%s",
-                normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
-                len(ner_debug_rows),
-                ner_debug_rows[:_MENU_NER_LOG_LIMIT],
-                ner_phrases[:_MENU_PHRASE_LOG_LIMIT],
-            )
+            with track_query_preprocess_inflight("ner_inference"):
+                with track_query_preprocess_stage("ner_inference"):
+                    inference_result = run_menu_ner_inference(normalized_query)
         except Exception:
             logger.exception(
                 "menu_phrase_extraction_failed: query=%s",
                 normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
             )
-        return _merge_menu_phrases(normalized_query, ner_phrases, mecab_debug_rows)
+
+        with track_query_preprocess_stage("ner_postprocess"):
+            return _merge_menu_phrases(
+                normalized_query,
+                inference_result.phrases,
+                mecab_debug_rows,
+            )
 
     async def preprocess(self, query: str, *, include_vectors: bool = False) -> PreprocessedQuery:
-        normalized_query = query.strip()
-        menu_phrases = await self.extract_menu_phrases(normalized_query)
+        with track_query_preprocess_inflight("preprocess_total"):
+            with track_query_preprocess_stage("preprocess_total"):
+                normalized_query = query.strip()
+                menu_phrases = await self.extract_menu_phrases(normalized_query)
 
-        phrase_vectors: dict[str, list[float]] = {}
-        first_vector: list[float] = []
-        if include_vectors:
-            for phrase in menu_phrases:
-                if phrase in phrase_vectors:
-                    continue
-                phrase_vector = await self.encode_query(phrase)
-                phrase_vectors[phrase] = phrase_vector
-                if not first_vector and phrase_vector:
-                    first_vector = phrase_vector
+                phrase_vectors: dict[str, list[float]] = {}
+                first_vector: list[float] = []
+                if include_vectors:
+                    for phrase in menu_phrases:
+                        if phrase in phrase_vectors:
+                            continue
+                        phrase_vector = await self.encode_query(phrase)
+                        phrase_vectors[phrase] = phrase_vector
+                        if not first_vector and phrase_vector:
+                            first_vector = phrase_vector
 
-        logger.info(
-            "menu_phrase_extraction_completed: query=%s phrase_count=%s phrases=%s used_query_fallback=%s",
-            normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
-            len(menu_phrases),
-            menu_phrases[:_MENU_PHRASE_LOG_LIMIT],
-            False,
-        )
-        return PreprocessedQuery(
-            normalized_query=normalized_query,
-            vector=first_vector,
-            menu_phrases=menu_phrases,
-            phrase_vectors=phrase_vectors,
-            used_query_fallback=False,
-        )
+                logger.info(
+                    "menu_phrase_extraction_completed: query=%s phrase_count=%s phrases=%s used_query_fallback=%s",
+                    normalized_query[:_MENU_NER_QUERY_LOG_LIMIT],
+                    len(menu_phrases),
+                    menu_phrases[:_MENU_PHRASE_LOG_LIMIT],
+                    False,
+                )
+                return PreprocessedQuery(
+                    normalized_query=normalized_query,
+                    vector=first_vector,
+                    menu_phrases=menu_phrases,
+                    phrase_vectors=phrase_vectors,
+                    used_query_fallback=False,
+                )
 
     async def preprocess_query(self, query: str, user_id: UUID) -> QueryPreprocessData:
         """

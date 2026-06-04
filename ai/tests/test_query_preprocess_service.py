@@ -8,6 +8,7 @@ from app.services.query_preprocess_service import (
     QueryPreprocessService,
     _load_menu_ner_components,
     _resolve_food_label_ids,
+    run_menu_ner_inference,
 )
 
 
@@ -95,6 +96,27 @@ class QueryPreprocessServiceTest(unittest.IsolatedAsyncioTestCase):
             vector = await service.encode_query("americano")
 
         self.assertEqual(vector, [])
+
+    async def test_run_menu_ner_inference_returns_phrases_and_debug_rows(self) -> None:
+        tokenizer = FakeTokenizer(
+            offset_mapping=[[(0, 0), (0, 4), (5, 11), (0, 0)]],
+            special_tokens_mask=[[1, 0, 0, 1]],
+        )
+        model = FakeModel(
+            predicted_ids=[299, 27, 27, 299],
+            id2label={0: "O", 27: "LABEL_27"},
+        )
+
+        with patch(
+            "app.services.query_preprocess_service._load_menu_ner_components",
+            return_value=(tokenizer, model, FakeTorch()),
+        ):
+            result = run_menu_ner_inference("latte coffee")
+
+        self.assertEqual(result.phrases, ["latte coffee"])
+        self.assertEqual(len(result.debug_rows), 4)
+        self.assertEqual(result.debug_rows[1]["label_id"], 27)
+        self.assertEqual(result.debug_rows[2]["offset"], [5, 11])
 
     async def test_extract_menu_phrases_uses_ner_and_mecab_together(self) -> None:
         service = QueryPreprocessService()

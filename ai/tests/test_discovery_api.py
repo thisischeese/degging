@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import unittest
 from dataclasses import dataclass
 from uuid import UUID
@@ -8,7 +9,7 @@ from fastapi import FastAPI
 
 from app.routers import ai_router
 from app.routers.discovery import get_discovery_service
-from app.services.discovery_service import UserPreferenceNotFoundError
+from app.services.discovery_service import RecommendedCafe, UserPreferenceNotFoundError
 
 
 @dataclass
@@ -97,18 +98,18 @@ class ASGITestClient:
 class FakeDiscoveryService:
     def __init__(
         self,
-        cafe_ids: list[UUID] | None = None,
+        recommended_cafes: list[RecommendedCafe] | None = None,
         error: Exception | None = None,
     ) -> None:
-        self._cafe_ids = cafe_ids or []
+        self._recommended_cafes = recommended_cafes or []
         self._error = error
         self.last_user_id: UUID | None = None
 
-    async def discover(self, user_id: UUID) -> list[UUID]:
+    async def discover(self, user_id: UUID) -> list[RecommendedCafe]:
         self.last_user_id = user_id
         if self._error is not None:
             raise self._error
-        return self._cafe_ids
+        return self._recommended_cafes
 
 
 class DiscoveryAPITest(unittest.TestCase):
@@ -127,19 +128,26 @@ class DiscoveryAPITest(unittest.TestCase):
 
     def test_discovery_returns_ranked_cafe_mapping(self) -> None:
         fake_service = FakeDiscoveryService(
-            cafe_ids=[
-                UUID("123e4567-e89b-12d3-a456-426614174001"),
-                UUID("123e4567-e89b-12d3-a456-426614174002"),
+            recommended_cafes=[
+                RecommendedCafe(
+                    cafe_id=UUID("123e4567-e89b-12d3-a456-426614174001"),
+                    name="Cafe Alpha",
+                ),
+                RecommendedCafe(
+                    cafe_id=UUID("123e4567-e89b-12d3-a456-426614174002"),
+                    name="Cafe Beta",
+                ),
             ]
         )
         self.app.dependency_overrides[get_discovery_service] = lambda: fake_service
 
-        response = self.client.post(
-            "/ai/discovery",
-            {
-                "user_id": "123e4567-e89b-12d3-a456-426614174000",
-            },
-        )
+        with self.assertLogs("uvicorn.error.discovery", level="DEBUG") as captured:
+            response = self.client.post(
+                "/ai/discovery",
+                {
+                    "user_id": "123e4567-e89b-12d3-a456-426614174000",
+                },
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -153,6 +161,13 @@ class DiscoveryAPITest(unittest.TestCase):
             fake_service.last_user_id,
             UUID("123e4567-e89b-12d3-a456-426614174000"),
         )
+        self.assertEqual(captured.records[0].levelno, logging.DEBUG)
+        self.assertIn("discovery_request_started", captured.output[0])
+        self.assertEqual(captured.records[1].levelno, logging.DEBUG)
+        self.assertIn("discovery_request_completed", captured.output[1])
+        self.assertIn("'rank': 1", captured.output[1])
+        self.assertIn("Cafe Alpha", captured.output[1])
+        self.assertIn("Cafe Beta", captured.output[1])
 
     def test_discovery_returns_404_when_preference_missing(self) -> None:
         fake_service = FakeDiscoveryService(
@@ -160,12 +175,39 @@ class DiscoveryAPITest(unittest.TestCase):
         )
         self.app.dependency_overrides[get_discovery_service] = lambda: fake_service
 
-        response = self.client.post(
-            "/ai/discovery",
-            {
-                "user_id": "123e4567-e89b-12d3-a456-426614174000",
-            },
-        )
+        with self.assertLogs("uvicorn.error.discovery", level="DEBUG") as captured:
+            response = self.client.post(
+                "/ai/discovery",
+                {
+                    "user_id": "123e4567-e89b-12d3-a456-426614174000",
+                },
+            )
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"detail": "missing preference vector"})
+        self.assertEqual(captured.records[0].levelno, logging.DEBUG)
+        self.assertIn("discovery_request_started", captured.output[0])
+        self.assertEqual(captured.records[1].levelno, logging.WARNING)
+        self.assertIn("discovery_preference_not_found", captured.output[1])
+
+    def test_discovery_logs_fallback_name_when_missing(self) -> None:
+        fake_service = FakeDiscoveryService(
+            recommended_cafes=[
+                RecommendedCafe(
+                    cafe_id=UUID("123e4567-e89b-12d3-a456-426614174001"),
+                    name=None,
+                )
+            ]
+        )
+        self.app.dependency_overrides[get_discovery_service] = lambda: fake_service
+
+        with self.assertLogs("uvicorn.error.discovery", level="DEBUG") as captured:
+            response = self.client.post(
+                "/ai/discovery",
+                {
+                    "user_id": "123e4567-e89b-12d3-a456-426614174000",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("<unnamed-cafe>", captured.output[1])

@@ -1,0 +1,100 @@
+{"timestamp": "2026-03-20T05:16:33.612082+00:00", "status": "ok", "cafe_id": "c5383afd-48e0-48f1-863b-33ccd638b410", "name": "테스트카페", "elapsed_sec": 64.4, "index": 1}
+{"timestamp": "2026-03-20T05:16:58.961607+00:00", "status": "fail", "cafe_id": "11111111-1111-1111-1111-111111111111", "name": "감성카페 테스트", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 25.3, "index": 2}
+{"timestamp": "2026-03-20T05:17:48.239337+00:00", "status": "ok", "cafe_id": "bd297883-2f0e-4f5d-bea0-813af23aacd9", "name": "에고ego", "elapsed_sec": 49.3, "index": 3}
+{"timestamp": "2026-03-20T05:18:41.839707+00:00", "status": "ok", "cafe_id": "46537625-27db-4bd0-b9f4-d87c112183ff", "name": "커피브라운", "elapsed_sec": 53.6, "index": 4}
+{"timestamp": "2026-03-20T05:19:35.203289+00:00", "status": "ok", "cafe_id": "baa57837-bee2-4c46-9d9f-e21d3191d966", "name": "다락", "elapsed_sec": 53.4, "index": 5}
+{"timestamp": "2026-03-20T05:20:26.490073+00:00", "status": "ok", "cafe_id": "5b89a137-f4e4-43d7-8710-83bc428893de", "name": "서울에스프레소", "elapsed_sec": 51.3, "index": 6}
+{"timestamp": "2026-03-20T05:21:18.959135+00:00", "status": "ok", "cafe_id": "16ba9c27-154e-42a8-86ee-03762b61fe6c", "name": "커피랩", "elapsed_sec": 52.5, "index": 7}
+{"timestamp": "2026-03-20T05:22:11.417908+00:00", "status": "ok", "cafe_id": "e98baada-29ea-456c-9e6e-63a7e258f177", "name": "빽다방강서", "elapsed_sec": 52.5, "index": 8}
+{"timestamp": "2026-03-20T05:23:07.535429+00:00", "status": "ok", "cafe_id": "1056f422-11fd-4294-946d-a46be89e1f55", "name": "컨퍼런스하우스달개비", "elapsed_sec": 56.1, "index": 9}
+{"timestamp": "2026-03-20T05:24:00.310724+00:00", "status": "ok", "cafe_id": "9f5761db-4135-4588-b840-ff6c04088944", "name": "카페다카포", "elapsed_sec": 52.8, "index": 10}
+{"timestamp": "2026-03-20T05:24:52.585864+00:00", "status": "ok", "cafe_id": "d5dc1c14-ab36-456e-9251-a06098fbb7c8", "name": "카페아일랜드", "elapsed_sec": 52.3, "index": 11}
+{"timestamp": "2026-03-20T05:25:45.039370+00:00", "status": "ok", "cafe_id": "3fdbcc10-efc7-40c4-afe6-fe999f1e92b0", "name": "가배두림", "elapsed_sec": 52.5, "index": 12}
+{"timestamp": "2026-03-20T05:26:38.034586+00:00", "status": "ok", "cafe_id": "ecae7a1f-dd19-4e71-b897-5b0460393ebc", "name": "아리스타커피", "elapsed_sec": 53.0, "index": 13}
+{"timestamp": "2026-03-20T05:27:25.395166+00:00", "status": "ok", "cafe_id": "ef24c3ba-3744-4b02-8946-5ff091f2c78c", "name": "홀릭", "elapsed_sec": 47.4, "index": 14}
+{"timestamp": "2026-03-20T05:28:20.052007+00:00", "status": "ok", "cafe_id": "f1fc8cc5-49e6-475a-bbb4-518e7d29bc12", "name": "원커피숍", "elapsed_sec": 54.7, "index": 15}
+{"timestamp": "2026-03-20T05:29:12.637494+00:00", "status": "ok", "cafe_id": "a4fcc6ed-51ab-4458-97c5-d6d0e76093db", "name": "커피스토리", "elapsed_sec": 52.6, "index": 16}
+{"timestamp": "2026-03-20T05:30:09.288916+00:00", "status": "ok", "cafe_id": "b0909449-f969-46e6-b60a-735a8d3753bc", "name": "수다방", "elapsed_sec": 56.6, "index": 17}
+{"timestamp": "2026-03-20T05:31:04.370537+00:00", "status": "ok", "cafe_id": "109b54f1-4f2e-470b-ab0c-6963c5a40725", "name": "서울커피", "elapsed_sec": 55.1, "index": 18}
+{"timestamp": "2026-03-20T05:31:57.076969+00:00", "status": "ok", "cafe_id": "b19e6ddd-6c95-4110-83dd-9c8da54d2a05", "name": "플", "elapsed_sec": 52.7, "index": 19}
+{"timestamp": "2026-03-20T05:32:49.691719+00:00", "status": "ok", "cafe_id": "13d9711d-77d7-4fa5-aa72-9dc21d0df137", "name": "커피락펍", "elapsed_sec": 52.6, "index": 20}
+{"timestamp": "2026-03-20T05:33:14.009996+00:00", "status": "fail", "cafe_id": "fb552334-c07c-434c-9778-4508f06bcd78", "name": "오픈찬스", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 24.3, "index": 21}
+{"timestamp": "2026-03-20T05:34:05.362752+00:00", "status": "ok", "cafe_id": "63002136-5b17-41da-a991-2724c9a2e4db", "name": "스튜디오잇", "elapsed_sec": 51.4, "index": 22}
+{"timestamp": "2026-03-20T05:34:52.677156+00:00", "status": "ok", "cafe_id": "a1b9f9e4-fdaa-43b7-97c2-c98f4b8e13b5", "name": "92도", "elapsed_sec": 47.3, "index": 23}
+{"timestamp": "2026-03-20T05:35:48.804161+00:00", "status": "ok", "cafe_id": "45539f66-b049-47bd-a145-fb1b25346d3e", "name": "브라우나비", "elapsed_sec": 56.1, "index": 24}
+{"timestamp": "2026-03-20T05:36:41.443365+00:00", "status": "ok", "cafe_id": "126df520-149a-44b7-91b4-03a175f61799", "name": "커피베이구로동점", "elapsed_sec": 52.6, "index": 25}
+{"timestamp": "2026-03-20T05:37:07.876466+00:00", "status": "fail", "cafe_id": "c51002b5-2740-4c01-a2f7-39a1a62b14d9", "name": "36.5도씨여름", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 26.4, "index": 26}
+{"timestamp": "2026-03-20T05:37:34.185379+00:00", "status": "fail", "cafe_id": "a9d1f9f6-ecbe-41a9-ae5c-335e7cc66350", "name": "칠그램", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 26.3, "index": 27}
+{"timestamp": "2026-03-20T05:37:58.596519+00:00", "status": "fail", "cafe_id": "f46b58c3-ee61-4624-8dd6-772453ef6c5c", "name": "찬스커피", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 24.4, "index": 28}
+{"timestamp": "2026-03-20T05:38:50.669907+00:00", "status": "ok", "cafe_id": "0ed98d23-d337-4c8c-87a1-dbc2dd58a41b", "name": "전광수커피하우스정동점", "elapsed_sec": 52.1, "index": 29}
+{"timestamp": "2026-03-20T05:39:46.552460+00:00", "status": "ok", "cafe_id": "e355d51d-ba49-42e6-8571-22a181b6a82d", "name": "비스트로에버", "elapsed_sec": 55.9, "index": 30}
+{"timestamp": "2026-03-20T05:40:40.328169+00:00", "status": "ok", "cafe_id": "9f739433-71bd-4fe6-87b0-e37c5e4ef5fb", "name": "웬즈데이", "elapsed_sec": 53.8, "index": 31}
+{"timestamp": "2026-03-20T05:41:35.488278+00:00", "status": "ok", "cafe_id": "c39228b3-fe8f-4b6f-b533-5292b18fa9d8", "name": "탠저린", "elapsed_sec": 55.2, "index": 32}
+{"timestamp": "2026-03-20T05:42:26.679834+00:00", "status": "ok", "cafe_id": "fd619a5a-a0a3-45f6-9dc6-c31109a90cdf", "name": "토브카페", "elapsed_sec": 51.2, "index": 33}
+{"timestamp": "2026-03-20T05:43:17.313969+00:00", "status": "ok", "cafe_id": "6cf8ffb3-9799-4910-9770-ec28b39532aa", "name": "이디야커피", "elapsed_sec": 50.6, "index": 34}
+{"timestamp": "2026-03-20T05:44:12.327540+00:00", "status": "ok", "cafe_id": "93647caa-5634-4572-997e-0eab10f86ed6", "name": "카페마루", "elapsed_sec": 55.0, "index": 35}
+{"timestamp": "2026-03-20T05:45:07.369901+00:00", "status": "ok", "cafe_id": "aad2f679-468b-4e07-86c8-5222559a97ff", "name": "카카두카페", "elapsed_sec": 55.0, "index": 36}
+{"timestamp": "2026-03-20T05:45:59.531616+00:00", "status": "ok", "cafe_id": "0e6094af-1ff2-4c14-ba8c-2d2733154004", "name": "투썸플레이스압구정로데오역점", "elapsed_sec": 52.2, "index": 37}
+{"timestamp": "2026-03-20T05:46:54.222158+00:00", "status": "ok", "cafe_id": "469e597c-d272-4f72-80de-15428384607e", "name": "디끌레", "elapsed_sec": 54.7, "index": 38}
+{"timestamp": "2026-03-20T05:47:50.551037+00:00", "status": "ok", "cafe_id": "bcb731c7-9dd0-426b-b895-7800c0e97131", "name": "카페통", "elapsed_sec": 56.3, "index": 39}
+{"timestamp": "2026-03-20T05:48:40.608413+00:00", "status": "ok", "cafe_id": "0e97fb43-885d-4d2d-b96e-d68f16e206ca", "name": "커피브론즈", "elapsed_sec": 50.1, "index": 40}
+{"timestamp": "2026-03-20T05:49:37.186759+00:00", "status": "ok", "cafe_id": "96dba4d1-9779-4698-8666-b441aef9ec0a", "name": "문경새재", "elapsed_sec": 56.6, "index": 41}
+{"timestamp": "2026-03-20T05:50:27.427887+00:00", "status": "ok", "cafe_id": "42a1d4a2-b087-41ea-bd80-c2637414705a", "name": "엔자임헬스", "elapsed_sec": 50.2, "index": 42}
+{"timestamp": "2026-03-20T05:51:19.604822+00:00", "status": "ok", "cafe_id": "b9940807-c463-43e3-8aa0-a9739a811bb6", "name": "커피집", "elapsed_sec": 52.2, "index": 43}
+{"timestamp": "2026-03-20T05:52:10.774054+00:00", "status": "ok", "cafe_id": "48889da6-febe-4f75-b6ed-0f7fd1e490d8", "name": "테라로사", "elapsed_sec": 51.2, "index": 44}
+{"timestamp": "2026-03-20T05:53:04.109006+00:00", "status": "ok", "cafe_id": "11a3164b-b674-4528-a339-9d0475e989ac", "name": "스카이래빗", "elapsed_sec": 53.3, "index": 45}
+{"timestamp": "2026-03-20T05:53:56.819854+00:00", "status": "ok", "cafe_id": "aff2359e-256c-4183-9967-dff0f9f7b834", "name": "이디야커피합정LIG점", "elapsed_sec": 52.7, "index": 46}
+{"timestamp": "2026-03-20T05:54:50.425428+00:00", "status": "ok", "cafe_id": "bba0dddd-658e-4639-8929-8de5fcccc3ad", "name": "페브", "elapsed_sec": 53.6, "index": 47}
+{"timestamp": "2026-03-20T05:55:43.438761+00:00", "status": "ok", "cafe_id": "02984cbb-fcfe-48df-bb38-517800a7e41d", "name": "모쿠816", "elapsed_sec": 53.0, "index": 48}
+{"timestamp": "2026-03-20T05:56:31.788363+00:00", "status": "ok", "cafe_id": "93383b78-d97f-41a4-aa4a-2bc0307931c5", "name": "커피101", "elapsed_sec": 48.3, "index": 49}
+{"timestamp": "2026-03-20T05:56:56.081550+00:00", "status": "fail", "cafe_id": "fbbb8e43-7639-489c-b959-3a0184bda2a4", "name": "커피온리역점", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 24.3, "index": 50}
+{"timestamp": "2026-03-20T05:57:48.868631+00:00", "status": "ok", "cafe_id": "c3022dcc-24e1-4653-8198-832c35343cac", "name": "더컵", "elapsed_sec": 52.8, "index": 51}
+{"timestamp": "2026-03-20T05:58:40.543301+00:00", "status": "ok", "cafe_id": "5b5cf729-4b29-46b4-af15-f757962e397e", "name": "퍼스트펭귄카페", "elapsed_sec": 51.7, "index": 52}
+{"timestamp": "2026-03-20T05:59:35.378201+00:00", "status": "ok", "cafe_id": "334495a0-12ee-4fb1-aecb-c0c124eca642", "name": "카페진미한옥", "elapsed_sec": 54.8, "index": 53}
+{"timestamp": "2026-03-20T06:00:27.349077+00:00", "status": "ok", "cafe_id": "ef6b728a-3971-47e5-aec8-111ea0972a1f", "name": "원즈커피", "elapsed_sec": 52.0, "index": 54}
+{"timestamp": "2026-03-20T06:01:14.662893+00:00", "status": "ok", "cafe_id": "58e0c53d-c78a-41c4-923d-0b18278466df", "name": "어반스테이", "elapsed_sec": 47.3, "index": 55}
+{"timestamp": "2026-03-20T06:02:05.224942+00:00", "status": "ok", "cafe_id": "7dc8b8ad-4a3d-4ed5-8267-02b8f65a791a", "name": "제이엔알", "elapsed_sec": 50.6, "index": 56}
+{"timestamp": "2026-03-20T06:02:58.522341+00:00", "status": "ok", "cafe_id": "622e2be7-2e77-499a-8a8d-c20bc739a0fd", "name": "달의계단", "elapsed_sec": 53.3, "index": 57}
+{"timestamp": "2026-03-20T06:03:52.757244+00:00", "status": "ok", "cafe_id": "4d04bb57-bb7a-4a63-8fe4-f06e03c818bc", "name": "카페길", "elapsed_sec": 54.2, "index": 58}
+{"timestamp": "2026-03-20T06:04:46.635514+00:00", "status": "ok", "cafe_id": "d395a06d-772e-4863-82d4-e1786dfafde1", "name": "구스토", "elapsed_sec": 53.9, "index": 59}
+{"timestamp": "2026-03-20T06:05:35.646015+00:00", "status": "ok", "cafe_id": "8b501de3-9f39-4839-b243-3aa07a8987e2", "name": "카페아비오", "elapsed_sec": 49.0, "index": 60}
+{"timestamp": "2026-03-20T06:05:59.868294+00:00", "status": "fail", "cafe_id": "dbb08cd1-457d-468b-96bd-ac5c9cfa9563", "name": "카페오브", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 24.2, "index": 61}
+{"timestamp": "2026-03-20T06:07:01.452119+00:00", "status": "ok", "cafe_id": "1b94a30c-aaf4-442e-84e7-407006b774aa", "name": "에스프레소바시", "elapsed_sec": 61.6, "index": 62}
+{"timestamp": "2026-03-20T06:07:25.797584+00:00", "status": "fail", "cafe_id": "300a502c-ab02-485b-b363-69bdf4b6b56e", "name": "카페효제눅", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 24.3, "index": 63}
+{"timestamp": "2026-03-20T06:08:18.137002+00:00", "status": "ok", "cafe_id": "0d4cdb78-c301-4ebf-b80e-b8f0ddf5510e", "name": "모노커피", "elapsed_sec": 52.3, "index": 64}
+{"timestamp": "2026-03-20T06:08:44.372242+00:00", "status": "fail", "cafe_id": "5a24cd56-7d32-4a38-8aec-3b03945d8034", "name": "에반하우스", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 26.2, "index": 65}
+{"timestamp": "2026-03-20T06:09:38.284320+00:00", "status": "ok", "cafe_id": "69e1ffcd-fd72-405b-802c-7c124ad4d19c", "name": "제이드커피", "elapsed_sec": 53.9, "index": 66}
+{"timestamp": "2026-03-20T06:10:25.089994+00:00", "status": "ok", "cafe_id": "aa316d70-4971-4a4d-8345-1cdc43de37b0", "name": "다동커피집", "elapsed_sec": 46.8, "index": 67}
+{"timestamp": "2026-03-20T06:11:18.465587+00:00", "status": "ok", "cafe_id": "c245c2b2-f766-4058-84ed-bb21a89098c0", "name": "엔제리너스", "elapsed_sec": 53.4, "index": 68}
+{"timestamp": "2026-03-20T06:11:42.754306+00:00", "status": "fail", "cafe_id": "3cf0a57a-3e27-41f8-884a-d3450f1ab102", "name": "이디아신촌기차역점", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 24.3, "index": 69}
+{"timestamp": "2026-03-20T06:12:07.160555+00:00", "status": "fail", "cafe_id": "ab73d91f-7da8-4a30-941d-4ee2b759bd10", "name": "카페엘리", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 24.4, "index": 70}
+{"timestamp": "2026-03-20T06:12:56.468634+00:00", "status": "ok", "cafe_id": "fa0ea2d5-8536-4d13-8081-787791fd966e", "name": "본연애", "elapsed_sec": 49.3, "index": 71}
+{"timestamp": "2026-03-20T06:13:50.338504+00:00", "status": "ok", "cafe_id": "063f7897-cf77-4560-a586-83bb8a9adc70", "name": "자작나무이야기", "elapsed_sec": 53.9, "index": 72}
+{"timestamp": "2026-03-20T06:14:45.915290+00:00", "status": "ok", "cafe_id": "438b65bd-5c98-4d57-a205-202125dbe888", "name": "애쉬앤블룸1", "elapsed_sec": 55.6, "index": 73}
+{"timestamp": "2026-03-20T06:15:34.002267+00:00", "status": "ok", "cafe_id": "b37eb663-e331-4cf3-853e-63d109a0806f", "name": "시티커피", "elapsed_sec": 48.1, "index": 74}
+{"timestamp": "2026-03-20T06:16:21.865340+00:00", "status": "ok", "cafe_id": "de3e2a8d-bc99-47de-ac37-0b8bd2059cce", "name": "커피와쟁이", "elapsed_sec": 47.9, "index": 75}
+{"timestamp": "2026-03-20T06:17:14.256842+00:00", "status": "ok", "cafe_id": "06a105bd-f938-4d5e-9705-d4cca1ff78e2", "name": "에이카페", "elapsed_sec": 52.4, "index": 76}
+{"timestamp": "2026-03-20T06:18:03.761261+00:00", "status": "ok", "cafe_id": "4a7369df-7e43-45b2-b434-88ea7783609e", "name": "카페마지오", "elapsed_sec": 49.5, "index": 77}
+{"timestamp": "2026-03-20T06:18:54.681357+00:00", "status": "ok", "cafe_id": "b720448e-4b98-46c1-ab04-a8392cacf72b", "name": "카페나비", "elapsed_sec": 50.9, "index": 78}
+{"timestamp": "2026-03-20T06:19:49.275315+00:00", "status": "ok", "cafe_id": "4cb36236-7593-4863-a009-cea86c7f88b0", "name": "이디야연남동점", "elapsed_sec": 54.6, "index": 79}
+{"timestamp": "2026-03-20T06:20:40.665175+00:00", "status": "ok", "cafe_id": "9c4a11f3-04d2-4561-b590-d0e21ffd0790", "name": "산아래", "elapsed_sec": 51.4, "index": 80}
+{"timestamp": "2026-03-20T06:21:33.562896+00:00", "status": "ok", "cafe_id": "42ca5e42-7f72-493d-b386-0ac36b275793", "name": "혜화동콩집", "elapsed_sec": 52.9, "index": 81}
+{"timestamp": "2026-03-20T06:22:23.543590+00:00", "status": "ok", "cafe_id": "c0a444e3-26e2-4498-9dcd-d786a230a183", "name": "피피앤에프", "elapsed_sec": 50.0, "index": 82}
+{"timestamp": "2026-03-20T06:23:19.851051+00:00", "status": "ok", "cafe_id": "4dc21ee5-ffeb-48ba-baa9-78607a8a3137", "name": "카페콤피", "elapsed_sec": 56.3, "index": 83}
+{"timestamp": "2026-03-20T06:23:46.398931+00:00", "status": "fail", "cafe_id": "c8dc34cf-93a8-4a52-966e-a1285db6e425", "name": "맘모커피&펍", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 26.5, "index": 84}
+{"timestamp": "2026-03-20T06:24:35.191275+00:00", "status": "ok", "cafe_id": "f76b185d-5c28-4018-a48c-66c2ae27c9c5", "name": "우리커피", "elapsed_sec": 48.8, "index": 85}
+{"timestamp": "2026-03-20T06:25:28.539623+00:00", "status": "ok", "cafe_id": "76252359-75fd-4022-8484-862c307a3bf5", "name": "투썸플레이스", "elapsed_sec": 53.3, "index": 86}
+{"timestamp": "2026-03-20T06:26:19.744651+00:00", "status": "ok", "cafe_id": "590b9ff6-4e95-4048-9a25-dbfd3b090dba", "name": "플라비우스", "elapsed_sec": 51.2, "index": 87}
+{"timestamp": "2026-03-20T06:27:16.865185+00:00", "status": "ok", "cafe_id": "9dee8c9f-6991-4f72-8670-c64780e83f8f", "name": "타르트앤", "elapsed_sec": 57.1, "index": 88}
+{"timestamp": "2026-03-20T06:28:07.702048+00:00", "status": "ok", "cafe_id": "6962a574-161d-4c52-8043-4271f91e5eef", "name": "벨라지오", "elapsed_sec": 50.8, "index": 89}
+{"timestamp": "2026-03-20T06:28:34.122986+00:00", "status": "fail", "cafe_id": "95f9a334-8aaa-4031-acdf-ef288197a381", "name": "할리스엘지리테일주", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 26.4, "index": 90}
+{"timestamp": "2026-03-20T06:29:00.519921+00:00", "status": "fail", "cafe_id": "39b5762d-0df7-4c42-8313-5a5034e0f173", "name": "메가엠지씨커피논현아크로힐스점", "reason": "place base URL을 찾지 못했습니다. 검색 결과가 없거나 네이버 지도 구조가 변경되었을 수 있습니다.", "elapsed_sec": 26.4, "index": 91}
+{"timestamp": "2026-03-20T06:29:53.322742+00:00", "status": "ok", "cafe_id": "24315129-a50a-46ea-89c4-cedc8065fc5a", "name": "연남살롱", "elapsed_sec": 52.8, "index": 92}
+{"timestamp": "2026-03-20T06:30:45.772973+00:00", "status": "ok", "cafe_id": "263d7fe8-ab9f-4821-a9a8-7b9ac69c4687", "name": "소소", "elapsed_sec": 52.5, "index": 93}
+{"timestamp": "2026-03-20T06:31:38.369947+00:00", "status": "ok", "cafe_id": "ca6fb4d8-c1f1-441e-8e6e-18b6348dcba2", "name": "두나미스커피", "elapsed_sec": 52.6, "index": 94}
+{"timestamp": "2026-03-20T06:32:27.331858+00:00", "status": "ok", "cafe_id": "ad5f679c-cb95-47aa-8c55-523db2fe4c4b", "name": "혜원출판사", "elapsed_sec": 49.0, "index": 95}
+{"timestamp": "2026-03-20T06:33:15.073743+00:00", "status": "ok", "cafe_id": "d1222409-bb9b-4a99-8f35-0fe0fd67cb84", "name": "미리온", "elapsed_sec": 47.7, "index": 96}
+{"timestamp": "2026-03-20T06:34:07.600932+00:00", "status": "ok", "cafe_id": "0f818ae1-31e9-45bd-b285-9c3ae052de90", "name": "더벤티개화산역점", "elapsed_sec": 52.5, "index": 97}
+{"timestamp": "2026-03-20T06:35:01.135035+00:00", "status": "ok", "cafe_id": "e0befada-6bbb-4979-a142-d43575072fc0", "name": "토치커피", "elapsed_sec": 53.5, "index": 98}
+{"timestamp": "2026-03-20T06:35:48.443864+00:00", "status": "ok", "cafe_id": "2f5f5f04-7f44-4af6-a90a-cd9774aaf255", "name": "퓨리온", "elapsed_sec": 47.3, "index": 99}
+{"timestamp": "2026-03-20T06:36:43.729878+00:00", "status": "ok", "cafe_id": "393256d2-ac66-46e9-b292-5bad52002226", "name": "모카리아", "elapsed_sec": 55.3, "index": 100}

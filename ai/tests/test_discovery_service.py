@@ -2,7 +2,11 @@ from uuid import UUID
 import unittest
 from unittest.mock import patch
 
-from app.services.discovery_service import DiscoveryService, _DISCOVERY_CAFE_QUERY
+from app.services.discovery_service import (
+    DiscoveryService,
+    RecommendedCafe,
+    _DISCOVERY_CAFE_QUERY,
+)
 from app.services.preference_vector import (
     USER_PREFERENCE_QUERY,
     InvalidPreferenceVectorError,
@@ -54,8 +58,8 @@ class DiscoveryServiceTest(unittest.IsolatedAsyncioTestCase):
             {
                 USER_PREFERENCE_QUERY: {"preference_vector": "[0.1,0.2,0.3,0.4]"},
                 _DISCOVERY_CAFE_QUERY: [
-                    {"cafe_id": str(first_cafe_id)},
-                    {"cafe_id": str(second_cafe_id)},
+                    {"cafe_id": str(first_cafe_id), "name": "Cafe Alpha"},
+                    {"cafe_id": str(second_cafe_id), "name": "Cafe Beta"},
                 ],
             }
         )
@@ -71,7 +75,13 @@ class DiscoveryServiceTest(unittest.IsolatedAsyncioTestCase):
         ):
             cafe_ids = await service.discover(user_id)
 
-        self.assertEqual(cafe_ids, [first_cafe_id, second_cafe_id])
+        self.assertEqual(
+            cafe_ids,
+            [
+                RecommendedCafe(cafe_id=first_cafe_id, name="Cafe Alpha"),
+                RecommendedCafe(cafe_id=second_cafe_id, name="Cafe Beta"),
+            ],
+        )
         self.assertIsNotNone(pool.last_connection)
         self.assertEqual(
             pool.last_connection.calls,
@@ -82,15 +92,54 @@ class DiscoveryServiceTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_get_top_cafes_by_vector_uses_requested_limit(self) -> None:
-        pool = FakePool({_DISCOVERY_CAFE_QUERY: []})
+        cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
+        pool = FakePool(
+            {
+                _DISCOVERY_CAFE_QUERY: [
+                    {"cafe_id": str(cafe_id), "name": "Cafe Gamma"},
+                ]
+            }
+        )
         service = DiscoveryService()
 
         with patch("app.services.discovery_service.get_pg_pool", return_value=pool):
-            await service.get_top_cafes_by_vector([0.1, 0.2, 0.3, 0.4], top_k=17)
+            cafes = await service.get_top_cafes_by_vector([0.1, 0.2, 0.3, 0.4], top_k=17)
 
         self.assertIsNotNone(pool.last_connection)
         _, args = pool.last_connection.calls[0]
         self.assertEqual(args, ("[0.1,0.2,0.3,0.4]", 17))
+        self.assertEqual(
+            cafes,
+            [RecommendedCafe(cafe_id=cafe_id, name="Cafe Gamma")],
+        )
+
+    async def test_get_top_cafes_by_vector_normalizes_blank_name_to_none(self) -> None:
+        cafe_id = UUID("123e4567-e89b-12d3-a456-426614174001")
+        pool = FakePool(
+            {
+                _DISCOVERY_CAFE_QUERY: [
+                    {"cafe_id": str(cafe_id), "name": "   "},
+                ]
+            }
+        )
+        service = DiscoveryService()
+
+        with patch("app.services.discovery_service.get_pg_pool", return_value=pool):
+            cafes = await service.get_top_cafes_by_vector([0.1, 0.2, 0.3, 0.4], top_k=1)
+
+        self.assertEqual(
+            cafes,
+            [RecommendedCafe(cafe_id=cafe_id, name=None)],
+        )
+
+    async def test_get_top_cafes_by_vector_returns_empty_list_when_no_rows(self) -> None:
+        pool = FakePool({_DISCOVERY_CAFE_QUERY: []})
+        service = DiscoveryService()
+
+        with patch("app.services.discovery_service.get_pg_pool", return_value=pool):
+            cafes = await service.get_top_cafes_by_vector([0.1, 0.2, 0.3, 0.4], top_k=3)
+
+        self.assertEqual(cafes, [])
 
     async def test_get_user_preference_vector_raises_404_when_missing(self) -> None:
         service = DiscoveryService()
@@ -142,3 +191,6 @@ class DiscoveryServiceTest(unittest.IsolatedAsyncioTestCase):
 
     def test_discovery_query_filters_null_cafe_vectors(self) -> None:
         self.assertIn("WHERE cafe_vector IS NOT NULL", _DISCOVERY_CAFE_QUERY)
+
+    def test_discovery_query_selects_cafe_name(self) -> None:
+        self.assertIn("name", _DISCOVERY_CAFE_QUERY)
